@@ -1,0 +1,5 @@
+/.env
+/bin
+/tools
+*.sqlite*
+index.bleve
