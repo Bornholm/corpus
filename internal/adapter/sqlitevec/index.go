@@ -2,6 +2,7 @@ package sqlitevec
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/url"
 	"sync"
@@ -77,7 +78,7 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 		return errors.WithStack(err)
 	}
 
-	stmt, _, err := conn.Prepare("INSERT INTO embeddings (source, section_id, embeddings) VALUES (?, ?, ?);")
+	stmt, _, err := conn.Prepare("INSERT INTO embeddings (source, section_id, embeddings, collection) VALUES (?, ?, ?, ?);")
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -98,6 +99,10 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	}
 
 	if err := stmt.BindBlob(3, embeddings); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := stmt.BindText(4, string(section.Document().Collection())); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -166,15 +171,32 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		return nil, errors.WithStack(err)
 	}
 
-	stmt, _, err := conn.Prepare(`
+	sql := `
 		SELECT
 			source,
 			section_id,
 			vec_distance_L2(embeddings, ?) as distance
-		from embeddings
-		order by distance 
-		limit ?;
-	`)
+		FROM embeddings
+		WHERE 1 = 1
+	`
+
+	if opts != nil && opts.Collections != nil {
+		sql += ` AND collection IN ( 
+			SELECT value FROM json_each( ? )
+		)`
+	}
+
+	sql += ` ORDER BY distance`
+
+	if opts != nil && opts.MaxResults > 0 {
+		sql += ` LIMIT ?`
+	}
+
+	sql += `;`
+
+	slog.DebugContext(ctx, "executing vector index query", slog.String("query", sql))
+
+	stmt, _, err := conn.Prepare(sql)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -186,12 +208,31 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		return nil, errors.WithStack(err)
 	}
 
-	if err := stmt.BindBlob(1, embeddings); err != nil {
+	bindIndex := 1
+
+	if err := stmt.BindBlob(bindIndex, embeddings); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	if err := stmt.BindInt(2, opts.MaxResults); err != nil {
-		return nil, errors.WithStack(err)
+	bindIndex = 2
+
+	if opts != nil && opts.Collections != nil {
+		jsonCollections, err := json.Marshal(opts.Collections)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		if err := stmt.BindBlob(bindIndex, jsonCollections); err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		bindIndex = 3
+	}
+
+	if opts != nil && opts.MaxResults > 0 {
+		if err := stmt.BindInt(bindIndex, opts.MaxResults); err != nil {
+			return nil, errors.WithStack(err)
+		}
 	}
 
 	if err := stmt.Exec(); err != nil {
@@ -249,9 +290,11 @@ func createGetConn(conn *sqlite3.Conn) func(ctx context.Context) (*sqlite3.Conn,
 
 	return func(ctx context.Context) (*sqlite3.Conn, error) {
 		migrateOnce.Do(func() {
-			if err := conn.Exec("CREATE TABLE IF NOT EXISTS embeddings (source TEXT, section_id TEXT, embeddings FLOAT[1024]);"); err != nil {
-				migrateErr = errors.WithStack(err)
-				return
+			for _, sql := range migrations {
+				if err := conn.Exec(sql); err != nil {
+					migrateErr = errors.Wrapf(err, "could not execute migration '%s'", sql)
+					return
+				}
 			}
 		})
 		if migrateErr != nil {

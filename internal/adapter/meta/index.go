@@ -142,7 +142,8 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 			defer wg.Done()
 
 			results, err := index.Search(ctx, query, &port.IndexSearchOptions{
-				MaxResults: opts.MaxResults * 3,
+				MaxResults:  opts.MaxResults * 3,
+				Collections: opts.Collections,
 			})
 			if err != nil {
 				messages <- &Message{
@@ -151,7 +152,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 				return
 			}
 
-			// log.Printf("Search results for %T: \n\n%s", index, spew.Sdump(results))
+			slog.DebugContext(ctx, "found documents", slog.Int("total", len(results)), slog.String("indexType", fmt.Sprintf("%T", index)))
 
 			messages <- &Message{
 				Results: &indexSearchResults{

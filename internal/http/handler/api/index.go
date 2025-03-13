@@ -49,9 +49,12 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	collection := r.FormValue("collection")
+
 	slog.DebugContext(ctx, "indexing uploaded document")
 
-	if err := h.indexUploadedDocument(ctx, source, data); err != nil {
+	if err := h.indexUploadedDocument(ctx, collection, source, data); err != nil {
 		slog.ErrorContext(ctx, "could not execute index workflow", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -62,7 +65,7 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *Handler) indexUploadedDocument(ctx context.Context, source *url.URL, data []byte) error {
+func (h *Handler) indexUploadedDocument(ctx context.Context, collection string, source *url.URL, data []byte) error {
 	var document *markdown.Document
 
 	wf := workflow.New(
@@ -80,6 +83,8 @@ func (h *Handler) indexUploadedDocument(ctx context.Context, source *url.URL, da
 				if source == nil {
 					return errors.New("document source missing")
 				}
+
+				doc.SetCollection(collection)
 
 				document = doc
 

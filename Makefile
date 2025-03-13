@@ -25,6 +25,10 @@ build:
 			-asmflags "$(ASMFLAGS)" \
 			-o ./bin/corpus ./cmd/corpus
 
+
+purge:
+	rm -rf data.sqlite bleve.index
+
 tools/modd/bin/modd:
 	mkdir -p tools/modd/bin
 	GOBIN=$(PWD)/tools/modd/bin go install github.com/cortesi/modd/cmd/modd@latest

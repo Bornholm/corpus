@@ -14,7 +14,8 @@ type Index interface {
 }
 
 type IndexSearchOptions struct {
-	MaxResults int
+	MaxResults  int
+	Collections []string
 }
 
 type IndexSearchResult struct {

@@ -132,9 +132,19 @@ func Parse(data []byte) (*Document, error) {
 }
 
 type Document struct {
-	id       model.DocumentID
-	source   *url.URL
-	sections []model.Section
+	id         model.DocumentID
+	source     *url.URL
+	collection string
+	sections   []model.Section
+}
+
+func (d *Document) SetCollection(collection string) {
+	d.collection = collection
+}
+
+// Collection implements model.Document.
+func (d *Document) Collection() string {
+	return d.collection
 }
 
 // ID implements model.Document.

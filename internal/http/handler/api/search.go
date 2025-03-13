@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/bornholm/corpus/internal/core/model"
@@ -18,16 +19,40 @@ type SearchResponse struct {
 }
 
 type Section struct {
-	ID      model.SectionID `json:"id"`
-	Source  string          `json:"source"`
-	Content string          `json:"content"`
+	ID         model.SectionID `json:"id"`
+	Source     string          `json:"source"`
+	Content    string          `json:"content"`
+	Collection string          `json:"collection,omitempty"`
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	query := r.URL.Query().Get("query")
+	if query == "" {
+		slog.ErrorContext(ctx, "missing query parameter")
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
 
-	res, err := h.doSearch(ctx, query)
+	collections := r.URL.Query()["collection"]
+
+	rawSize := r.URL.Query().Get("size")
+	var (
+		size int64
+		err  error
+	)
+	if rawSize != "" {
+		size, err = strconv.ParseInt(rawSize, 10, 64)
+		if err != nil {
+			slog.ErrorContext(ctx, "could not parse size parameter", slog.Any("error", errors.WithStack(err)))
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+	} else {
+		size = 3
+	}
+
+	res, err := h.doSearch(ctx, query, collections, size)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not search sections", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -42,9 +67,12 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) doSearch(ctx context.Context, query string) (*SearchResponse, error) {
+func (h *Handler) doSearch(ctx context.Context, query string, collections []string, size int64) (*SearchResponse, error) {
+	slog.DebugContext(ctx, "executing search", slog.String("query", query), slog.Any("collections", collections), slog.Any("size", size))
+
 	searchResults, err := h.index.Search(ctx, query, &port.IndexSearchOptions{
-		MaxResults: 3,
+		MaxResults:  int(size),
+		Collections: collections,
 	})
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -74,9 +102,10 @@ func (h *Handler) doSearch(ctx context.Context, query string) (*SearchResponse, 
 			branch := branchToString(section.Branch())
 
 			sections[branch] = &Section{
-				ID:      section.ID(),
-				Source:  r.Source.String(),
-				Content: section.Content(),
+				ID:         section.ID(),
+				Source:     r.Source.String(),
+				Content:    section.Content(),
+				Collection: section.Document().Collection(),
 			}
 		}
 

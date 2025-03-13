@@ -15,6 +15,7 @@ func NewDocumentID() DocumentID {
 type Document interface {
 	ID() DocumentID
 	Source() *url.URL
+	Collection() string
 	Sections() []Section
 }
 

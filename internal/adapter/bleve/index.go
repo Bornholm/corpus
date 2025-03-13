@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
+	bleveQuery "github.com/blevesearch/bleve/v2/search/query"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/pkg/errors"
@@ -74,12 +75,13 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	sectionID.Fragment = string(section.ID())
 
 	data := map[string]any{
-		"_type":   "resource",
-		"content": section.Content(),
-		"source":  source.String(),
+		"_type":      "resource",
+		"content":    section.Content(),
+		"source":     source.String(),
+		"collection": section.Document().Collection(),
 	}
 
-	slog.DebugContext(ctx, "indexing resource", slog.String("source", source.String()), slog.String("id", sectionID.String()))
+	slog.DebugContext(ctx, "indexing resource", slog.String("source", source.String()), slog.String("id", sectionID.String()), slog.String("collection", section.Document().Collection()))
 
 	err := i.index.Index(sectionID.String(), data)
 	if err != nil {
@@ -97,10 +99,27 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 
 // Search implements port.Index.
 func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
-	req := bleve.NewSearchRequest(bleve.NewQueryStringQuery(query))
+	queries := []bleveQuery.Query{
+		bleve.NewMatchPhraseQuery(query),
+	}
+
+	if opts != nil && opts.Collections != nil {
+		collectionQueries := make([]bleveQuery.Query, 0)
+		for _, c := range opts.Collections {
+			termQuery := bleve.NewTermQuery(c)
+			termQuery.SetField("collection")
+			collectionQueries = append(collectionQueries, termQuery)
+		}
+		queries = append(queries, bleve.NewDisjunctionQuery(collectionQueries...))
+	}
+
+	req := bleve.NewSearchRequest(bleve.NewConjunctionQuery(queries...))
 
 	req.From = 0
-	req.Size = opts.MaxResults
+
+	if opts != nil && opts.MaxResults > 0 {
+		req.Size = opts.MaxResults
+	}
 
 	result, err := i.index.SearchInContext(ctx, req)
 	if err != nil {

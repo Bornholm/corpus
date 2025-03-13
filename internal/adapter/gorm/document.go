@@ -11,15 +11,21 @@ import (
 )
 
 type Document struct {
-	ID        string `gorm:"primarykey"`
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Source    string     `gorm:"unique;not null"`
-	Sections  []*Section `gorm:"constraint:OnDelete:CASCADE"`
+	ID         string `gorm:"primarykey"`
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	Collection string     `gorm:"index"`
+	Source     string     `gorm:"unique;not null;index"`
+	Sections   []*Section `gorm:"constraint:OnDelete:CASCADE"`
 }
 
 type wrappedDocument struct {
 	d *Document
+}
+
+// Collection implements model.Document.
+func (w *wrappedDocument) Collection() string {
+	return w.d.Collection
 }
 
 // ID implements model.Document.
@@ -50,9 +56,10 @@ var _ model.Document = &wrappedDocument{}
 
 func fromDocument(d model.Document) *Document {
 	document := &Document{
-		ID:       string(d.ID()),
-		Source:   d.Source().String(),
-		Sections: make([]*Section, 0, len(d.Sections())),
+		ID:         string(d.ID()),
+		Source:     d.Source().String(),
+		Collection: d.Collection(),
+		Sections:   make([]*Section, 0, len(d.Sections())),
 	}
 
 	for _, s := range d.Sections() {
