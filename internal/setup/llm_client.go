@@ -25,7 +25,7 @@ func NewLLMClientFromConfig(ctx context.Context, conf *config.Config) (llm.Clien
 		return nil, errors.WithStack(err)
 	}
 
-	return NewRateLimitedClient(client, time.Second), nil
+	return NewRateLimitedClient(client, conf.LLM.Provider.RateLimit), nil
 }
 
 type RateLimitedClient struct {
