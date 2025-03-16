@@ -1,4 +1,4 @@
-package adapter
+package gorm
 
 import (
 	"context"
@@ -15,8 +15,28 @@ type Store struct {
 	getDatabase func(ctx context.Context) (*gorm.DB, error)
 }
 
+// CountDocuments implements port.Store.
+func (s *Store) CountDocuments(ctx context.Context) (int64, error) {
+	db, err := s.getDatabase(ctx)
+	if err != nil {
+		return 0, errors.WithStack(err)
+	}
+
+	var total int64
+
+	if err := db.Model(&Document{}).Count(&total).Error; err != nil {
+		return 0, errors.WithStack(err)
+	}
+
+	return total, nil
+}
+
 // GetSectionBySourceAndID implements port.Store.
 func (s *Store) GetSectionBySourceAndID(ctx context.Context, source *url.URL, id model.SectionID) (model.Section, error) {
+	if source == nil {
+		return nil, errors.WithStack(ErrMissingSource)
+	}
+
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -41,6 +61,10 @@ func (s *Store) GetSectionBySourceAndID(ctx context.Context, source *url.URL, id
 
 // DeleteDocumentBySource implements port.Store.
 func (s *Store) DeleteDocumentBySource(ctx context.Context, source *url.URL) error {
+	if source == nil {
+		return errors.WithStack(ErrMissingSource)
+	}
+
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return errors.WithStack(err)
@@ -71,6 +95,11 @@ func (s *Store) SaveDocument(ctx context.Context, doc model.Document) error {
 	}
 
 	err = db.Transaction(func(tx *gorm.DB) error {
+		source := doc.Source()
+		if source == nil {
+			return errors.WithStack(ErrMissingSource)
+		}
+
 		if res := tx.Delete(&Document{}, "source = ?", doc.Source().String()); res.Error != nil {
 			return errors.WithStack(res.Error)
 		}

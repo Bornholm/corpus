@@ -10,6 +10,7 @@ type Config struct {
 	HTTP    HTTP    `envPrefix:"HTTP_"`
 	Storage Storage `envPrefix:"STORAGE_"`
 	LLM     LLM     `envPrefix:"LLM_"`
+	WebUI   WebUI   `envPrefix:"WEBUI_"`
 }
 
 func Parse() (*Config, error) {

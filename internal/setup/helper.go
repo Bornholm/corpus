@@ -8,14 +8,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func createFromConfigOnce[T any](factory func(ctx context.Context, conf *config.Config) (*T, error)) func(ctx context.Context, conf *config.Config) (*T, error) {
+func createFromConfigOnce[T any](factory func(ctx context.Context, conf *config.Config) (T, error)) func(ctx context.Context, conf *config.Config) (T, error) {
 	var (
 		once    sync.Once
-		service *T
+		service T
 		onceErr error
 	)
 
-	return func(ctx context.Context, conf *config.Config) (*T, error) {
+	return func(ctx context.Context, conf *config.Config) (T, error) {
 		once.Do(func() {
 			srv, err := factory(ctx, conf)
 			if err != nil {
@@ -26,7 +26,7 @@ func createFromConfigOnce[T any](factory func(ctx context.Context, conf *config.
 			service = srv
 		})
 		if onceErr != nil {
-			return nil, onceErr
+			return *new(T), onceErr
 		}
 
 		return service, nil

@@ -137,13 +137,23 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 
 	wg.Add(count)
 
+	maxResults := 5
+	if opts != nil && opts.MaxResults != 0 {
+		maxResults = opts.MaxResults
+	}
+
+	collections := make([]string, 0)
+	if opts != nil && opts.Collections != nil {
+		collections = opts.Collections
+	}
+
 	for index := range i.indexes {
 		go func(index port.Index) {
 			defer wg.Done()
 
 			results, err := index.Search(ctx, query, &port.IndexSearchOptions{
-				MaxResults:  opts.MaxResults * 3,
-				Collections: opts.Collections,
+				MaxResults:  maxResults * 3,
+				Collections: collections,
 			})
 			if err != nil {
 				messages <- &Message{
@@ -189,7 +199,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		return nil, errors.WithStack(aggregatedErr)
 	}
 
-	merged, err := i.mergeResults(results, opts.MaxResults)
+	merged, err := i.mergeResults(results, maxResults)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

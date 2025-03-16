@@ -4,21 +4,50 @@ import (
 	"os"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/pkg/errors"
 )
 
 func TestBuildDocumentFrom(t *testing.T) {
-	data, err := os.ReadFile("testdata/test.md")
-	if err != nil {
-		t.Fatalf("%+v", errors.WithStack(err))
+	type testCase struct {
+		File             string
+		ExpectedSections int
 	}
 
-	doc, err := Parse(data)
-	if err != nil {
-		t.Fatalf("%+v", errors.WithStack(err))
+	testCases := []testCase{
+		{
+			File:             "testdata/test.md",
+			ExpectedSections: 7,
+		},
 	}
 
-	t.Logf(spew.Sdump(doc))
-	// t.Logf("[MARKDOWN]\n%s", doc.Root().Content())
+	for _, tc := range testCases {
+		t.Run(tc.File, func(t *testing.T) {
+			data, err := os.ReadFile(tc.File)
+			if err != nil {
+				t.Fatalf("%+v", errors.WithStack(err))
+			}
+
+			doc, err := Parse(data)
+			if err != nil {
+				t.Fatalf("%+v", errors.WithStack(err))
+			}
+
+			if e, g := tc.ExpectedSections, countSections(doc); e != g {
+				t.Errorf("len(doc.Sections()): expected '%d', got '%v'", e, g)
+			}
+		})
+	}
+}
+
+type Sections interface {
+	Sections() []model.Section
+}
+
+func countSections(root Sections) int {
+	total := 0
+	for _, s := range root.Sections() {
+		total += 1 + countSections(s)
+	}
+	return total
 }

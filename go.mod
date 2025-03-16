@@ -3,13 +3,14 @@ module github.com/bornholm/corpus
 go 1.23.6
 
 require (
-	github.com/Bornholm/amatl v0.8.0
+	github.com/Bornholm/amatl v0.9.0
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.1.6
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/bornholm/genai v0.0.0-20250310220302-8d84cbe9d767
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/davecgh/go-spew v1.1.1
+	github.com/gabriel-vasile/mimetype v1.4.8
 	github.com/ncruces/go-sqlite3 v0.20.3
 	github.com/ncruces/go-sqlite3/gormlite v0.20.3
 	github.com/pkg/errors v0.9.1
@@ -17,6 +18,11 @@ require (
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-meta v1.1.0
 	gorm.io/gorm v1.25.12
+)
+
+require (
+	github.com/a-h/templ v0.3.833
+	golang.org/x/net v0.35.0 // indirect
 )
 
 require (

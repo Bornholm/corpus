@@ -23,6 +23,9 @@ func Parse(data []byte) (*Document, error) {
 			meta.Meta,
 		),
 		goldmark.WithRenderer(markdown.NewRenderer()),
+		goldmark.WithRendererOptions(
+			markdown.WithNodeRenderers(node.Renderers()),
+		),
 	)
 	context := parser.NewContext()
 	root := md.Parser().Parse(text.NewReader(data), parser.WithContext(context))
@@ -53,9 +56,6 @@ func Parse(data []byte) (*Document, error) {
 	}
 
 	renderer := md.Renderer()
-	renderer.AddOptions(
-		markdown.WithNodeRenderers(node.Renderers()),
-	)
 
 	var buff bytes.Buffer
 
@@ -136,6 +136,10 @@ type Document struct {
 	source     *url.URL
 	collection string
 	sections   []model.Section
+}
+
+func (d *Document) SetSource(source *url.URL) {
+	d.source = source
 }
 
 func (d *Document) SetCollection(collection string) {

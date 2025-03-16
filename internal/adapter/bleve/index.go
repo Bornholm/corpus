@@ -70,6 +70,12 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 }
 
 func (i *Index) indexSection(ctx context.Context, section model.Section) error {
+	for _, s := range section.Sections() {
+		if err := i.indexSection(ctx, s); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
 	source := section.Document().Source()
 	sectionID := source.JoinPath()
 	sectionID.Fragment = string(section.ID())
@@ -81,17 +87,9 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 		"collection": section.Document().Collection(),
 	}
 
-	slog.DebugContext(ctx, "indexing resource", slog.String("source", source.String()), slog.String("id", sectionID.String()), slog.String("collection", section.Document().Collection()))
-
 	err := i.index.Index(sectionID.String(), data)
 	if err != nil {
 		return errors.WithStack(err)
-	}
-
-	for _, s := range section.Sections() {
-		if err := i.indexSection(ctx, s); err != nil {
-			return errors.WithStack(err)
-		}
 	}
 
 	return nil
@@ -103,7 +101,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		bleve.NewMatchPhraseQuery(query),
 	}
 
-	if opts != nil && opts.Collections != nil {
+	if opts != nil && len(opts.Collections) > 0 {
 		collectionQueries := make([]bleveQuery.Query, 0)
 		for _, c := range opts.Collections {
 			termQuery := bleve.NewTermQuery(c)

@@ -78,6 +78,8 @@ func (h *Handler) indexUploadedDocument(ctx context.Context, collection string, 
 
 				if source == nil {
 					source = doc.Source()
+				} else {
+					doc.SetSource(source)
 				}
 
 				if source == nil {

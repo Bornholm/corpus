@@ -1,0 +1,20 @@
+package component
+
+import (
+	"bytes"
+	"github.com/pkg/errors"
+	"github.com/yuin/goldmark"
+)
+
+templ Markdown(source string) {
+	@templ.Raw(convert(source))
+}
+
+func convert(source string) (string, error) {
+	var buf bytes.Buffer
+	if err := goldmark.Convert([]byte(source), &buf); err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return buf.String(), nil
+}

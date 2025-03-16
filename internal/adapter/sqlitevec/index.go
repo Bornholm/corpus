@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/url"
 	"sync"
+	"unicode"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -68,7 +69,9 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 }
 
 func (i *Index) indexSection(ctx context.Context, section model.Section) error {
-	res, err := i.llm.Embeddings(ctx, llm.WithInput(section.Content()))
+	truncated := i.truncate(section.Content())
+
+	res, err := i.llm.Embeddings(ctx, llm.WithInput(truncated))
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -106,8 +109,6 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 		return errors.WithStack(err)
 	}
 
-	slog.DebugContext(ctx, "indexing section", slog.Any("source", section.Document().Source()), slog.Any("sectionID", section.ID()))
-
 	if err := stmt.Exec(); err != nil {
 		return errors.WithStack(err)
 	}
@@ -118,8 +119,6 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 
 	stmt.Close()
 
-	slog.DebugContext(ctx, "section indexed", slog.Any("source", section.Document().Source()), slog.Any("sectionID", section.ID()))
-
 	for _, s := range section.Sections() {
 		if err := i.indexSection(ctx, s); err != nil {
 			return errors.WithStack(err)
@@ -127,6 +126,31 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	}
 
 	return nil
+}
+
+const maxWords = 4000
+
+func (i *Index) truncate(text string) string {
+	return withMaxWords(text, maxWords)
+}
+
+func withMaxWords(text string, max int) string {
+	count := 0
+
+	inWord := false
+	for idx, rune := range text {
+		if unicode.IsSpace(rune) || unicode.IsPunct(rune) {
+			inWord = false
+		} else if !inWord {
+			inWord = true
+			count++
+		}
+		if !inWord && count >= max {
+			return text[0:idx]
+		}
+	}
+
+	return text
 }
 
 const hydePromptTemplate = `
@@ -180,7 +204,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		WHERE 1 = 1
 	`
 
-	if opts != nil && opts.Collections != nil {
+	if opts != nil && len(opts.Collections) > 0 {
 		sql += ` AND collection IN ( 
 			SELECT value FROM json_each( ? )
 		)`
@@ -216,7 +240,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 
 	bindIndex = 2
 
-	if opts != nil && opts.Collections != nil {
+	if opts != nil && len(opts.Collections) > 0 {
 		jsonCollections, err := json.Marshal(opts.Collections)
 		if err != nil {
 			return nil, errors.WithStack(err)

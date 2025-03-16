@@ -12,7 +12,7 @@ import (
 	_ "github.com/bornholm/genai/llm/provider/openai"
 )
 
-func NewLLMClientFromConfig(ctx context.Context, conf *config.Config) (llm.Client, error) {
+var NewLLMClientFromConfig = createFromConfigOnce[llm.Client](func(ctx context.Context, conf *config.Config) (llm.Client, error) {
 	client, err := provider.Create(ctx, provider.WithConfig(&provider.Config{
 		Provider:            provider.Name(conf.LLM.Provider.Name),
 		BaseURL:             conf.LLM.Provider.BaseURL,
@@ -26,7 +26,7 @@ func NewLLMClientFromConfig(ctx context.Context, conf *config.Config) (llm.Clien
 	}
 
 	return NewRateLimitedClient(client, conf.LLM.Provider.RateLimit), nil
-}
+})
 
 type RateLimitedClient struct {
 	ticker time.Ticker
