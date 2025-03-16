@@ -6,6 +6,7 @@ type HTTP struct {
 	Auth    Auth   `envPrefix:"AUTH_"`
 }
 type Auth struct {
+	Enabled  bool   `env:"ENABLED,expand" envDefault:"true"`
 	Username string `env:"USERNAME,expand" envDefault:"corpus"`
 	Password string `env:"PASSWORD,expand" envDefault:"corpus"`
 }

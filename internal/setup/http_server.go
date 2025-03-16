@@ -41,7 +41,7 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		options = append(options, http.WithMount("/", webui.NewHandler(index, store, llm)))
 	}
 
-	if conf.HTTP.Auth.Username != "" && conf.HTTP.Auth.Password != "" {
+	if conf.HTTP.Auth.Enabled {
 		options = append(options, http.WithBasicAuth(conf.HTTP.Auth.Username, conf.HTTP.Auth.Password))
 	}
 
