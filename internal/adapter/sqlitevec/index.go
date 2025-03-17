@@ -18,8 +18,9 @@ import (
 )
 
 type Index struct {
-	getConn func(ctx context.Context) (*sqlite3.Conn, error)
-	llm     llm.Client
+	maxWords int
+	getConn  func(ctx context.Context) (*sqlite3.Conn, error)
+	llm      llm.Client
 }
 
 // DeleteBySource implements port.Index.
@@ -128,10 +129,9 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	return nil
 }
 
-const maxWords = 4000
-
 func (i *Index) truncate(text string) string {
-	return withMaxWords(text, maxWords)
+	truncated := withMaxWords(text, i.maxWords)
+	return truncated
 }
 
 func withMaxWords(text string, max int) string {
@@ -146,7 +146,7 @@ func withMaxWords(text string, max int) string {
 			count++
 		}
 		if !inWord && count >= max {
-			return text[0:idx]
+			return text[:idx]
 		}
 	}
 
@@ -297,10 +297,11 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 	return searchResults, nil
 }
 
-func NewIndex(conn *sqlite3.Conn, llm llm.Client) *Index {
+func NewIndex(conn *sqlite3.Conn, llm llm.Client, maxWords int) *Index {
 	return &Index{
-		llm:     llm,
-		getConn: createGetConn(conn),
+		maxWords: maxWords,
+		llm:      llm,
+		getConn:  createGetConn(conn),
 	}
 }
 

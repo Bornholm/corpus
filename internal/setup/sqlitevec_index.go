@@ -21,5 +21,5 @@ func NewSQLiteVecIndexFromConfig(ctx context.Context, conf *config.Config) (port
 		return nil, errors.WithStack(err)
 	}
 
-	return sqlitevec.NewIndex(db, llm), nil
+	return sqlitevec.NewIndex(db, llm, conf.LLM.Index.MaxWords), nil
 }
