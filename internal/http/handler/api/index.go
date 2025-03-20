@@ -1,14 +1,14 @@
 package api
 
 import (
-	"context"
-	"io"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 
-	"github.com/bornholm/corpus/internal/markdown"
-	"github.com/bornholm/corpus/internal/workflow"
+	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/pkg/errors"
 )
 
@@ -24,112 +24,88 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	file, _, err := r.FormFile("file")
+	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		slog.ErrorContext(ctx, "could not read form file", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	data, err := io.ReadAll(file)
-	if err != nil {
-		slog.ErrorContext(ctx, "could not read file", slog.Any("error", errors.WithStack(err)))
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	defer file.Close()
 
-	var source *url.URL
+	options := make([]service.DocumentManagerIndexFileOptionFunc, 0)
 
 	rawSource := r.FormValue("source")
 	if rawSource != "" {
-		source, err = url.Parse(rawSource)
+		source, err := url.Parse(rawSource)
 		if err != nil {
 			slog.ErrorContext(ctx, "could not parse source url", slog.Any("error", errors.WithStack(err)))
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return
 		}
+
+		options = append(options, service.WithDocumentManagerIndexFileSource(source))
 	}
 
-	collection := r.FormValue("collection")
+	if collection := r.FormValue("collection"); collection != "" {
+		options = append(options, service.WithDocumentManagerIndexFileCollection(collection))
+	}
 
 	slog.DebugContext(ctx, "indexing uploaded document")
 
-	if err := h.indexUploadedDocument(ctx, collection, source, data); err != nil {
-		slog.ErrorContext(ctx, "could not execute index workflow", slog.Any("error", errors.WithStack(err)))
+	document, err := h.documentManager.IndexFile(ctx, fileHeader.Filename, file, options...)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not index uploaded file", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	slog.DebugContext(ctx, "uploaded document indexed")
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", " ")
 
-	w.WriteHeader(http.StatusNoContent)
+	if err := encoder.Encode(toIndexResponse(document)); err != nil {
+		slog.ErrorContext(ctx, "could not write document", slog.Any("error", errors.WithStack(err)))
+	}
 }
 
-func (h *Handler) indexUploadedDocument(ctx context.Context, collection string, source *url.URL, data []byte) error {
-	var document *markdown.Document
+type indexResponse struct {
+	Document jsonDocument `json:"document"`
+}
 
-	wf := workflow.New(
-		workflow.StepFunc(
-			func(ctx context.Context) error {
-				doc, err := markdown.Parse(data)
-				if err != nil {
-					return errors.Wrap(err, "could not build document")
-				}
+type jsonDocument struct {
+	ID         string        `json:"id"`
+	Source     string        `json:"source"`
+	Collection string        `json:"collection,omitempty"`
+	Sections   []jsonSection `json:"sections"`
+}
 
-				if source == nil {
-					source = doc.Source()
-				} else {
-					doc.SetSource(source)
-				}
+type jsonSection struct {
+	ID       string        `json:"id"`
+	Level    uint          `json:"level"`
+	Sections []jsonSection `json:"sections,omitempty"`
+}
 
-				if source == nil {
-					return errors.New("document source missing")
-				}
-
-				doc.SetCollection(collection)
-
-				document = doc
-
-				return nil
-			},
-			nil,
-		),
-		workflow.StepFunc(
-			func(ctx context.Context) error {
-				if err := h.store.SaveDocument(ctx, document); err != nil {
-					return errors.WithStack(err)
-				}
-
-				return nil
-			},
-			func(ctx context.Context) error {
-				if err := h.store.DeleteDocumentBySource(ctx, document.Source()); err != nil {
-					return errors.WithStack(err)
-				}
-
-				return nil
-			},
-		),
-		workflow.StepFunc(
-			func(ctx context.Context) error {
-				if err := h.index.Index(ctx, document); err != nil {
-					return errors.WithStack(err)
-				}
-
-				return nil
-			},
-			func(ctx context.Context) error {
-				if err := h.index.DeleteBySource(ctx, document.Source()); err != nil {
-					return errors.WithStack(err)
-				}
-
-				return nil
-			},
-		),
-	)
-	if err := wf.Execute(ctx); err != nil {
-		return errors.WithStack(err)
+func toIndexResponse(doc model.Document) *indexResponse {
+	return &indexResponse{
+		Document: jsonDocument{
+			ID:         string(doc.ID()),
+			Source:     doc.Source().String(),
+			Collection: doc.Collection(),
+			Sections:   toJSONSections(doc.Sections()),
+		},
 	}
+}
 
-	return nil
+func toJSONSections(sections []model.Section) []jsonSection {
+	return slices.Collect(func(yield func(jsonSection) bool) {
+		for _, s := range sections {
+			if !yield(jsonSection{
+				ID:       string(s.ID()),
+				Level:    s.Level(),
+				Sections: toJSONSections(s.Sections()),
+			}) {
+				return
+			}
+		}
+	})
 }

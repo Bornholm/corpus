@@ -6,11 +6,12 @@ import (
 )
 
 type Config struct {
-	Logger  Logger  `envPrefix:"LOGGER_"`
-	HTTP    HTTP    `envPrefix:"HTTP_"`
-	Storage Storage `envPrefix:"STORAGE_"`
-	LLM     LLM     `envPrefix:"LLM_"`
-	WebUI   WebUI   `envPrefix:"WEBUI_"`
+	Logger        Logger        `envPrefix:"LOGGER_"`
+	HTTP          HTTP          `envPrefix:"HTTP_"`
+	Storage       Storage       `envPrefix:"STORAGE_"`
+	LLM           LLM           `envPrefix:"LLM_"`
+	WebUI         WebUI         `envPrefix:"WEBUI_"`
+	FileConverter FileConverter `envPrefix:"FILE_CONVERTER_"`
 }
 
 func Parse() (*Config, error) {

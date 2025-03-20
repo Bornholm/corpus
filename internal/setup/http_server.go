@@ -11,7 +11,7 @@ import (
 
 func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Server, error) {
 	// Configure API handler
-	api, err := NewAPIHandlerFromConfig(ctx, conf)
+	api, err := getAPIHandlerFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not configure api handler from config")
 	}
@@ -23,22 +23,17 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 	}
 
 	if conf.WebUI.Enabled {
-		llm, err := NewLLMClientFromConfig(ctx, conf)
+		llm, err := getLLMClientFromConfig(ctx, conf)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not create llm client from config")
 		}
 
-		index, err := NewIndexFromConfig(ctx, conf)
+		documentManager, err := getDocumentManager(ctx, conf)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not create index from config")
 		}
 
-		store, err := NewStoreFromConfig(ctx, conf)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not create store from config")
-		}
-
-		options = append(options, http.WithMount("/", webui.NewHandler(index, store, llm)))
+		options = append(options, http.WithMount("/", webui.NewHandler(documentManager, llm)))
 	}
 
 	if conf.HTTP.Auth.Enabled {

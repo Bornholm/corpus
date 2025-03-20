@@ -3,13 +3,12 @@ package api
 import (
 	"net/http"
 
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/core/service"
 )
 
 type Handler struct {
-	store port.Store
-	index port.Index
-	mux   *http.ServeMux
+	documentManager *service.DocumentManager
+	mux             *http.ServeMux
 }
 
 // ServeHTTP implements http.Handler.
@@ -17,11 +16,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(store port.Store, index port.Index) *Handler {
+func NewHandler(documentManager *service.DocumentManager) *Handler {
 	h := &Handler{
-		index: index,
-		store: store,
-		mux:   &http.ServeMux{},
+		documentManager: documentManager,
+		mux:             &http.ServeMux{},
 	}
 
 	h.mux.HandleFunc("GET /search", h.handleSearch)

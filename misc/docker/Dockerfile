@@ -24,6 +24,7 @@ FROM alpine:3.21 AS runtime
 RUN apk add \
     ca-certificates \
     openssl \
+    pandoc \
   && update-ca-certificates
 
 COPY --from=build /src/bin/corpus /usr/local/bin/corpus

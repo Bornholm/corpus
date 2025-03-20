@@ -1,0 +1,77 @@
+openapi: 3.1.1
+info:
+  title: Corpus API
+  version: 1.0.12
+servers:
+  - url: /api/v1
+paths:
+  /index:
+    post:
+      summary: Index a document
+      operationId: index
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                source:
+                  type: string
+                  format: url
+                  description: The URI associated to the file
+                  default: ""
+                collection:
+                  type: string
+                  description: The name of a collection to assign this file to
+                  allowEmptyValue: true
+                file:
+                  type: string
+                  description: The file to index
+                  format: binary
+              required: ["file", "source"]
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Request invalid or malformed
+        "500":
+          description: The server could not index the file
+  /search:
+    get:
+      summary: Search documents
+      operationId: search
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          description: The search query
+          required: true
+        - in: query
+          name: collection
+          schema:
+            type: array
+            item:
+              type: string
+            allowEmptyValue: true
+          description: Restrict the search to these collections
+        - in: query
+          name: size
+          schema:
+            type: integer
+            min: 0
+            allowEmptyValue: true
+          description: Limit the number of results returned (default 3)
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Request invalid or malformed
+        "500":
+          description: The server could not execute the search
+components:
+  securitySchemes:
+    auth:
+      type: http
+      scheme: basic

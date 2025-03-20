@@ -70,7 +70,7 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 }
 
 func (i *Index) indexSection(ctx context.Context, section model.Section) error {
-	truncated := i.truncate(section.Content())
+	truncated := i.truncate(ctx, section.Content())
 
 	res, err := i.llm.Embeddings(ctx, llm.WithInput(truncated))
 	if err != nil {
@@ -129,28 +129,63 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	return nil
 }
 
-func (i *Index) truncate(text string) string {
-	truncated := withMaxWords(text, i.maxWords)
+func (i *Index) truncate(ctx context.Context, text string) string {
+	slog.DebugContext(ctx, "text size before truncate", slog.Int("size", len(text)))
+
+	words := splitByWords(text)
+
+	totalWords := len(words)
+
+	if len(words) <= i.maxWords {
+		return text
+	}
+
+	// Use middle-out strategy
+	// See https://openrouter.ai/docs/features/message-transforms
+	// and https://arxiv.org/abs/2307.03172
+
+	halvedDiff := (totalWords - i.maxWords) / 2
+	middle := totalWords / 2
+
+	strippingStart := words[middle-halvedDiff].Start
+	strippingEnd := words[middle+halvedDiff].End
+
+	truncated := text[:strippingStart] + text[strippingEnd:]
+
+	slog.DebugContext(ctx, "text size after truncate", slog.Int("size", len(truncated)))
+
 	return truncated
 }
 
-func withMaxWords(text string, max int) string {
-	count := 0
+type Word struct {
+	Start int
+	End   int
+}
 
-	inWord := false
+func splitByWords(text string) []*Word {
+	words := make([]*Word, 0)
+
+	var word *Word
 	for idx, rune := range text {
 		if unicode.IsSpace(rune) || unicode.IsPunct(rune) {
-			inWord = false
-		} else if !inWord {
-			inWord = true
-			count++
-		}
-		if !inWord && count >= max {
-			return text[:idx]
+			if word != nil {
+				word.End = idx - 1
+				words = append(words, word)
+				word = nil
+			}
+		} else if word == nil {
+			word = &Word{
+				Start: idx,
+			}
 		}
 	}
 
-	return text
+	if word != nil {
+		word.End = len(text) - 1
+		words = append(words, word)
+	}
+
+	return words
 }
 
 const hydePromptTemplate = `

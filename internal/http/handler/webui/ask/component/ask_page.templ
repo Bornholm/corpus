@@ -1,6 +1,7 @@
 package component
 
 import (
+	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/core/port"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"strconv"
@@ -56,6 +57,14 @@ templ AskPage(vmodel AskPageVModel) {
 					</div>
 				}
 			</section>
+			<footer class="footer">
+				<div class="content has-text-centered">
+					<p>
+						<b>Corpus</b> (version { build.ShortVersion }) | 
+						<a target="_blank" href={ common.BaseURL(ctx, common.WithPath("/docs/index.html")) }>Documentation API</a>
+					</p>
+				</div>
+			</footer>
 		</div>
 	}
 }

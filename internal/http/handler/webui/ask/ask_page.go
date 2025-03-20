@@ -44,7 +44,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	results, err := h.index.Search(ctx, vmodel.Query, nil)
+	results, err := h.documentManager.Search(ctx, vmodel.Query)
 	if err != nil {
 		common.HandleError(w, r, errors.WithStack(err))
 		return
@@ -97,7 +97,7 @@ func (h *Handler) generateResponse(ctx context.Context, query string, results []
 	contextSections := make([]contextSection, 0)
 	for _, r := range results {
 		for _, sectionID := range r.Sections {
-			section, err := h.store.GetSectionBySourceAndID(ctx, r.Source, sectionID)
+			section, err := h.documentManager.GetSectionBySourceAndID(ctx, r.Source, sectionID)
 			if err != nil {
 				slog.ErrorContext(ctx, "could not retrieve section", slog.Any("errors", errors.WithStack(err)))
 				continue
@@ -152,7 +152,7 @@ func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVMode
 }
 
 func (h *Handler) fillAskPageVModelTotalDocuments(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
-	total, err := h.store.CountDocuments(ctx)
+	total, err := h.documentManager.CountDocuments(ctx)
 	if err != nil {
 		return errors.WithStack(err)
 	}

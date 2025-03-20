@@ -17,5 +17,5 @@ type LLMProvider struct {
 }
 
 type LLMIndex struct {
-	MaxWords int `env:"MAX_WORDS" envDefault:"3000"`
+	MaxWords int `env:"MAX_WORDS" envDefault:"2000"`
 }

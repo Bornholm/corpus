@@ -8,18 +8,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewAPIHandlerFromConfig(ctx context.Context, conf *config.Config) (*api.Handler, error) {
-	store, err := NewStoreFromConfig(ctx, conf)
+func getAPIHandlerFromConfig(ctx context.Context, conf *config.Config) (*api.Handler, error) {
+	documentManager, err := getDocumentManager(ctx, conf)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create store from config")
+		return nil, errors.WithStack(err)
 	}
 
-	index, err := NewIndexFromConfig(ctx, conf)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create index from config")
-	}
-
-	handler := api.NewHandler(store, index)
+	handler := api.NewHandler(documentManager)
 
 	return handler, nil
 }

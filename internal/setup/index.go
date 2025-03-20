@@ -9,8 +9,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-var NewIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.Index, error) {
-	bleveIndex, err := NewBleveIndexFromConfig(ctx, conf)
+var getIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.Index, error) {
+	bleveIndex, err := getBleveIndexFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create bleve index from config")
 	}

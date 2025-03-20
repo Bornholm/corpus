@@ -50,12 +50,12 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 
 	wg.Wait()
 
-	err := NewAggregatedError()
+	aggregatedErr := NewAggregatedError()
 	idx := 0
 
 	for e := range errs {
 		if e != nil {
-			err.Add(e)
+			aggregatedErr.Add(e)
 		}
 
 		if idx >= count-1 {
@@ -65,8 +65,8 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 		idx++
 	}
 
-	if err.Len() > 0 {
-		return errors.WithStack(err)
+	if aggregatedErr.Len() > 0 {
+		return errors.WithStack(aggregatedErr.OrOnlyOne())
 	}
 
 	return nil
@@ -99,12 +99,12 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 
 	wg.Wait()
 
-	err := NewAggregatedError()
+	aggregatedErr := NewAggregatedError()
 	idx := 0
 
 	for e := range errs {
 		if e != nil {
-			err.Add(e)
+			aggregatedErr.Add(e)
 		}
 
 		if idx >= count-1 {
@@ -114,8 +114,8 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 		idx++
 	}
 
-	if err.Len() > 0 {
-		return errors.WithStack(err)
+	if aggregatedErr.Len() > 0 {
+		return errors.WithStack(aggregatedErr.OrOnlyOne())
 	}
 
 	return nil
@@ -196,7 +196,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 	}
 
 	if aggregatedErr.Len() > 0 {
-		return nil, errors.WithStack(aggregatedErr)
+		return nil, errors.WithStack(aggregatedErr.OrOnlyOne())
 	}
 
 	merged, err := i.mergeResults(results, maxResults)

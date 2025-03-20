@@ -32,6 +32,14 @@ func (e *AggregatedError) Len() int {
 	return len(e.errs)
 }
 
+func (e *AggregatedError) OrOnlyOne() error {
+	if len(e.errs) == 1 {
+		return e.errs[0]
+	} else {
+		return e
+	}
+}
+
 func NewAggregatedError(errs ...error) *AggregatedError {
 	return &AggregatedError{errs}
 }

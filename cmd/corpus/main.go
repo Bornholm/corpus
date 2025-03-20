@@ -9,6 +9,9 @@ import (
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/setup"
 	"github.com/pkg/errors"
+
+	// Adapters
+	_ "github.com/bornholm/corpus/internal/adapter/pandoc"
 )
 
 func main() {

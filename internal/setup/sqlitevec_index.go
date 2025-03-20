@@ -11,7 +11,7 @@ import (
 )
 
 func NewSQLiteVecIndexFromConfig(ctx context.Context, conf *config.Config) (port.Index, error) {
-	llm, err := NewLLMClientFromConfig(ctx, conf)
+	llm, err := getLLMClientFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

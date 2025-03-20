@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewBleveIndexFromConfig(ctx context.Context, conf *config.Config) (port.Index, error) {
+func getBleveIndexFromConfig(ctx context.Context, conf *config.Config) (port.Index, error) {
 	var (
 		index bleve.Index
 		err   error

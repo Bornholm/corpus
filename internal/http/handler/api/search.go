@@ -10,6 +10,7 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/pkg/errors"
 )
 
@@ -62,6 +63,8 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", " ")
 
+	w.Header().Set("Content-Type", "application/json")
+
 	if err := encoder.Encode(res); err != nil {
 		slog.ErrorContext(ctx, "could not encode response", slog.Any("error", errors.WithStack(err)))
 	}
@@ -70,10 +73,10 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) doSearch(ctx context.Context, query string, collections []string, size int64) (*SearchResponse, error) {
 	slog.DebugContext(ctx, "executing search", slog.String("query", query), slog.Any("collections", collections), slog.Any("size", size))
 
-	searchResults, err := h.index.Search(ctx, query, &port.IndexSearchOptions{
-		MaxResults:  int(size),
-		Collections: collections,
-	})
+	searchResults, err := h.documentManager.Search(ctx, query,
+		service.WithDocumentManagerSearchCollections(collections...),
+		service.WithDocumentManagerSearchMaxResults(int(size)),
+	)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -89,7 +92,7 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 		sections := map[string]*Section{}
 
 		for _, s := range r.Sections {
-			section, err := h.store.GetSectionBySourceAndID(ctx, r.Source, s)
+			section, err := h.documentManager.GetSectionBySourceAndID(ctx, r.Source, s)
 			if err != nil {
 				if errors.Is(err, port.ErrNotFound) {
 					slog.ErrorContext(ctx, "could not find section", slog.String("source", r.Source.String()), slog.String("sectionID", string(s)))

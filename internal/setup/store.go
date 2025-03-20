@@ -15,7 +15,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var NewStoreFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.Store, error) {
+var getStoreFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.Store, error) {
 	dialector := gormlite.Open(conf.Storage.Database.DSN)
 
 	db, err := gorm.Open(dialector, &gorm.Config{})

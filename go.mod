@@ -9,15 +9,40 @@ require (
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/bornholm/genai v0.0.0-20250310220302-8d84cbe9d767
 	github.com/caarlos0/env/v11 v11.3.1
-	github.com/davecgh/go-spew v1.1.1
 	github.com/gabriel-vasile/mimetype v1.4.8
+	github.com/go-andiamo/chioas v1.16.4
+	github.com/go-chi/chi v4.0.2+incompatible
 	github.com/ncruces/go-sqlite3 v0.20.3
 	github.com/ncruces/go-sqlite3/gormlite v0.20.3
 	github.com/pkg/errors v0.9.1
 	github.com/samber/slog-http v1.5.1
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-meta v1.1.0
+	gitlab.com/wpetit/goweb v0.0.0-20240226160244-6b2826c79f88
 	gorm.io/gorm v1.25.12
+)
+
+require (
+	cdr.dev/slog v1.6.1 // indirect
+	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
+	github.com/charmbracelet/lipgloss v0.7.1 // indirect
+	github.com/go-andiamo/splitter v1.2.5 // indirect
+	github.com/go-andiamo/urit v1.2.1 // indirect
+	github.com/go-chi/chi/v5 v5.0.10 // indirect
+	github.com/go-playground/locales v0.14.0 // indirect
+	github.com/go-playground/universal-translator v0.18.0 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
+	github.com/leodido/go-urn v1.2.1 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/muesli/reflow v0.3.0 // indirect
+	github.com/muesli/termenv v0.15.2 // indirect
+	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df // indirect
+	golang.org/x/term v0.29.0 // indirect
+	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
+	gopkg.in/go-playground/validator.v9 v9.29.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 require (
