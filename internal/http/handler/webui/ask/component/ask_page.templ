@@ -5,6 +5,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/port"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"strconv"
+	"time"
 )
 
 type AskPageVModel struct {
@@ -12,6 +13,7 @@ type AskPageVModel struct {
 	TotalDocuments int64
 	Results        []*port.IndexSearchResult
 	Response       string
+	Duration       time.Duration
 }
 
 templ AskPage(vmodel AskPageVModel) {
@@ -34,7 +36,7 @@ templ AskPage(vmodel AskPageVModel) {
 				if vmodel.Query != "" {
 					<hr class="mt-5"/>
 					<div class="mt-5">
-						<h2 class="title is-size-2">Réponse</h2>
+						<h2 class="title is-size-2">Réponse <span class="has-text-weight-normal has-text-grey subtitle">(générée en { vmodel.Duration.String() })</span></h2>
 						if len(vmodel.Results) == 0 {
 							<div class="message is-warning">
 								<div class="message-body">

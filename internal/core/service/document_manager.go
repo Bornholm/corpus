@@ -41,7 +41,8 @@ type DocumentManager struct {
 }
 
 type DocumentManagerSearchOptions struct {
-	MaxResults  int
+	MaxResults int
+	// Names of the collection the query will be restricted to
 	Collections []string
 }
 
@@ -73,9 +74,19 @@ func WithDocumentManagerSearchCollections(collections ...string) DocumentManager
 func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...DocumentManagerSearchOptionFunc) ([]*port.IndexSearchResult, error) {
 	opts := NewDocumentManagerSearchOptions(funcs...)
 
-	searchResults, err := m.index.Search(ctx, query, &port.IndexSearchOptions{
+	collections := make([]model.CollectionID, 0)
+	for _, c := range opts.Collections {
+		coll, err := m.Store.GetCollectionByName(ctx, c)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		collections = append(collections, coll.ID())
+	}
+
+	searchResults, err := m.index.Search(ctx, query, port.IndexSearchOptions{
 		MaxResults:  opts.MaxResults,
-		Collections: opts.Collections,
+		Collections: collections,
 	})
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -85,15 +96,16 @@ func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...Doc
 }
 
 type DocumentManagerIndexFileOptions struct {
-	Source     *url.URL
-	Collection string
+	Source *url.URL
+	// Names of the collection to associate with the document
+	Collections []string
 }
 
 type DocumentManagerIndexFileOptionFunc func(opts *DocumentManagerIndexFileOptions)
 
-func WithDocumentManagerIndexFileCollection(collection string) DocumentManagerIndexFileOptionFunc {
+func WithDocumentManagerIndexFileCollections(collections ...string) DocumentManagerIndexFileOptionFunc {
 	return func(opts *DocumentManagerIndexFileOptions) {
-		opts.Collection = collection
+		opts.Collections = collections
 	}
 }
 
@@ -169,7 +181,21 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 					return errors.New("document source missing")
 				}
 
-				doc.SetCollection(opts.Collection)
+				for _, name := range opts.Collections {
+					coll, err := m.Store.GetCollectionByName(ctx, name)
+					if err != nil {
+						if !errors.Is(err, port.ErrNotFound) {
+							return errors.Wrapf(err, "could not find collection with name '%s'", name)
+						}
+
+						coll, err = m.Store.CreateCollection(ctx, name)
+						if err != nil {
+							return errors.WithStack(err)
+						}
+					}
+
+					doc.AddCollection(coll)
+				}
 
 				document = doc
 

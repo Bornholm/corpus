@@ -11,12 +11,12 @@ import (
 )
 
 type Document struct {
-	ID         string `gorm:"primarykey"`
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
-	Collection string     `gorm:"index"`
-	Source     string     `gorm:"unique;not null;index"`
-	Sections   []*Section `gorm:"constraint:OnDelete:CASCADE"`
+	ID          string `gorm:"primarykey"`
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Source      string        `gorm:"unique;not null;index"`
+	Sections    []*Section    `gorm:"constraint:OnDelete:CASCADE"`
+	Collections []*Collection `gorm:"many2many:documents_collections;"`
 }
 
 type wrappedDocument struct {
@@ -24,8 +24,12 @@ type wrappedDocument struct {
 }
 
 // Collection implements model.Document.
-func (w *wrappedDocument) Collection() string {
-	return w.d.Collection
+func (w *wrappedDocument) Collections() []model.Collection {
+	collections := make([]model.Collection, 0, len(w.d.Collections))
+	for _, c := range w.d.Collections {
+		collections = append(collections, &wrappedCollection{c})
+	}
+	return collections
 }
 
 // ID implements model.Document.
@@ -56,14 +60,18 @@ var _ model.Document = &wrappedDocument{}
 
 func fromDocument(d model.Document) *Document {
 	document := &Document{
-		ID:         string(d.ID()),
-		Source:     d.Source().String(),
-		Collection: d.Collection(),
-		Sections:   make([]*Section, 0, len(d.Sections())),
+		ID:          string(d.ID()),
+		Source:      d.Source().String(),
+		Collections: make([]*Collection, 0, len(d.Collections())),
+		Sections:    make([]*Section, 0, len(d.Sections())),
 	}
 
 	for _, s := range d.Sections() {
 		document.Sections = append(document.Sections, fromSection(document, s))
+	}
+
+	for _, c := range d.Collections() {
+		document.Collections = append(document.Collections, fromCollection(c))
 	}
 
 	return document
@@ -187,4 +195,45 @@ func (b *Branch) Value() (driver.Value, error) {
 	}
 
 	return strings.Join(parts, "."), nil
+}
+
+type Collection struct {
+	ID string `gorm:"primarykey;autoIncrement:false"`
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	Name        string `gorm:"unique"`
+	Description string
+}
+
+type wrappedCollection struct {
+	c *Collection
+}
+
+// Description implements model.Collection.
+func (w *wrappedCollection) Description() string {
+	return w.c.Description
+}
+
+// ID implements model.Collection.
+func (w *wrappedCollection) ID() model.CollectionID {
+	return model.CollectionID(w.c.ID)
+}
+
+// Name implements model.Collection.
+func (w *wrappedCollection) Name() string {
+	return w.c.Name
+}
+
+var _ model.Collection = &wrappedCollection{}
+
+func fromCollection(c model.Collection) *Collection {
+	collection := &Collection{
+		ID:          string(c.ID()),
+		Name:        c.Name(),
+		Description: c.Description(),
+	}
+
+	return collection
 }

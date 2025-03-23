@@ -47,8 +47,8 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 		options = append(options, service.WithDocumentManagerIndexFileSource(source))
 	}
 
-	if collection := r.FormValue("collection"); collection != "" {
-		options = append(options, service.WithDocumentManagerIndexFileCollection(collection))
+	if collections, exists := r.Form["collection"]; exists {
+		options = append(options, service.WithDocumentManagerIndexFileCollections(collections...))
 	}
 
 	slog.DebugContext(ctx, "indexing uploaded document")
@@ -73,10 +73,10 @@ type indexResponse struct {
 }
 
 type jsonDocument struct {
-	ID         string        `json:"id"`
-	Source     string        `json:"source"`
-	Collection string        `json:"collection,omitempty"`
-	Sections   []jsonSection `json:"sections"`
+	ID          string           `json:"id"`
+	Source      string           `json:"source"`
+	Collections []jsonCollection `json:"collections,omitempty"`
+	Sections    []jsonSection    `json:"sections"`
 }
 
 type jsonSection struct {
@@ -85,13 +85,19 @@ type jsonSection struct {
 	Sections []jsonSection `json:"sections,omitempty"`
 }
 
+type jsonCollection struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
 func toIndexResponse(doc model.Document) *indexResponse {
 	return &indexResponse{
 		Document: jsonDocument{
-			ID:         string(doc.ID()),
-			Source:     doc.Source().String(),
-			Collection: doc.Collection(),
-			Sections:   toJSONSections(doc.Sections()),
+			ID:          string(doc.ID()),
+			Source:      doc.Source().String(),
+			Collections: toJSONCollections(doc.Collections()),
+			Sections:    toJSONSections(doc.Sections()),
 		},
 	}
 }
@@ -103,6 +109,19 @@ func toJSONSections(sections []model.Section) []jsonSection {
 				ID:       string(s.ID()),
 				Level:    s.Level(),
 				Sections: toJSONSections(s.Sections()),
+			}) {
+				return
+			}
+		}
+	})
+}
+
+func toJSONCollections(collections []model.Collection) []jsonCollection {
+	return slices.Collect(func(yield func(jsonCollection) bool) {
+		for _, c := range collections {
+			if !yield(jsonCollection{
+				ID:          string(c.ID()),
+				Description: c.Description(),
 			}) {
 				return
 			}

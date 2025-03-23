@@ -16,17 +16,20 @@ func IndexMapping() *mapping.IndexMappingImpl {
 	contentFieldMapping := bleve.NewTextFieldMapping()
 	contentFieldMapping.Analyzer = AnalyzerDynamicLang
 	contentFieldMapping.Store = false
+	contentFieldMapping.IncludeTermVectors = true
 	resourceMapping.AddFieldMappingsAt("content", contentFieldMapping)
 
 	sourceFieldMapping := bleve.NewTextFieldMapping()
 	sourceFieldMapping.Analyzer = AnalyzerDynamicLang
 	sourceFieldMapping.Store = false
+	sourceFieldMapping.IncludeTermVectors = true
 	resourceMapping.AddFieldMappingsAt("source", sourceFieldMapping)
 
-	collectionFieldMapping := bleve.NewTextFieldMapping()
-	collectionFieldMapping.Analyzer = AnalyzerDynamicLang
-	collectionFieldMapping.Store = false
-	resourceMapping.AddFieldMappingsAt("collection", collectionFieldMapping)
+	collectionsFieldMapping := bleve.NewTextFieldMapping()
+	collectionsFieldMapping.Analyzer = AnalyzerDynamicLang
+	collectionsFieldMapping.Store = false
+	collectionsFieldMapping.IncludeTermVectors = true
+	resourceMapping.AddFieldMappingsAt("collections", collectionsFieldMapping)
 
 	mapping.AddDocumentMapping("resource", resourceMapping)
 

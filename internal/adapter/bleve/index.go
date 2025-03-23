@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/url"
+	"slices"
 	"strings"
 
 	"github.com/blevesearch/bleve/v2"
@@ -80,11 +81,19 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	sectionID := source.JoinPath()
 	sectionID.Fragment = string(section.ID())
 
+	collections := slices.Collect(func(yield func(s string) bool) {
+		for _, c := range section.Document().Collections() {
+			if !yield(string(c.ID())) {
+				return
+			}
+		}
+	})
+
 	data := map[string]any{
-		"_type":      "resource",
-		"content":    section.Content(),
-		"source":     source.String(),
-		"collection": section.Document().Collection(),
+		"_type":       "resource",
+		"content":     section.Content(),
+		"source":      source.String(),
+		"collections": collections,
 	}
 
 	err := i.index.Index(sectionID.String(), data)
@@ -96,16 +105,17 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 }
 
 // Search implements port.Index.
-func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
-	queries := []bleveQuery.Query{
-		bleve.NewMatchPhraseQuery(query),
-	}
+func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
+	queries := []bleveQuery.Query{}
 
-	if opts != nil && len(opts.Collections) > 0 {
+	matchQuery := bleve.NewMatchQuery(query)
+	queries = append(queries, matchQuery)
+
+	if len(opts.Collections) > 0 {
 		collectionQueries := make([]bleveQuery.Query, 0)
 		for _, c := range opts.Collections {
-			termQuery := bleve.NewTermQuery(c)
-			termQuery.SetField("collection")
+			termQuery := bleve.NewTermQuery(string(c))
+			termQuery.SetField("collections")
 			collectionQueries = append(collectionQueries, termQuery)
 		}
 		queries = append(queries, bleve.NewDisjunctionQuery(collectionQueries...))
@@ -115,7 +125,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 
 	req.From = 0
 
-	if opts != nil && opts.MaxResults > 0 {
+	if opts.MaxResults > 0 {
 		req.Size = opts.MaxResults
 	}
 
@@ -124,6 +134,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		return nil, errors.WithStack(err)
 	}
 
+	mappedScores := map[string]float64{}
 	mappedSections := map[string][]model.SectionID{}
 
 	for _, r := range result.Hits {
@@ -144,6 +155,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		sectionIDs = append(sectionIDs, sectionID)
 
 		mappedSections[source.String()] = sectionIDs
+		mappedScores[source.String()] += r.Score
 	}
 
 	searchResults := make([]*port.IndexSearchResult, 0)
@@ -159,6 +171,18 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 			Sections: sectionIDs,
 		})
 	}
+
+	slices.SortFunc(searchResults, func(r1 *port.IndexSearchResult, r2 *port.IndexSearchResult) int {
+		score1 := mappedScores[r1.Source.String()]
+		score2 := mappedScores[r2.Source.String()]
+		if score1 > score2 {
+			return -1
+		}
+		if score1 < score2 {
+			return 1
+		}
+		return 0
+	})
 
 	return searchResults, nil
 }

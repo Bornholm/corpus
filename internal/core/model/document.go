@@ -15,22 +15,6 @@ func NewDocumentID() DocumentID {
 type Document interface {
 	ID() DocumentID
 	Source() *url.URL
-	Collection() string
+	Collections() []Collection
 	Sections() []Section
-}
-
-type SectionID string
-
-func NewSectionID() SectionID {
-	return SectionID(xid.New().String())
-}
-
-type Section interface {
-	ID() SectionID
-	Branch() []SectionID
-	Level() uint
-	Document() Document
-	Parent() Section
-	Sections() []Section
-	Content() string
 }

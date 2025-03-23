@@ -69,7 +69,7 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 	return nil
 }
 
-func (i *Index) indexSection(ctx context.Context, section model.Section) error {
+func (i *Index) indexSection(ctx context.Context, section model.Section) (err error) {
 	truncated := i.truncate(ctx, section.Content())
 
 	res, err := i.llm.Embeddings(ctx, llm.WithInput(truncated))
@@ -82,7 +82,7 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 		return errors.WithStack(err)
 	}
 
-	stmt, _, err := conn.Prepare("INSERT INTO embeddings (source, section_id, embeddings, collection) VALUES (?, ?, ?, ?);")
+	stmt, _, err := conn.Prepare("INSERT INTO embeddings ( source, section_id, embeddings ) VALUES (?, ?, vec_normalize(vec_slice(?, 0, 256))) RETURNING id;")
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -106,19 +106,21 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 		return errors.WithStack(err)
 	}
 
-	if err := stmt.BindText(4, string(section.Document().Collection())); err != nil {
-		return errors.WithStack(err)
+	if stmt.Step() {
+		if err := stmt.Err(); err != nil {
+			return errors.WithStack(err)
+		}
 	}
 
-	if err := stmt.Exec(); err != nil {
-		return errors.WithStack(err)
-	}
-
-	if err := stmt.Err(); err != nil {
-		return errors.WithStack(err)
-	}
+	embeddingsID := stmt.ColumnInt(0)
 
 	stmt.Close()
+
+	for _, coll := range section.Document().Collections() {
+		if err := i.insertCollection(ctx, conn, int(embeddingsID), coll.ID()); err != nil {
+			return errors.WithStack(err)
+		}
+	}
 
 	for _, s := range section.Sections() {
 		if err := i.indexSection(ctx, s); err != nil {
@@ -129,10 +131,33 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	return nil
 }
 
-func (i *Index) truncate(ctx context.Context, text string) string {
-	slog.DebugContext(ctx, "text size before truncate", slog.Int("size", len(text)))
+func (i *Index) insertCollection(ctx context.Context, conn *sqlite3.Conn, embeddingsID int, collectionID model.CollectionID) error {
+	stmt, _, err := conn.Prepare("INSERT INTO embeddings_collections ( embeddings_id, collection_id ) VALUES (?, ?);")
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
+	defer stmt.Close()
+
+	if err := stmt.BindInt(1, embeddingsID); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := stmt.BindText(2, string(collectionID)); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := stmt.Exec(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+func (i *Index) truncate(ctx context.Context, text string) string {
 	words := splitByWords(text)
+
+	slog.DebugContext(ctx, "text size before truncate", slog.Int("textLength", len(text)), slog.Int("totalWords", len(words)))
 
 	totalWords := len(words)
 
@@ -152,7 +177,7 @@ func (i *Index) truncate(ctx context.Context, text string) string {
 
 	truncated := text[:strippingStart] + text[strippingEnd:]
 
-	slog.DebugContext(ctx, "text size after truncate", slog.Int("size", len(truncated)))
+	slog.DebugContext(ctx, "text size after truncate", slog.Int("textLength", len(truncated)), slog.Int("totalWords", len(words)-i.maxWords))
 
 	return truncated
 }
@@ -188,44 +213,14 @@ func splitByWords(text string) []*Word {
 	return words
 }
 
-const hydePromptTemplate = `
-As a knowledgeable and helpful research assistant, your task is to provide informative informations about the given context. Use your extensive knowledge base to offer clear, concise, and accurate responses to the user's inquiries.
-
-Do not output anything than your answer.
-
-Topic: {{ .Query }}
-`
-
 // Search implements port.Index.
-func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
+func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
 	conn, err := i.getConn(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	prompt, err := llm.PromptTemplate(hydePromptTemplate, struct {
-		Query string
-	}{
-		Query: query,
-	})
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	completion, err := i.llm.ChatCompletion(ctx,
-		llm.WithMessages(
-			llm.NewMessage(llm.RoleUser, prompt),
-		),
-	)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	answer := completion.Message().Content()
-
-	slog.DebugContext(ctx, "generated hypothetic answer", slog.String("answer", answer))
-
-	res, err := i.llm.Embeddings(ctx, llm.WithInput(answer))
+	res, err := i.llm.Embeddings(ctx, llm.WithInput(query))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -234,20 +229,17 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		SELECT
 			source,
 			section_id,
-			vec_distance_L2(embeddings, ?) as distance
+			vec_distance_L2(embeddings, vec_normalize(vec_slice(?, 0, 256))) as distance
 		FROM embeddings
-		WHERE 1 = 1
 	`
 
-	if opts != nil && len(opts.Collections) > 0 {
-		sql += ` AND collection IN ( 
-			SELECT value FROM json_each( ? )
-		)`
+	if len(opts.Collections) > 0 {
+		sql += ` LEFT JOIN embeddings_collections ON id = embeddings_id WHERE embeddings_collections.collection_id IN ( SELECT value FROM json_each(?) )`
 	}
 
 	sql += ` ORDER BY distance`
 
-	if opts != nil && opts.MaxResults > 0 {
+	if opts.MaxResults > 0 {
 		sql += ` LIMIT ?`
 	}
 
@@ -275,7 +267,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 
 	bindIndex = 2
 
-	if opts != nil && len(opts.Collections) > 0 {
+	if len(opts.Collections) > 0 {
 		jsonCollections, err := json.Marshal(opts.Collections)
 		if err != nil {
 			return nil, errors.WithStack(err)
@@ -288,7 +280,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		bindIndex = 3
 	}
 
-	if opts != nil && opts.MaxResults > 0 {
+	if opts.MaxResults > 0 {
 		if err := stmt.BindInt(bindIndex, opts.MaxResults); err != nil {
 			return nil, errors.WithStack(err)
 		}

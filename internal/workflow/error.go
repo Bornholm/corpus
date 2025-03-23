@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -23,7 +24,7 @@ func (e *CompensationError) Error() string {
 
 	sb.WriteString("compensation error: ")
 	sb.WriteString("execution error '")
-	sb.WriteString(e.ExecutionError().Error())
+	sb.WriteString(fmt.Sprintf("%+v", e.ExecutionError()))
 	sb.WriteString("' resulted in following compensation errors: ")
 
 	for idx, err := range e.CompensationErrors() {
@@ -34,7 +35,7 @@ func (e *CompensationError) Error() string {
 		sb.WriteString("[")
 		sb.WriteString(strconv.FormatInt(int64(idx), 10))
 		sb.WriteString("] ")
-		sb.WriteString(err.Error())
+		sb.WriteString(fmt.Sprintf("%+v", err))
 	}
 
 	return sb.String()

@@ -1,6 +1,10 @@
 package workflow
 
-import "context"
+import (
+	"context"
+
+	"github.com/pkg/errors"
+)
 
 type Step interface {
 	Execute(ctx context.Context) error
@@ -18,7 +22,11 @@ func (s *step) Compensate(ctx context.Context) error {
 		return nil
 	}
 
-	return s.compensate(ctx)
+	if err := s.compensate(ctx); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 // Execute implements Step.

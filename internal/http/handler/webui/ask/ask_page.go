@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/a-h/templ"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -26,6 +27,8 @@ func (h *Handler) getAskPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
 	vmodel, err := h.fillAskPageViewModel(r)
 	if err != nil {
 		common.HandleError(w, r, errors.WithStack(err))
@@ -33,6 +36,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	renderPage := func() {
+		vmodel.Duration = time.Since(start)
 		askPage := component.AskPage(*vmodel)
 		templ.Handler(askPage).ServeHTTP(w, r)
 	}

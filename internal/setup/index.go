@@ -3,7 +3,7 @@ package setup
 import (
 	"context"
 
-	"github.com/bornholm/corpus/internal/adapter/meta"
+	"github.com/bornholm/corpus/internal/adapter/pipeline"
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/pkg/errors"
@@ -20,10 +20,30 @@ var getIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *co
 		return nil, errors.Wrap(err, "could not create sqlitevec index from config")
 	}
 
-	metaIndex := meta.NewIndex(meta.WeightedIndexes{
+	llmClient, err := getLLMClientFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get llm client from config")
+	}
+
+	store, err := getStoreFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get store from config")
+	}
+
+	weightedIndexes := pipeline.WeightedIndexes{
 		bleveIndex:     0.4,
 		sqlitevecIndex: 0.6,
-	})
+	}
 
-	return metaIndex, nil
+	pipelinedIndex := pipeline.NewIndex(
+		weightedIndexes,
+		pipeline.WithQueryTransformers(
+			pipeline.NewHyDEQueryTransformer(llmClient, store),
+		),
+		pipeline.WithResultsTransformers(
+			pipeline.NewJudgeResultsTransformer(llmClient, store),
+		),
+	)
+
+	return pipelinedIndex, nil
 })

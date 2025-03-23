@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -20,10 +21,10 @@ type SearchResponse struct {
 }
 
 type Section struct {
-	ID         model.SectionID `json:"id"`
-	Source     string          `json:"source"`
-	Content    string          `json:"content"`
-	Collection string          `json:"collection,omitempty"`
+	ID          model.SectionID      `json:"id"`
+	Source      string               `json:"source"`
+	Content     string               `json:"content"`
+	Collections []model.CollectionID `json:"collections,omitempty"`
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -105,10 +106,16 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 			branch := branchToString(section.Branch())
 
 			sections[branch] = &Section{
-				ID:         section.ID(),
-				Source:     r.Source.String(),
-				Content:    section.Content(),
-				Collection: section.Document().Collection(),
+				ID:      section.ID(),
+				Source:  r.Source.String(),
+				Content: section.Content(),
+				Collections: slices.Collect(func(yield func(model.CollectionID) bool) {
+					for _, c := range section.Document().Collections() {
+						if !yield(c.ID()) {
+							return
+						}
+					}
+				}),
 			}
 		}
 

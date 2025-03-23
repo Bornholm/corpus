@@ -31,7 +31,8 @@ func Parse(data []byte) (*Document, error) {
 	root := md.Parser().Parse(text.NewReader(data), parser.WithContext(context))
 
 	document := &Document{
-		id: model.NewDocumentID(),
+		id:          model.NewDocumentID(),
+		collections: make([]model.Collection, 0),
 	}
 
 	current := &Section{
@@ -132,23 +133,45 @@ func Parse(data []byte) (*Document, error) {
 }
 
 type Document struct {
-	id         model.DocumentID
-	source     *url.URL
-	collection string
-	sections   []model.Section
+	id          model.DocumentID
+	source      *url.URL
+	collections []model.Collection
+	sections    []model.Section
 }
+type Collection struct {
+	id          model.CollectionID
+	name        string
+	description string
+}
+
+// Name implements model.Collection.
+func (c *Collection) Name() string {
+	return c.name
+}
+
+// Description implements model.Collection.
+func (c *Collection) Description() string {
+	return c.description
+}
+
+// ID implements model.Collection.
+func (c *Collection) ID() model.CollectionID {
+	return c.id
+}
+
+var _ model.Collection = &Collection{}
 
 func (d *Document) SetSource(source *url.URL) {
 	d.source = source
 }
 
-func (d *Document) SetCollection(collection string) {
-	d.collection = collection
+func (d *Document) AddCollection(coll model.Collection) {
+	d.collections = append(d.collections, coll)
 }
 
-// Collection implements model.Document.
-func (d *Document) Collection() string {
-	return d.collection
+// Collections implements model.Document.
+func (d *Document) Collections() []model.Collection {
+	return d.collections
 }
 
 // ID implements model.Document.

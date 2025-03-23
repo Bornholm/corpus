@@ -10,12 +10,12 @@ import (
 type Index interface {
 	Index(ctx context.Context, document model.Document) error
 	DeleteBySource(ctx context.Context, source *url.URL) error
-	Search(ctx context.Context, query string, opts *IndexSearchOptions) ([]*IndexSearchResult, error)
+	Search(ctx context.Context, query string, opts IndexSearchOptions) ([]*IndexSearchResult, error)
 }
 
 type IndexSearchOptions struct {
 	MaxResults  int
-	Collections []string
+	Collections []model.CollectionID
 }
 
 type IndexSearchResult struct {

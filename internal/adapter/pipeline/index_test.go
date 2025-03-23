@@ -1,4 +1,4 @@
-package meta
+package pipeline
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func (m *mockIndex) Index(ctx context.Context, document model.Document) error {
 }
 
 // Search implements port.Index.
-func (m *mockIndex) Search(ctx context.Context, query string, opts *port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
+func (m *mockIndex) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
 	return []*port.IndexSearchResult{}, nil
 }
 

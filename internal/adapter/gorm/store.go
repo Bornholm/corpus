@@ -9,10 +9,81 @@ import (
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Store struct {
 	getDatabase func(ctx context.Context) (*gorm.DB, error)
+}
+
+// CreateCollection implements port.Store.
+func (s *Store) CreateCollection(ctx context.Context, name string) (model.Collection, error) {
+	db, err := s.getDatabase(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	collection := &Collection{
+		ID:   string(model.NewCollectionID()),
+		Name: name,
+	}
+
+	if err := db.Create(collection).Error; err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &wrappedCollection{collection}, nil
+}
+
+// UpdateCollection implements port.Store.
+func (s *Store) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.Collection, error) {
+	panic("unimplemented")
+}
+
+// GetCollectionByID implements port.Store.
+func (s *Store) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.Collection, error) {
+	panic("unimplemented")
+}
+
+// GetCollectionByName implements port.Store.
+func (s *Store) GetCollectionByName(ctx context.Context, name string) (model.Collection, error) {
+	db, err := s.getDatabase(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var collection Collection
+
+	if err := db.Where("name = ?", name).First(&collection).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.WithStack(port.ErrNotFound)
+		}
+
+		return nil, errors.WithStack(err)
+	}
+
+	return &wrappedCollection{&collection}, nil
+}
+
+// QueryCollections implements port.Store.
+func (s *Store) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.Collection, error) {
+	db, err := s.getDatabase(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var collections []*Collection
+
+	if err := db.Find(&collections).Error; err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	wrappedCollections := make([]model.Collection, 0, len(collections))
+	for _, c := range collections {
+		wrappedCollections = append(wrappedCollections, &wrappedCollection{c})
+	}
+
+	return wrappedCollections, nil
 }
 
 // CountDocuments implements port.Store.
@@ -70,7 +141,16 @@ func (s *Store) DeleteDocumentBySource(ctx context.Context, source *url.URL) err
 		return errors.WithStack(err)
 	}
 
-	if err := db.Delete(&Document{}, "source = ?", source.String()).Error; err != nil {
+	var doc Document
+	if err := db.First(&doc, "source = ?", source.String()).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+
+		return errors.WithStack(err)
+	}
+
+	if err := db.Select(clause.Associations).Delete(&doc).Error; err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -100,8 +180,15 @@ func (s *Store) SaveDocument(ctx context.Context, doc model.Document) error {
 			return errors.WithStack(ErrMissingSource)
 		}
 
-		if res := tx.Delete(&Document{}, "source = ?", doc.Source().String()); res.Error != nil {
-			return errors.WithStack(res.Error)
+		var existing Document
+		if err := tx.First(&existing, "source = ?", source.String()).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.WithStack(err)
+		}
+
+		if existing.ID != "" {
+			if err := tx.Select(clause.Associations).Delete(&existing).Error; err != nil {
+				return errors.WithStack(err)
+			}
 		}
 
 		document := fromDocument(doc)

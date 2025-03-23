@@ -1,4 +1,4 @@
-package meta
+package pipeline
 
 import (
 	"context"
@@ -17,7 +17,9 @@ import (
 type WeightedIndexes map[port.Index]float64
 
 type Index struct {
-	indexes WeightedIndexes
+	queryTransformers   []QueryTransformer
+	resultsTransformers []ResultsTransformer
+	indexes             WeightedIndexes
 }
 
 type indexSearchResults struct {
@@ -122,7 +124,12 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 }
 
 // Search implements port.Index.
-func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
+func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
+	query, err := i.transformQuery(ctx, query)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	count := len(i.indexes)
 
 	type Message struct {
@@ -138,12 +145,12 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 	wg.Add(count)
 
 	maxResults := 5
-	if opts != nil && opts.MaxResults != 0 {
+	if opts.MaxResults != 0 {
 		maxResults = opts.MaxResults
 	}
 
-	collections := make([]string, 0)
-	if opts != nil && opts.Collections != nil {
+	collections := make([]model.CollectionID, 0)
+	if opts.Collections != nil {
 		collections = opts.Collections
 	}
 
@@ -151,7 +158,7 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		go func(index port.Index) {
 			defer wg.Done()
 
-			results, err := index.Search(ctx, query, &port.IndexSearchOptions{
+			results, err := index.Search(ctx, query, port.IndexSearchOptions{
 				MaxResults:  maxResults * 3,
 				Collections: collections,
 			})
@@ -204,7 +211,36 @@ func (i *Index) Search(ctx context.Context, query string, opts *port.IndexSearch
 		return nil, errors.WithStack(err)
 	}
 
-	return merged, nil
+	transformed, err := i.transformResults(ctx, query, merged)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return transformed, nil
+}
+
+func (i *Index) transformQuery(ctx context.Context, query string) (string, error) {
+	var err error
+	for _, t := range i.queryTransformers {
+		query, err = t.TransformQuery(ctx, query)
+		if err != nil {
+			return "", errors.WithStack(err)
+		}
+	}
+
+	return query, nil
+}
+
+func (i *Index) transformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error) {
+	var err error
+	for _, t := range i.resultsTransformers {
+		results, err = t.TransformResults(ctx, query, results)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+
+	return results, nil
 }
 
 func (i *Index) mergeResults(indexResults []*indexSearchResults, maxResults int) ([]*port.IndexSearchResult, error) {
@@ -307,9 +343,12 @@ func (i *Index) mergeResults(indexResults []*indexSearchResults, maxResults int)
 	return merged, nil
 }
 
-func NewIndex(indexes WeightedIndexes) *Index {
+func NewIndex(indexes WeightedIndexes, funcs ...OptionFunc) *Index {
+	opts := NewOptions(funcs...)
 	return &Index{
-		indexes: indexes,
+		queryTransformers:   opts.QueryTransformers,
+		resultsTransformers: opts.ResultsTransformers,
+		indexes:             indexes,
 	}
 }
 
