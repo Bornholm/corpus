@@ -123,6 +123,10 @@ func NewDocumentManagerIndexFileOptions(funcs ...DocumentManagerIndexFileOptionF
 	return opts
 }
 
+func (m *DocumentManager) SupportedExtensions() []string {
+	return m.fileConverter.SupportedExtensions()
+}
+
 var ErrNotSupported = errors.New("not supported")
 
 func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (model.Document, error) {

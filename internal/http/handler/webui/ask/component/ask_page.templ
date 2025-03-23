@@ -2,6 +2,7 @@ package component
 
 import (
 	"github.com/bornholm/corpus/internal/build"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"strconv"
@@ -12,15 +13,28 @@ type AskPageVModel struct {
 	Query          string
 	TotalDocuments int64
 	Results        []*port.IndexSearchResult
-	Response       string
-	Duration       time.Duration
+	Collections    []model.Collection
+
+	Response        string
+	Duration        time.Duration
+	UploadFileModal *UploadFileModalVModel
 }
 
 templ AskPage(vmodel AskPageVModel) {
 	@common.Page(common.WithTitle("Interrogez vos documents !")) {
+		if vmodel.UploadFileModal != nil {
+			@UploadFileModal(*vmodel.UploadFileModal)
+		}
 		<div class="container">
 			<section class="section">
-				<h1 class="title is-size-1"><span class="icon has-text-link"><i class="fas fa-book-open"></i></span><span class="ml-5">Corpus</span></h1>
+				<div class="level">
+					<div class="level-left">
+						<h1 class="title is-size-1 level-item"><span class="icon has-text-link"><i class="fas fa-book-open"></i></span><span class="ml-5">Corpus</span></h1>
+					</div>
+					<div class="level-right">
+						<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
+					</div>
+				</div>
 				<form method="post" hx-on:submit="htmx.addClass(htmx.find('#submit-button'), 'is-loading')">
 					<div class="field is-large">
 						<label class="label" for="query">Posez votre question <span class="has-text-weight-normal has-text-grey">({ strconv.FormatInt(vmodel.TotalDocuments, 10) } documents indexés)</span></label>
@@ -28,6 +42,22 @@ templ AskPage(vmodel AskPageVModel) {
 							<textarea id="query" name="q" class="textarea is-large">{ vmodel.Query }</textarea>
 						</div>
 					</div>
+					<details class="is-clickable my-3">
+						<summary>Paramètres avancés</summary>
+						<div class="field">
+							<label class="label">Collection(s)</label>
+							<div class="control">
+								<div class="select is-multiple is-fullwidth">
+									<select multiple name="collection">
+										for _, c := range vmodel.Collections {
+											<option value={ c.Name() }>{ c.Name() }</option>
+										}
+									</select>
+								</div>
+							</div>
+							<p class="help">Limiter le domaine de recherche à une ou plusieurs collections.</p>
+						</div>
+					</details>
 					<button id="submit-button" type="submit" class="button is-link is-fullwidth is-large">
 						<span>Interroger</span>
 						<span class="icon"><i class="far fa-comment"></i></span>
@@ -36,11 +66,11 @@ templ AskPage(vmodel AskPageVModel) {
 				if vmodel.Query != "" {
 					<hr class="mt-5"/>
 					<div class="mt-5">
-						<h2 class="title is-size-2">Réponse <span class="has-text-weight-normal has-text-grey subtitle">(générée en { vmodel.Duration.String() })</span></h2>
+						<h2 class="title is-size-2">Réponse <span class="has-text-weight-normal has-text-grey subtitle">(générée en { vmodel.Duration.Round(time.Second).String() })</span></h2>
 						if len(vmodel.Results) == 0 {
-							<div class="message is-warning">
+							<div class="message is-warning is-medium">
 								<div class="message-body">
-									Aucun résultat correspondant à votre question n'a été trouvé dans la base documentaire !
+									Aucun résultat correspondant à votre question n'a été trouvé dans la base documentaire.
 								</div>
 							</div>
 						} else {

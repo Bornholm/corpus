@@ -8,6 +8,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/bornholm/genai/llm"
@@ -48,7 +49,13 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	results, err := h.documentManager.Search(ctx, vmodel.Query)
+	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
+
+	if collections, exists := r.Form["collection"]; exists {
+		searchOptions = append(searchOptions, service.WithDocumentManagerSearchCollections(collections...))
+	}
+
+	results, err := h.documentManager.Search(ctx, vmodel.Query, searchOptions...)
 	if err != nil {
 		common.HandleError(w, r, errors.WithStack(err))
 		return
@@ -147,6 +154,8 @@ func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVMode
 		vmodel, r,
 		h.fillAskPageVModelTotalDocuments,
 		h.fillAskPageVModelQuery,
+		h.fillAskPageVModelFileUploadModal,
+		h.fillAskPageVModelCollections,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -177,6 +186,30 @@ func (h *Handler) fillAskPageVModelQuery(ctx context.Context, vmodel *component.
 	}
 
 	vmodel.Query = r.FormValue("q")
+
+	return nil
+}
+
+func (h *Handler) fillAskPageVModelFileUploadModal(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
+	enabled := r.URL.Query().Get("action") == "upload"
+	if !enabled {
+		return nil
+	}
+
+	vmodel.UploadFileModal = &component.UploadFileModalVModel{
+		SupportedExtensions: h.documentManager.SupportedExtensions(),
+	}
+
+	return nil
+}
+
+func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
+	collections, err := h.documentManager.Store.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	vmodel.Collections = collections
 
 	return nil
 }

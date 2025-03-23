@@ -1,0 +1,125 @@
+package component
+
+import (
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strings"
+)
+
+type UploadFileModalVModel struct {
+	SupportedExtensions []string
+}
+
+templ UploadFileModal(vmodel UploadFileModalVModel) {
+	<div class="modal is-active">
+		<div class="modal-background"></div>
+		<form
+			method="post"
+			enctype="multipart/form-data"
+			action={ common.BaseURL(ctx, common.WithPath("/index")) }
+			hx-on:submit="htmx.addClass(htmx.find('#index-submit'), 'is-loading')"
+		>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Ajouter un fichier</p>
+				</header>
+				<section class="modal-card-body">
+					<div class="field">
+						<div class="control">
+							<div class="file has-name is-fullwidth">
+								<label class="file-label">
+									<input
+										class="file-input"
+										type="file"
+										name="file"
+										required
+										hx-on:change="onFileChange.call(this)"
+										accept={ strings.Join(vmodel.SupportedExtensions, ", ") }
+									/>
+									<span class="file-cta">
+										<span class="file-icon">
+											<i class="fas fa-upload"></i>
+										</span>
+										<span class="file-label">Choisissez un fichier</span>
+									</span>
+									<span class="file-name"></span>
+								</label>
+							</div>
+						</div>
+						<p class="help">Formats acceptés: <code>{ strings.Join(vmodel.SupportedExtensions, ", ") }</code></p>
+					</div>
+					<div class="field">
+						<label class="label">URL</label>
+						<div class="control">
+							<input class="input" type="url" required name="source" placeholder="https://myserver/mydocument.md"/>
+						</div>
+						<p class="help">L'URL unique qui sera associée au document.</p>
+					</div>
+					<details class="is-clickable">
+						<summary>Paramètres avancés</summary>
+						<div class="field">
+							<div class="level">
+								<div class="level-left">
+									<label class="label level-item">Collection(s)</label>
+								</div>
+								<div class="level-right">
+									<button class="button level-item" hx-on:click="onAddCollectionClick.call(this, event)"><span class="icon"><i class="fa fa-plus"></i></span></button>
+								</div>
+							</div>
+							<div id="collectionContainer" class="control">
+								<input class="input" type="text" name="collection"/>
+								<template id="newCollection">
+									<div class="field has-addons mt-3">
+										<div class="control is-expanded">
+											<input class="input" type="text" name="collection"/>
+										</div>
+										<div class="control">
+											<button class="button is-danger" hx-on:click="onRemoveCollectionClick.call(this, event)">
+												<span class="icon">
+													<i class="fa fa-trash"></i>
+												</span>
+											</button>
+										</div>
+									</div>
+								</template>
+							</div>
+							<p class="help">Associer une ou plusieurs collections au document.</p>
+						</div>
+					</details>
+				</section>
+				<footer class="modal-card-foot">
+					<div class="buttons is-right" style="width:100%">
+						<a href={ common.CurrentURL(ctx, common.WithoutValues("action", "*")) } class="button is-medium">Annuler</a>
+						<button type="submit" id="index-submit" class="button is-success is-medium">Indexer</button>
+					</div>
+				</footer>
+			</div>
+		</form>
+	</div>
+	<script>
+    function onFileChange() {
+      if (this.files.length > 0) {
+        const fileNameInput = this.parentNode.querySelector(".file-name");
+        const name = this.files[0].name;
+        fileNameInput.textContent = name;
+        
+        const sourceInput = this.closest("form").querySelector(`input[name="source"]`)
+        if (!sourceInput.value) {
+          sourceInput.value = `file://${name}`
+        }
+      }
+    }
+
+    function onAddCollectionClick(evt) {
+      evt.preventDefault()
+      const newCollection = document.getElementById("newCollection").content.cloneNode(true);
+      htmx.process(newCollection);
+      document.getElementById("collectionContainer").appendChild(newCollection)
+    }
+
+    function onRemoveCollectionClick(evt) {
+      evt.preventDefault()
+      const fieldElement = this.closest(".field");
+      fieldElement.parentNode.removeChild(fieldElement);
+    }
+  </script>
+}

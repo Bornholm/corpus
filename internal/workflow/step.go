@@ -35,7 +35,11 @@ func (s *step) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	return s.execute(ctx)
+	if err := s.execute(ctx); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
 var _ Step = &step{}

@@ -27,6 +27,7 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client) *Handl
 
 	h.mux.HandleFunc("GET /", h.getAskPage)
 	h.mux.HandleFunc("POST /", h.handleAsk)
+	h.mux.HandleFunc("POST /index", h.handleIndex)
 
 	return h
 }
