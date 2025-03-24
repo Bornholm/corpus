@@ -1,0 +1,27 @@
+version: 2
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - targets: [go_first_class]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    dir: ./cmd/corpus
+    flags:
+      - -trimpath
+    ldflags:
+      - -w -s -X 'github.com/bornholm/corpus/internal/build.ShortVersion={{ .Version }}' -X 'github.com/bornholm/corpus/internal/build.LongVersion={{ .Version }}'
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+
+release:
+  name_template: "v{{ .Version }}"
