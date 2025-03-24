@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"math"
 	"net/url"
+	"slices"
 	"sync"
 	"unicode"
 
@@ -237,7 +239,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 		sql += ` LEFT JOIN embeddings_collections ON id = embeddings_id WHERE embeddings_collections.collection_id IN ( SELECT value FROM json_each(?) )`
 	}
 
-	sql += ` ORDER BY distance`
+	sql += ` ORDER BY distance ASC`
 
 	if opts.MaxResults > 0 {
 		sql += ` LIMIT ?`
@@ -290,17 +292,24 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 		return nil, errors.WithStack(err)
 	}
 
+	mappedScores := map[string]float64{}
 	mappedSections := map[string][]model.SectionID{}
 
 	for stmt.Step() {
 		source := stmt.ColumnText(0)
 		sectionID := stmt.ColumnText(1)
+		distance := stmt.ColumnFloat(2)
 
 		if _, exists := mappedSections[source]; !exists {
 			mappedSections[source] = make([]model.SectionID, 0)
 		}
 
+		if distance == 0 {
+			distance = math.SmallestNonzeroFloat64
+		}
+
 		mappedSections[source] = append(mappedSections[source], model.SectionID(sectionID))
+		mappedScores[source] += 1 / distance
 	}
 
 	if err := stmt.Err(); err != nil {
@@ -320,6 +329,18 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 			Sections: sectionIDs,
 		})
 	}
+
+	slices.SortFunc(searchResults, func(r1 *port.IndexSearchResult, r2 *port.IndexSearchResult) int {
+		score1 := mappedScores[r1.Source.String()]
+		score2 := mappedScores[r2.Source.String()]
+		if score1 > score2 {
+			return -1
+		}
+		if score1 < score2 {
+			return 1
+		}
+		return 0
+	})
 
 	return searchResults, nil
 }

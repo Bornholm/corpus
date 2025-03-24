@@ -11,7 +11,7 @@ import (
 )
 
 type Document struct {
-	ID          string `gorm:"primarykey"`
+	ID          string `gorm:"primaryKey;autoIncrement:false"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Source      string        `gorm:"unique;not null;index"`
@@ -78,7 +78,7 @@ func fromDocument(d model.Document) *Document {
 }
 
 type Section struct {
-	ID string `gorm:"primarykey;autoIncrement:false"`
+	ID string `gorm:"primaryKey;autoIncrement:false"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -198,7 +198,7 @@ func (b *Branch) Value() (driver.Value, error) {
 }
 
 type Collection struct {
-	ID string `gorm:"primarykey;autoIncrement:false"`
+	ID string `gorm:"primaryKey;autoIncrement:false"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
