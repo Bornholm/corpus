@@ -1,0 +1,11 @@
+FROM alpine:3.21 AS runtime
+
+RUN apk add \
+    ca-certificates \
+    openssl \
+    pandoc \
+  && update-ca-certificates
+
+COPY corpus /usr/local/bin/corpus
+
+CMD ["/usr/local/bin/corpus"]

@@ -1,8 +1,8 @@
 DOCKER_IMAGE_NAME := corpus
 
-CHANNEL=$(shell git rev-parse --abbrev-ref HEAD)
+DOCKER_IMAGE_CHANNEL=$(shell git rev-parse --abbrev-ref HEAD)
 COMMIT_TIMESTAMP=$(shell git show -s --format=%ct)
-DOCKER_IMAGE_TAG ?= $(shell TZ=Europe/Paris date -d "@$(COMMIT_TIMESTAMP)" +%Y.%-m.%-d)-$(CHANNEL).$(shell date -d "@${COMMIT_TIMESTAMP}" +%-H%M).$(shell git rev-parse --short HEAD)
+DOCKER_IMAGE_TAG ?= $(shell TZ=Europe/Paris date -d "@$(COMMIT_TIMESTAMP)" +%Y.%-m.%-d)-$(DOCKER_IMAGE_CHANNEL).$(shell date -d "@${COMMIT_TIMESTAMP}" +%-H%M).$(shell git rev-parse --short HEAD)
 
 docker-image:
 	docker build -f misc/docker/Dockerfile -t $(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG) .

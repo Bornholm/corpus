@@ -25,3 +25,9 @@ changelog:
 
 release:
   name_template: "v{{ .Version }}"
+dockers:
+  - use: docker
+    dockerfile: misc/docker/Dockerfile.goreleaser
+    image_templates:
+      - ghcr.io/bornholm/corpus:{{ .Version }}
+      - ghcr.io/bornholm/corpus:latest
