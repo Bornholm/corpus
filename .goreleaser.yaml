@@ -29,5 +29,5 @@ dockers:
   - use: docker
     dockerfile: misc/docker/Dockerfile.goreleaser
     image_templates:
-      - ghcr.io/bornholm/corpus:{{ .Version }}
-      - ghcr.io/bornholm/corpus:latest
+      - ghcr.io/{{ .Env.REPO_OWNER }}/corpus:{{ .Version }}
+      - ghcr.io/{{ .Env.REPO_OWNER }}/corpus:latest
