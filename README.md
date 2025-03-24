@@ -22,7 +22,7 @@ docker run \
   ghcr.io/bornholm/corpus:latest
 ```
 
-Then open your browser in http://localhost:3002, default credentials are `corpus` / `corpus`.
+Then open http://localhost:3002 in your browser, default credentials are `corpus` / `corpus`.
 
 **Examples**
 
