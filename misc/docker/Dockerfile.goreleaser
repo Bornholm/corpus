@@ -8,4 +8,10 @@ RUN apk add \
 
 COPY corpus /usr/local/bin/corpus
 
+ENV CORPUS_STORAGE_DATABASE_DSN=/data/data.sqlite CORPUS_STORAGE_INDEX_DSN=/data/index.bleve
+
+VOLUME /data
+
+EXPOSE 3002
+
 CMD ["/usr/local/bin/corpus"]
