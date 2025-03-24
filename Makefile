@@ -11,6 +11,10 @@ ASMFLAGS ?= -trimpath=$(PWD) \
 
 CI_EVENT ?= push
 
+RELEASE_CHANNEL ?= $(shell git rev-parse --abbrev-ref HEAD)
+COMMIT_TIMESTAMP = $(shell git show -s --format=%ct)
+RELEASE_VERSION ?= $(shell TZ=Europe/Paris date -d "@$(COMMIT_TIMESTAMP)" +%Y.%-m.%-d)-$(RELEASE_CHANNEL).$(shell date -d "@${COMMIT_TIMESTAMP}" +%-H%M).$(shell git rev-parse --short HEAD)
+
 watch: tools/modd/bin/modd
 	tools/modd/bin/modd
 
@@ -25,9 +29,12 @@ build: generate
 			-asmflags "$(ASMFLAGS)" \
 			-o ./bin/corpus ./cmd/corpus
 
-
 purge:
 	rm -rf data.sqlite bleve.index
+
+release:
+	git tag -a v$(RELEASE_VERSION) -m $(RELEASE_VERSION)
+	git push --tags
 
 generate: tools/templ/bin/templ
 	tools/templ/bin/templ generate
