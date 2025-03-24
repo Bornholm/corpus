@@ -4,6 +4,7 @@ RUN apk add \
     ca-certificates \
     openssl \
     pandoc \
+    gcompat \
   && update-ca-certificates
 
 COPY corpus /usr/local/bin/corpus
