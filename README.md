@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Bornholm/corpus/refs/heads/main/internal/http/handler/webui/common/assets/logo.svg" width="128px" alt="Logo"/>
+</p>
+
 # Corpus
 
 A "good enough" and easy to deploy [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) service.
@@ -11,6 +15,10 @@ A "good enough" and easy to deploy [RAG](https://en.wikipedia.org/wiki/Retrieval
 ### With Docker
 
 ```bash
+# Create data volume
+docker volume create corpus_data
+
+# Start container
 docker run \
   -it --rm \
   -v corpus_data:/data \
