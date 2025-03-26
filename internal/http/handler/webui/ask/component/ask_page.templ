@@ -29,7 +29,7 @@ templ AskPage(vmodel AskPageVModel) {
 			<section class="section">
 				<div class="level">
 					<div class="level-left">
-						<h1 class="title is-size-1 level-item"><a href={ common.BaseURL(ctx) }><span class="icon has-text-link"><i class="fas fa-book-open"></i></span><span class="ml-5 has-text-grey-dark">Corpus</span></a></h1>
+						<h1 class="title is-size-1 level-item"><a href={ common.BaseURL(ctx) }><img style="height:2em;vertical-align:middle" src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }/><span class="ml-2 has-text-grey-dark" style="vertical-align:middle">Corpus</span></a></h1>
 					</div>
 					<div class="level-right">
 						<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
