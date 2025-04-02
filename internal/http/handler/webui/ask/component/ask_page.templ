@@ -89,8 +89,26 @@ templ AskPage(vmodel AskPageVModel) {
 											function copyResponseToClipboard(el) {
 												const encodedResponse = el.dataset.encodedResponse;
 												const text = new TextDecoder().decode(Uint8Array.from(atob(encodedResponse), m => m.charCodeAt(0)))
-												navigator.clipboard.writeText(text);
+												if (navigator.clipboard) {
+													navigator.clipboard.writeText(text);
+												} else {
+													unsecuredCopyToClipboard(text);
+												}
 												el.innerHTML = '<span>Copié !</span><span class="icon"><i class="fas fa-check"></i></span>'
+											}
+
+											function unsecuredCopyToClipboard(text) {
+												const textArea = document.createElement("textarea");
+												textArea.value = text;
+												document.body.appendChild(textArea);
+												textArea.focus({ preventScroll: true });
+												textArea.select();
+												try {
+													document.execCommand('copy');
+												} catch (err) {
+													console.error('Unable to copy to clipboard', err);
+												}
+												document.body.removeChild(textArea);
 											}
 										</script>
 									}

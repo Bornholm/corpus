@@ -197,7 +197,7 @@ func AskPage(vmodel AskPageVModel) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><span>Copier</span> <span class=\"icon\"><i class=\"fas fa-copy\"></i></span></button><script type=\"text/javascript\">\n\t\t\t\t\t\t\t\t\t\t\tfunction copyResponseToClipboard(el) {\n\t\t\t\t\t\t\t\t\t\t\t\tconst encodedResponse = el.dataset.encodedResponse;\n\t\t\t\t\t\t\t\t\t\t\t\tconst text = new TextDecoder().decode(Uint8Array.from(atob(encodedResponse), m => m.charCodeAt(0)))\n\t\t\t\t\t\t\t\t\t\t\t\tnavigator.clipboard.writeText(text);\n\t\t\t\t\t\t\t\t\t\t\t\tel.innerHTML = '<span>Copié !</span><span class=\"icon\"><i class=\"fas fa-check\"></i></span>'\n\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t</script>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\"><span>Copier</span> <span class=\"icon\"><i class=\"fas fa-copy\"></i></span></button><script type=\"text/javascript\">\n\t\t\t\t\t\t\t\t\t\t\tfunction copyResponseToClipboard(el) {\n\t\t\t\t\t\t\t\t\t\t\t\tconst encodedResponse = el.dataset.encodedResponse;\n\t\t\t\t\t\t\t\t\t\t\t\tconst text = new TextDecoder().decode(Uint8Array.from(atob(encodedResponse), m => m.charCodeAt(0)))\n\t\t\t\t\t\t\t\t\t\t\t\tif (navigator.clipboard) {\n\t\t\t\t\t\t\t\t\t\t\t\t\tnavigator.clipboard.writeText(text);\n\t\t\t\t\t\t\t\t\t\t\t\t} else {\n\t\t\t\t\t\t\t\t\t\t\t\t\tunsecuredCopyToClipboard(text);\n\t\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t\t\tel.innerHTML = '<span>Copié !</span><span class=\"icon\"><i class=\"fas fa-check\"></i></span>'\n\t\t\t\t\t\t\t\t\t\t\t}\n\n\t\t\t\t\t\t\t\t\t\t\tfunction unsecuredCopyToClipboard(text) {\n\t\t\t\t\t\t\t\t\t\t\t\tconst textArea = document.createElement(\"textarea\");\n\t\t\t\t\t\t\t\t\t\t\t\ttextArea.value = text;\n\t\t\t\t\t\t\t\t\t\t\t\tdocument.body.appendChild(textArea);\n\t\t\t\t\t\t\t\t\t\t\t\ttextArea.focus({ preventScroll: true });\n\t\t\t\t\t\t\t\t\t\t\t\ttextArea.select();\n\t\t\t\t\t\t\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\t\t\t\t\t\t\tdocument.execCommand('copy');\n\t\t\t\t\t\t\t\t\t\t\t\t} catch (err) {\n\t\t\t\t\t\t\t\t\t\t\t\t\tconsole.error('Unable to copy to clipboard', err);\n\t\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t\t\tdocument.body.removeChild(textArea);\n\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t</script>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
@@ -241,7 +241,7 @@ func AskPage(vmodel AskPageVModel) templ.Component {
 						var templ_7745c5c3_Var13 string
 						templ_7745c5c3_Var13, templ_7745c5c3_Err = templ.JoinStringErrs(r.Source.String())
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/ask_page.templ`, Line: 114, Col: 78}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/ask_page.templ`, Line: 132, Col: 78}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var13))
 						if templ_7745c5c3_Err != nil {
@@ -269,7 +269,7 @@ func AskPage(vmodel AskPageVModel) templ.Component {
 			var templ_7745c5c3_Var14 string
 			templ_7745c5c3_Var14, templ_7745c5c3_Err = templ.JoinStringErrs(build.ShortVersion)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/ask_page.templ`, Line: 125, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/ask_page.templ`, Line: 143, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var14))
 			if templ_7745c5c3_Err != nil {
