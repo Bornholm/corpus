@@ -45,7 +45,7 @@ bin/templ: tools/templ/bin/templ
 
 tools/templ/bin/templ:
 	mkdir -p tools/templ/bin
-	GOBIN=$(PWD)/tools/templ/bin go install github.com/a-h/templ/cmd/templ@v0.3.819
+	GOBIN=$(PWD)/tools/templ/bin go install github.com/a-h/templ/cmd/templ@v0.3.833
 
 tools/modd/bin/modd:
 	mkdir -p tools/modd/bin
