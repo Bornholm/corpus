@@ -1,6 +1,7 @@
 package component
 
 import (
+	"encoding/base64"
 	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -66,7 +67,36 @@ templ AskPage(vmodel AskPageVModel) {
 				if vmodel.Query != "" {
 					<hr class="mt-5"/>
 					<div class="mt-5">
-						<h2 class="title is-size-2">Réponse <span class="has-text-weight-normal has-text-grey subtitle">(générée en { vmodel.Duration.Round(time.Second).String() })</span></h2>
+						<div class="level">
+							<div class="level-left">
+								<h2 class="title is-size-2 level-item">
+									<span>Réponse</span>
+									<span class="has-text-weight-normal has-text-grey subtitle ml-3">(générée en { vmodel.Duration.Round(time.Second).String() })</span>
+								</h2>
+							</div>
+							<div class="level-right">
+								<div class="buttons level-item">
+									if vmodel.Response != "" {
+										<button
+											class="button"
+											hx-on:click="copyResponseToClipboard(this)"
+											data-encoded-response={ base64.RawStdEncoding.EncodeToString([]byte(vmodel.Response)) }
+										>
+											<span>Copier</span>
+											<span class="icon"><i class="fas fa-copy"></i></span>
+										</button>
+										<script type="text/javascript">
+											function copyResponseToClipboard(el) {
+												const encodedResponse = el.dataset.encodedResponse;
+												const text = new TextDecoder().decode(Uint8Array.from(atob(encodedResponse), m => m.charCodeAt(0)))
+												navigator.clipboard.writeText(text);
+												el.innerHTML = '<span>Copié !</span><span class="icon"><i class="fas fa-check"></i></span>'
+											}
+										</script>
+									}
+								</div>
+							</div>
+						</div>
 						if len(vmodel.Results) == 0 {
 							<div class="message is-warning is-medium">
 								<div class="message-body">
