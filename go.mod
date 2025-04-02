@@ -9,6 +9,7 @@ require (
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712
 	github.com/caarlos0/env/v11 v11.3.1
+	github.com/davecgh/go-spew v1.1.1
 	github.com/gabriel-vasile/mimetype v1.4.8
 	github.com/ncruces/go-sqlite3 v0.20.3
 	github.com/ncruces/go-sqlite3/gormlite v0.20.3
@@ -31,7 +32,6 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker v27.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect

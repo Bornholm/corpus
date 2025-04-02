@@ -144,7 +144,7 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 				return "", errors.WithStack(err)
 			}
 
-			sb.WriteString("### Doc #")
+			sb.WriteString("### Document ")
 			sb.WriteString(string(section.ID()))
 			sb.WriteString("\n\n")
 

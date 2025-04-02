@@ -20,13 +20,25 @@ func TestParser(t *testing.T) {
 	testCases := []testCase{
 		{
 			File:              "testdata/test.md",
-			ExpectedSections:  7,
+			ExpectedSections:  9,
 			MaxWordPerSection: 5,
 		},
 		{
 			File:              "testdata/le_horla.md",
-			ExpectedSections:  220,
+			ExpectedSections:  222,
 			MaxWordPerSection: 200,
+		},
+		{
+			File:             "../core/port/testsuite/testdata/documents/programming_go.md",
+			ExpectedSections: 1,
+		},
+		{
+			File:             "../core/port/testsuite/testdata/documents/programming_rust.md",
+			ExpectedSections: 1,
+		},
+		{
+			File:             "../core/port/testsuite/testdata/documents/cooking_boeuf_bourguignon.md",
+			ExpectedSections: 1,
 		},
 	}
 
@@ -73,9 +85,8 @@ func dumpDocument(t *testing.T, doc *Document) {
 	t.Logf("├─ Total sections: %d", countSections(doc))
 	t.Log("├─ Sections")
 	for _, s := range doc.Sections() {
-		dumpSection(t, s, "  ")
+		dumpSection(t, s, " ")
 	}
-	t.Log("---")
 }
 
 func dumpSection(t *testing.T, section model.Section, indent string) {
@@ -89,7 +100,7 @@ func dumpSection(t *testing.T, section model.Section, indent string) {
 	if len(section.Sections()) > 0 {
 		t.Logf("%s├─ Sections", indent)
 		for _, ss := range section.Sections() {
-			dumpSection(t, ss, indent+"  ")
+			dumpSection(t, ss, indent+" ")
 		}
 	}
 }

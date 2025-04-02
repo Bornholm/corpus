@@ -3,6 +3,7 @@ package markdown
 import (
 	"bytes"
 	"net/url"
+	"slices"
 
 	"github.com/Bornholm/amatl/pkg/markdown/renderer/markdown"
 	"github.com/Bornholm/amatl/pkg/markdown/renderer/markdown/node"
@@ -91,6 +92,10 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 
 	err := ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
+			if !split && current.parent != nil && current.content == current.parent.content {
+				current.parent.sections = slices.DeleteFunc(current.parent.sections, func(s *Section) bool { return s == current })
+			}
+
 			return ast.WalkContinue, nil
 		}
 
@@ -156,31 +161,31 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 
 			totalWords := len(corpusText.SplitByWords(current.content))
 
-			if totalWords > opts.MaxWordPerSection {
-				previous = current
-
-				current = &Section{
-					document: document,
-					id:       model.NewSectionID(),
-					level:    uint(current.level + 1),
-					sections: make([]*Section, 0),
-					parent:   previous,
-				}
-
-				current.branch = append(previous.branch, current.id)
-
-				if split {
-					current.level = previous.level
-					current.parent = previous.parent
-					current.branch = append(previous.parent.branch, current.id)
-					previous.parent.sections = append(previous.parent.sections, current)
-				} else {
-					current.content = previous.content
-					current.parent.sections = append(current.parent.sections, current)
-				}
-
-				split = true
+			if totalWords < opts.MaxWordPerSection {
+				return ast.WalkContinue, nil
 			}
+
+			current = &Section{
+				document: document,
+				id:       model.NewSectionID(),
+				level:    uint(current.level + 1),
+				sections: make([]*Section, 0),
+				parent:   previous,
+			}
+
+			current.branch = append(previous.branch, current.id)
+
+			if split {
+				current.level = previous.level
+				current.parent = previous.parent
+				current.branch = append(previous.parent.branch, current.id)
+				previous.parent.sections = append(previous.parent.sections, current)
+			} else {
+				current.content = previous.content
+				current.parent.sections = append(current.parent.sections, current)
+			}
+
+			split = true
 		}
 
 		return ast.WalkContinue, nil
