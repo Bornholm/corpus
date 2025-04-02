@@ -8,10 +8,10 @@ import (
 	"net/url"
 	"slices"
 	"sync"
-	"unicode"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/genai/llm"
 	"github.com/ncruces/go-sqlite3"
 	"github.com/pkg/errors"
@@ -72,7 +72,7 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 }
 
 func (i *Index) indexSection(ctx context.Context, section model.Section) (err error) {
-	truncated := i.truncate(ctx, section.Content())
+	truncated := text.MiddleOut(section.Content(), i.maxWords, "")
 
 	res, err := i.llm.Embeddings(ctx, llm.WithInput(truncated))
 	if err != nil {
@@ -154,65 +154,6 @@ func (i *Index) insertCollection(ctx context.Context, conn *sqlite3.Conn, embedd
 	}
 
 	return nil
-}
-
-func (i *Index) truncate(ctx context.Context, text string) string {
-	words := splitByWords(text)
-
-	slog.DebugContext(ctx, "text size before truncate", slog.Int("textLength", len(text)), slog.Int("totalWords", len(words)))
-
-	totalWords := len(words)
-
-	if len(words) <= i.maxWords {
-		return text
-	}
-
-	// Use middle-out strategy
-	// See https://openrouter.ai/docs/features/message-transforms
-	// and https://arxiv.org/abs/2307.03172
-
-	halvedDiff := (totalWords - i.maxWords) / 2
-	middle := totalWords / 2
-
-	strippingStart := words[middle-halvedDiff].Start
-	strippingEnd := words[middle+halvedDiff].End
-
-	truncated := text[:strippingStart] + text[strippingEnd:]
-
-	slog.DebugContext(ctx, "text size after truncate", slog.Int("textLength", len(truncated)), slog.Int("totalWords", len(words)-i.maxWords))
-
-	return truncated
-}
-
-type Word struct {
-	Start int
-	End   int
-}
-
-func splitByWords(text string) []*Word {
-	words := make([]*Word, 0)
-
-	var word *Word
-	for idx, rune := range text {
-		if unicode.IsSpace(rune) || unicode.IsPunct(rune) {
-			if word != nil {
-				word.End = idx - 1
-				words = append(words, word)
-				word = nil
-			}
-		} else if word == nil {
-			word = &Word{
-				Start: idx,
-			}
-		}
-	}
-
-	if word != nil {
-		word.End = len(text) - 1
-		words = append(words, word)
-	}
-
-	return words
 }
 
 // Search implements port.Index.

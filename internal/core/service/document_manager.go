@@ -15,7 +15,8 @@ import (
 )
 
 type DocumentManagerOptions struct {
-	FileConverter port.FileConverter
+	MaxWordPerSection int
+	FileConverter     port.FileConverter
 }
 
 type DocumentManagerOptionFunc func(opts *DocumentManagerOptions)
@@ -27,7 +28,9 @@ func WithDocumentManagerFileConverter(fileConverter port.FileConverter) Document
 }
 
 func NewDocumentManagerOptions(funcs ...DocumentManagerOptionFunc) *DocumentManagerOptions {
-	opts := &DocumentManagerOptions{}
+	opts := &DocumentManagerOptions{
+		MaxWordPerSection: 250,
+	}
 	for _, fn := range funcs {
 		fn(opts)
 	}
@@ -35,7 +38,8 @@ func NewDocumentManagerOptions(funcs ...DocumentManagerOptionFunc) *DocumentMana
 }
 
 type DocumentManager struct {
-	fileConverter port.FileConverter
+	maxWordPerSection int
+	fileConverter     port.FileConverter
 	port.Store
 	index port.Index
 }
@@ -172,7 +176,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 					return errors.WithStack(err)
 				}
 
-				doc, err := markdown.Parse(data)
+				doc, err := markdown.Parse(data, markdown.WithMaxWordPerSection(m.maxWordPerSection))
 				if err != nil {
 					return errors.Wrap(err, "could not build document")
 				}
@@ -250,8 +254,9 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 func NewDocumentManager(store port.Store, index port.Index, funcs ...DocumentManagerOptionFunc) *DocumentManager {
 	opts := NewDocumentManagerOptions(funcs...)
 	return &DocumentManager{
-		Store:         store,
-		index:         index,
-		fileConverter: opts.FileConverter,
+		maxWordPerSection: opts.MaxWordPerSection,
+		Store:             store,
+		index:             index,
+		fileConverter:     opts.FileConverter,
 	}
 }

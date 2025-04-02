@@ -3,7 +3,6 @@ package pandoc
 import (
 	"context"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +37,7 @@ func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reade
 		return nil, errors.WithStack(err)
 	}
 
-	cmd := exec.Command("pandoc", "--to", "gfm", "--output", target, source)
+	cmd := exec.Command("pandoc", "--to", "commonmark-raw_html", "--output", target, source)
 
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -46,8 +45,6 @@ func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reade
 	if err := cmd.Run(); err != nil {
 		return nil, errors.WithStack(err)
 	}
-
-	log.Println(target)
 
 	markdown, err := os.Open(target)
 	if err != nil {

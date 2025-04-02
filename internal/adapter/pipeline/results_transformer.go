@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"context"
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -18,27 +19,31 @@ type JudgeResultsTransformer struct {
 }
 
 const defaultJudgeResultsTransformer = `
-As a knowledgeable and helpful research assistant, your task is to judge which one of the documents given to you in context are relevant to the following query.
+You are a document retrieval system that evaluates document relevance against a user query. Your task is to analyze the provided documents and identify only those that are semantically relevant to the query.
 
-Respond as JSON.
+For each document, consider:
+1. Topical alignment with the query's main subject
+2. Information that directly answers or addresses the query
+3. Content that provides useful context or supporting details for the query
 
-## Query
+Return your assessment as a structured JSON object containing ONLY the identifiers of relevant documents. Do not include explanations, document content, or any other information in your response.
 
-{{ .Query }}
+For example:
+{"identifiers": ["doc_123", "doc_456"]}
+
+If no documents are relevant, return:
+{"identifiers": []}
 `
 
 // TransformResults implements ResultsTransformer.
 func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error) {
 	systemPrompt, err := llm.PromptTemplate(defaultJudgeResultsTransformer, struct {
-		Query string
-	}{
-		Query: query,
-	})
+	}{})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	userPrompt, err := t.getUserPrompt(ctx, results)
+	userPrompt, err := t.getUserPrompt(ctx, query, results)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -47,11 +52,11 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 		llm.WithJSONResponse(
 			llm.NewResponseSchema(
 				"FilteredResults",
-				"The list of documents identifiers that are relevant to the query",
+				"The list of document's identifiers that are relevant to the query",
 				map[string]any{
 					"type": "object",
 					"properties": map[string]any{
-						"documents": map[string]any{
+						"identifiers": map[string]any{
 							"type":        "array",
 							"description": "The list of document's identifiers relevant to the query",
 							"items": map[string]any{
@@ -59,7 +64,7 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 							},
 						},
 					},
-					"required":             []string{"documents"},
+					"required":             []string{"identifiers"},
 					"additionalProperties": false,
 				},
 			),
@@ -74,7 +79,7 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 	}
 
 	type llmResponse struct {
-		Documents []string `json:"documents"`
+		Identifiers []string `json:"identifiers"`
 	}
 
 	documents, err := llm.ParseJSON[llmResponse](completion.Message())
@@ -82,9 +87,11 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 		return nil, errors.WithStack(err)
 	}
 
+	slog.DebugContext(ctx, "selected documents", slog.Any("documents", documents))
+
 	selected := map[model.SectionID]struct{}{}
 	for _, d := range documents {
-		for _, s := range d.Documents {
+		for _, s := range d.Identifiers {
 			selected[model.SectionID(s)] = struct{}{}
 		}
 	}
@@ -118,10 +125,13 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 	return results, nil
 }
 
-func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, results []*port.IndexSearchResult) (string, error) {
+func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query string, results []*port.IndexSearchResult) (string, error) {
 	var sb strings.Builder
+	sb.WriteString("## Query\n\n")
+	sb.WriteString(query)
+	sb.WriteString("\n\n")
 
-	sb.WriteString("# Documents\n\n")
+	sb.WriteString("## Documents\n\n")
 
 	for _, r := range results {
 		for _, s := range r.Sections {
@@ -134,10 +144,17 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, results []*
 				return "", errors.WithStack(err)
 			}
 
-			sb.WriteString("## ")
+			sb.WriteString("### Doc #")
 			sb.WriteString(string(section.ID()))
 			sb.WriteString("\n\n")
+
+			sb.WriteString("**Identifier:**")
+			sb.WriteString(string(section.ID()))
+			sb.WriteString("\n\n")
+
 			sb.WriteString(string(section.Content()))
+
+			sb.WriteString("\n\n")
 		}
 	}
 

@@ -1,13 +1,13 @@
 module github.com/bornholm/corpus
 
-go 1.23.6
+go 1.24.1
 
 require (
 	github.com/Bornholm/amatl v0.9.0
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.1.6
 	github.com/blevesearch/bleve/v2 v2.4.4
-	github.com/bornholm/genai v0.0.0-20250310220302-8d84cbe9d767
+	github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/gabriel-vasile/mimetype v1.4.8
 	github.com/ncruces/go-sqlite3 v0.20.3

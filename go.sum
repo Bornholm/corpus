@@ -58,6 +58,8 @@ github.com/blevesearch/zapx/v16 v16.1.9-0.20241217210638-a0519e7caf3b h1:ju9Az5Y
 github.com/blevesearch/zapx/v16 v16.1.9-0.20241217210638-a0519e7caf3b/go.mod h1:BlrYNpOu4BvVRslmIG+rLtKhmjIaRhIbG8sb9scGTwI=
 github.com/bornholm/genai v0.0.0-20250310220302-8d84cbe9d767 h1:n9LhoztXgnFqh+X9tTdIReYJallgwQeUT6zNkgH+aF4=
 github.com/bornholm/genai v0.0.0-20250310220302-8d84cbe9d767/go.mod h1:B0WYgWZvs9MRyy/Vm9y9HD409EJlHpqPM4IQeZeO1AU=
+github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712 h1:wXNwtT1Bsakc9wB65AkpgBrG5foIhrneFMe6kuiRy7g=
+github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712/go.mod h1:NOfFqk+aWxKLTa3D2Aa0ovGIoDmwfX3cn3SntSaoS5c=
 github.com/caarlos0/env/v11 v11.3.1 h1:cArPWC15hWmEt+gWk7YBi7lEXTXCvpaSdCiZE2X5mCA=
 github.com/caarlos0/env/v11 v11.3.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

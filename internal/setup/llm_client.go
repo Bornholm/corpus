@@ -25,7 +25,11 @@ var getLLMClientFromConfig = createFromConfigOnce[llm.Client](func(ctx context.C
 		return nil, errors.WithStack(err)
 	}
 
-	return NewRateLimitedClient(client, conf.LLM.Provider.RateLimit), nil
+	if conf.LLM.Provider.RateLimit != 0 {
+		return NewRateLimitedClient(client, conf.LLM.Provider.RateLimit), nil
+	}
+
+	return client, nil
 })
 
 type RateLimitedClient struct {

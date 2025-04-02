@@ -7,6 +7,7 @@ import (
 	"github.com/Bornholm/amatl/pkg/markdown/renderer/markdown"
 	"github.com/Bornholm/amatl/pkg/markdown/renderer/markdown/node"
 	"github.com/bornholm/corpus/internal/core/model"
+	corpusText "github.com/bornholm/corpus/internal/text"
 	"github.com/pkg/errors"
 	"github.com/yuin/goldmark"
 	meta "github.com/yuin/goldmark-meta"
@@ -16,7 +17,32 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-func Parse(data []byte) (*Document, error) {
+type Options struct {
+	MaxWordPerSection int
+}
+
+type OptionFunc func(opts *Options)
+
+func NewOptions(funcs ...OptionFunc) *Options {
+	opts := &Options{
+		MaxWordPerSection: 250,
+	}
+
+	for _, fn := range funcs {
+		fn(opts)
+	}
+
+	return opts
+}
+
+func WithMaxWordPerSection(maxWord int) OptionFunc {
+	return func(opts *Options) {
+		opts.MaxWordPerSection = maxWord
+	}
+}
+
+func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
+	opts := NewOptions(funcs...)
 	md := goldmark.New(
 		goldmark.WithExtensions(
 			extension.GFM,
@@ -27,6 +53,7 @@ func Parse(data []byte) (*Document, error) {
 			markdown.WithNodeRenderers(node.Renderers()),
 		),
 	)
+
 	context := parser.NewContext()
 	root := md.Parser().Parse(text.NewReader(data), parser.WithContext(context))
 
@@ -39,12 +66,12 @@ func Parse(data []byte) (*Document, error) {
 		document: document,
 		level:    0,
 		id:       model.NewSectionID(),
-		sections: make([]model.Section, 0),
+		sections: make([]*Section, 0),
 	}
 
 	current.branch = []model.SectionID{current.id}
 
-	document.sections = []model.Section{current}
+	document.sections = []*Section{current}
 
 	metadata := meta.Get(context)
 	if rawSource, exists := metadata["source"]; exists {
@@ -60,6 +87,8 @@ func Parse(data []byte) (*Document, error) {
 
 	var buff bytes.Buffer
 
+	split := false
+
 	err := ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
 			return ast.WalkContinue, nil
@@ -67,18 +96,22 @@ func Parse(data []byte) (*Document, error) {
 
 		buff.Reset()
 
+		previous := current
+
 		switch el := n.(type) {
 		case *ast.Text:
+			// No op
 		case *ast.Document:
+			// No op
 		case *ast.Heading:
-			previous := current
+			split = false
 
 			if uint(el.Level) > current.level {
 				current = &Section{
 					id:       model.NewSectionID(),
 					document: document,
 					level:    uint(el.Level),
-					sections: make([]model.Section, 0),
+					sections: make([]*Section, 0),
 				}
 
 				current.parent = findClosestAncestor(previous, uint(el.Level))
@@ -95,7 +128,7 @@ func Parse(data []byte) (*Document, error) {
 					document: document,
 					id:       model.NewSectionID(),
 					level:    uint(el.Level),
-					sections: make([]model.Section, 0),
+					sections: make([]*Section, 0),
 				}
 
 				current.parent = findClosestAncestor(previous, uint(el.Level))
@@ -114,13 +147,40 @@ func Parse(data []byte) (*Document, error) {
 			}
 
 			current.Append(buff.String())
-
 		default:
 			if err := renderer.Render(&buff, data, n); err != nil {
 				return ast.WalkStop, errors.WithStack(err)
 			}
 
 			current.Append(buff.String())
+
+			totalWords := len(corpusText.SplitByWords(current.content))
+
+			if totalWords > opts.MaxWordPerSection {
+				previous = current
+
+				current = &Section{
+					document: document,
+					id:       model.NewSectionID(),
+					level:    uint(current.level + 1),
+					sections: make([]*Section, 0),
+					parent:   previous,
+				}
+
+				current.branch = append(previous.branch, current.id)
+
+				if split {
+					current.level = previous.level
+					current.parent = previous.parent
+					current.branch = append(previous.parent.branch, current.id)
+					previous.parent.sections = append(previous.parent.sections, current)
+				} else {
+					current.content = previous.content
+					current.parent.sections = append(current.parent.sections, current)
+				}
+
+				split = true
+			}
 		}
 
 		return ast.WalkContinue, nil
@@ -136,8 +196,9 @@ type Document struct {
 	id          model.DocumentID
 	source      *url.URL
 	collections []model.Collection
-	sections    []model.Section
+	sections    []*Section
 }
+
 type Collection struct {
 	id          model.CollectionID
 	name        string
@@ -181,7 +242,11 @@ func (d *Document) ID() model.DocumentID {
 
 // Sections implements model.Document.
 func (d *Document) Sections() []model.Section {
-	return d.sections
+	sections := make([]model.Section, len(d.sections))
+	for i, s := range d.sections {
+		sections[i] = s
+	}
+	return sections
 }
 
 // Source implements model.Document.
@@ -198,7 +263,7 @@ type Section struct {
 	level    uint
 	document *Document
 	parent   *Section
-	sections []model.Section
+	sections []*Section
 }
 
 // Branch implements model.Section.
@@ -240,7 +305,11 @@ func (s *Section) Parent() model.Section {
 
 // Sections implements model.Section.
 func (s *Section) Sections() []model.Section {
-	return s.sections
+	sections := make([]model.Section, len(s.sections))
+	for i, s := range s.sections {
+		sections[i] = s
+	}
+	return sections
 }
 
 var _ model.Section = &Section{}
