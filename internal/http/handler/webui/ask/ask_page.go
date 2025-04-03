@@ -156,6 +156,7 @@ func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVMode
 		h.fillAskPageVModelQuery,
 		h.fillAskPageVModelFileUploadModal,
 		h.fillAskPageVModelCollections,
+		h.fillAskPageVModelSelectedCollectionIDs,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -210,6 +211,17 @@ func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *comp
 	}
 
 	vmodel.Collections = collections
+
+	return nil
+}
+
+func (h *Handler) fillAskPageVModelSelectedCollectionIDs(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
+	collections, exists := r.URL.Query()["collection"]
+	if !exists {
+		return nil
+	}
+
+	vmodel.SelectedCollectionNames = collections
 
 	return nil
 }

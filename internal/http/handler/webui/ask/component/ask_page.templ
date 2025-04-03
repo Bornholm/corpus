@@ -6,15 +6,17 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"slices"
 	"strconv"
 	"time"
 )
 
 type AskPageVModel struct {
-	Query          string
-	TotalDocuments int64
-	Results        []*port.IndexSearchResult
-	Collections    []model.Collection
+	Query                   string
+	TotalDocuments          int64
+	Results                 []*port.IndexSearchResult
+	Collections             []model.Collection
+	SelectedCollectionNames []string
 
 	Response        string
 	Duration        time.Duration
@@ -37,28 +39,30 @@ templ AskPage(vmodel AskPageVModel) {
 					</div>
 				</div>
 				<form method="post" hx-on:submit="htmx.addClass(htmx.find('#submit-button'), 'is-loading')">
-					<div class="field is-large">
-						<label class="label" for="query">Posez votre question <span class="has-text-weight-normal has-text-grey">({ strconv.FormatInt(vmodel.TotalDocuments, 10) } documents indexés)</span></label>
-						<div class="control">
-							<textarea id="query" name="q" class="textarea is-large">{ vmodel.Query }</textarea>
-						</div>
-					</div>
-					<details class="is-clickable my-3">
-						<summary>Paramètres avancés</summary>
-						<div class="field">
-							<label class="label">Collection(s)</label>
-							<div class="control">
-								<div class="select is-multiple is-fullwidth">
-									<select multiple name="collection">
-										for _, c := range vmodel.Collections {
-											<option value={ c.Name() }>{ c.Name() }</option>
-										}
-									</select>
+					<div class="columns">
+						<div class="column is-9">
+							<div class="field is-large">
+								<label class="label" for="query">Posez votre question <span class="has-text-weight-normal has-text-grey">({ strconv.FormatInt(vmodel.TotalDocuments, 10) } documents indexés)</span></label>
+								<div class="control">
+									<textarea id="query" name="q" class="textarea is-large">{ vmodel.Query }</textarea>
 								</div>
 							</div>
-							<p class="help">Limiter le domaine de recherche à une ou plusieurs collections.</p>
 						</div>
-					</details>
+						<div class="column">
+							<label class="label">Collections</label>
+							<div class="tags are-large">
+								for _, c := range vmodel.Collections {
+									{{ selected := slices.Contains(vmodel.SelectedCollectionNames, c.Name()) }}
+									{{ url := common.CurrentURL(ctx, common.WithValues("collection", c.Name())) }}
+									if selected {
+										{{ url = common.CurrentURL(ctx, common.WithoutValues("collection", c.Name())) }}
+									}
+									<a href={ url } title={ c.Description() } class={ "tag", "is-light", templ.KV("is-link", selected) }>{ c.Name() }</a>
+								}
+							</div>
+							<p class="help">Sélectionnez les collections de documents que vous souhaitez incorporer à votre recherche. Par défaut, toutes sont utilisées.</p>
+						</div>
+					</div>
 					<button id="submit-button" type="submit" class="button is-link is-fullwidth is-large">
 						<span>Interroger</span>
 						<span class="icon"><i class="far fa-comment"></i></span>
