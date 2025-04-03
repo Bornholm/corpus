@@ -144,6 +144,7 @@ func loadTestDocuments(t *testing.T, index port.Index) (map[string]model.Collect
 				model.NewCollectionID(),
 				collectionName,
 				"",
+				"",
 			)
 			collections[collectionName] = coll
 		}

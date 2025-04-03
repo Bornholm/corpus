@@ -207,7 +207,13 @@ type Document struct {
 type Collection struct {
 	id          model.CollectionID
 	name        string
+	label       string
 	description string
+}
+
+// Label implements model.Collection.
+func (c *Collection) Label() string {
+	return c.label
 }
 
 // Name implements model.Collection.

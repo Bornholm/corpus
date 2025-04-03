@@ -57,7 +57,11 @@ templ AskPage(vmodel AskPageVModel) {
 									if selected {
 										{{ url = common.CurrentURL(ctx, common.WithoutValues("collection", c.Name())) }}
 									}
-									<a href={ url } title={ c.Description() } class={ "tag", "is-light", templ.KV("is-link", selected) }>{ c.Name() }</a>
+									{{ label := c.Label() }}
+									if label == "" {
+										{{ label = c.Name() }}
+									}
+									<a href={ url } title={ c.Description() } class={ "tag", "is-light", templ.KV("is-link", selected) }>{ label }</a>
 								}
 							</div>
 							<p class="help">Sélectionnez les collections de documents que vous souhaitez incorporer à votre recherche. Par défaut, toutes sont utilisées.</p>

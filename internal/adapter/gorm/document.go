@@ -204,6 +204,7 @@ type Collection struct {
 	UpdatedAt time.Time
 
 	Name        string `gorm:"unique"`
+	Label       string
 	Description string
 }
 
@@ -221,6 +222,11 @@ func (w *wrappedCollection) ID() model.CollectionID {
 	return model.CollectionID(w.c.ID)
 }
 
+// LAbel implements model.Collection.
+func (w *wrappedCollection) Label() string {
+	return w.c.Label
+}
+
 // Name implements model.Collection.
 func (w *wrappedCollection) Name() string {
 	return w.c.Name
@@ -232,6 +238,7 @@ func fromCollection(c model.Collection) *Collection {
 	collection := &Collection{
 		ID:          string(c.ID()),
 		Name:        c.Name(),
+		Label:       c.Label(),
 		Description: c.Description(),
 	}
 

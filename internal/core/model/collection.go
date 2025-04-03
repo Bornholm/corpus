@@ -13,12 +13,14 @@ func NewCollectionID() CollectionID {
 type Collection interface {
 	ID() CollectionID
 	Name() string
+	Label() string
 	Description() string
 }
 
 type ReadOnlyCollection struct {
 	id          CollectionID
 	name        string
+	label       string
 	description string
 }
 
@@ -37,10 +39,16 @@ func (c *ReadOnlyCollection) Name() string {
 	return c.name
 }
 
-func NewReadOnlyCollection(id CollectionID, name string, description string) *ReadOnlyCollection {
+// Label implements Collection.
+func (c *ReadOnlyCollection) Label() string {
+	return c.label
+}
+
+func NewReadOnlyCollection(id CollectionID, name string, label string, description string) *ReadOnlyCollection {
 	return &ReadOnlyCollection{
 		id:          id,
 		name:        name,
+		label:       label,
 		description: description,
 	}
 }
