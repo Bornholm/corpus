@@ -17,4 +17,6 @@ type Document interface {
 	Source() *url.URL
 	Collections() []Collection
 	Sections() []Section
+	Content() ([]byte, error)
+	Chunk(start, end int) ([]byte, error)
 }

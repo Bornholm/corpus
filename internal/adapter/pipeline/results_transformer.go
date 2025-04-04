@@ -152,7 +152,12 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 			sb.WriteString(string(section.ID()))
 			sb.WriteString("\n\n")
 
-			sb.WriteString(string(section.Content()))
+			content, err := section.Content()
+			if err != nil {
+				return "", errors.WithStack(err)
+			}
+
+			sb.WriteString(string(content))
 
 			sb.WriteString("\n\n")
 		}

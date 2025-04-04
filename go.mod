@@ -3,13 +3,13 @@ module github.com/bornholm/corpus
 go 1.24.1
 
 require (
-	github.com/Bornholm/amatl v0.9.0
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.1.6
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/davecgh/go-spew v1.1.1
+	github.com/dustin/go-humanize v1.0.1
 	github.com/gabriel-vasile/mimetype v1.4.8
 	github.com/ncruces/go-sqlite3 v0.20.3
 	github.com/ncruces/go-sqlite3/gormlite v0.20.3
@@ -19,6 +19,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/ollama v0.35.0
 	github.com/yuin/goldmark v1.7.8
 	github.com/yuin/goldmark-meta v1.1.0
+	golang.org/x/time v0.11.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.25.12
 )
@@ -33,6 +34,7 @@ require (
 	github.com/containerd/platforms v0.2.1 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
+	github.com/dlclark/regexp2 v1.11.0 // indirect
 	github.com/docker/docker v27.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -99,13 +101,11 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/mattn/go-runewidth v0.0.15 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/ncruces/julianday v1.0.0 // indirect
 	github.com/openai/openai-go v0.1.0-alpha.59 // indirect
-	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rs/xid v1.6.0
 	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/tetratelabs/wazero v1.9.0 // indirect

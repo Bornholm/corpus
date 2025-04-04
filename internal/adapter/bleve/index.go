@@ -89,15 +89,26 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 		}
 	})
 
+	content, err := section.Content()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	if len(content) == 0 {
+		slog.DebugContext(ctx, "ignoring empty section", slog.String("sectionID", string(section.ID())))
+		return nil
+	}
+
 	data := map[string]any{
 		"_type":       "resource",
-		"content":     section.Content(),
+		"content":     string(content),
 		"source":      source.String(),
 		"collections": collections,
 	}
 
-	err := i.index.Index(sectionID.String(), data)
-	if err != nil {
+	slog.DebugContext(ctx, "indexing section", slog.String("sectionID", string(section.ID())), slog.Int("sectionSize", len(content)))
+
+	if err := i.index.Index(sectionID.String(), data); err != nil {
 		return errors.WithStack(err)
 	}
 

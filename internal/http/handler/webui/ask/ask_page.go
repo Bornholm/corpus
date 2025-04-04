@@ -114,9 +114,14 @@ func (h *Handler) generateResponse(ctx context.Context, query string, results []
 				continue
 			}
 
+			content, err := section.Content()
+			if err != nil {
+				return "", errors.WithStack(err)
+			}
+
 			contextSections = append(contextSections, contextSection{
 				Source:  r.Source.String(),
-				Content: section.Content(),
+				Content: string(content),
 			})
 		}
 	}

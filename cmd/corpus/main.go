@@ -7,6 +7,7 @@ import (
 	"os/signal"
 
 	"github.com/bornholm/corpus/internal/config"
+	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/setup"
 	"github.com/pkg/errors"
 
@@ -24,7 +25,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	slog.SetLogLoggerLevel(slog.Level(conf.Logger.Level))
+	logger := slog.New(log.ContextHandler{
+		Handler: slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level: slog.Level(conf.Logger.Level),
+		}),
+	})
+	slog.SetDefault(logger)
 
 	slog.DebugContext(ctx, "using configuration", slog.Any("config", conf))
 

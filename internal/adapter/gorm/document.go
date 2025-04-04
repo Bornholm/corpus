@@ -17,10 +17,25 @@ type Document struct {
 	Source      string        `gorm:"unique;not null;index"`
 	Sections    []*Section    `gorm:"constraint:OnDelete:CASCADE"`
 	Collections []*Collection `gorm:"many2many:documents_collections;"`
+	Content     []byte
 }
 
 type wrappedDocument struct {
 	d *Document
+}
+
+// Chunk implements model.Document.
+func (w *wrappedDocument) Chunk(start int, end int) ([]byte, error) {
+	if start < 0 || end > len(w.d.Content) {
+		return nil, errors.New("out of range")
+	}
+
+	return w.d.Content[start:end], nil
+}
+
+// Content implements model.Document.
+func (w *wrappedDocument) Content() ([]byte, error) {
+	return w.d.Content, nil
 }
 
 // Collection implements model.Document.
@@ -58,12 +73,18 @@ func (w *wrappedDocument) Source() *url.URL {
 
 var _ model.Document = &wrappedDocument{}
 
-func fromDocument(d model.Document) *Document {
+func fromDocument(d model.Document) (*Document, error) {
+	content, err := d.Content()
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	document := &Document{
 		ID:          string(d.ID()),
 		Source:      d.Source().String(),
 		Collections: make([]*Collection, 0, len(d.Collections())),
 		Sections:    make([]*Section, 0, len(d.Sections())),
+		Content:     content,
 	}
 
 	for _, s := range d.Sections() {
@@ -74,7 +95,7 @@ func fromDocument(d model.Document) *Document {
 		document.Collections = append(document.Collections, fromCollection(c))
 	}
 
-	return document
+	return document, nil
 }
 
 type Section struct {
@@ -95,11 +116,22 @@ type Section struct {
 	Branch *Branch
 	Level  uint
 
-	Content string
+	Start int
+	End   int
 }
 
 type wrappedSection struct {
 	s *Section
+}
+
+// End implements model.Section.
+func (w *wrappedSection) End() int {
+	return w.s.End
+}
+
+// Start implements model.Section.
+func (w *wrappedSection) Start() int {
+	return w.s.Start
 }
 
 // Branch implements model.Section.
@@ -113,8 +145,8 @@ func (w *wrappedSection) Level() uint {
 }
 
 // Content implements model.Section.
-func (w *wrappedSection) Content() string {
-	return w.s.Content
+func (w *wrappedSection) Content() ([]byte, error) {
+	return w.Document().Chunk(w.s.Start, w.s.End)
 }
 
 // Document implements model.Section.
@@ -155,7 +187,8 @@ func fromSection(d *Document, s model.Section) *Section {
 		DocumentID: d.ID,
 		Branch:     &branch,
 		Sections:   make([]*Section, 0, len(s.Sections())),
-		Content:    s.Content(),
+		Start:      s.Start(),
+		End:        s.End(),
 	}
 
 	for _, s := range s.Sections() {

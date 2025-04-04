@@ -15,5 +15,7 @@ type Section interface {
 	Document() Document
 	Parent() Section
 	Sections() []Section
-	Content() string
+	Start() int
+	End() int
+	Content() ([]byte, error)
 }

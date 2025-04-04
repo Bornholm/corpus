@@ -18,8 +18,18 @@ Test 2
 
 Test 4
 
+```
+mycode
+```
+
 # Title 1bis
 
 Foo bar
 
+![](myimg.jpg)
+
 ### Title 3bis
+
+- Item 1
+- Item 2
+- Item 3

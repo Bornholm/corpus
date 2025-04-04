@@ -72,7 +72,19 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 }
 
 func (i *Index) indexSection(ctx context.Context, section model.Section) (err error) {
-	truncated := text.MiddleOut(section.Content(), i.maxWords, "")
+	content, err := section.Content()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	truncated := text.MiddleOut(string(content), i.maxWords, "")
+
+	if len(truncated) == 0 {
+		slog.DebugContext(ctx, "ignoring empty section", slog.String("sectionID", string(section.ID())))
+		return nil
+	}
+
+	slog.DebugContext(ctx, "indexing section", slog.String("sectionID", string(section.ID())), slog.Int("sectionSize", len(truncated)))
 
 	res, err := i.llm.Embeddings(ctx, llm.WithInput(truncated))
 	if err != nil {

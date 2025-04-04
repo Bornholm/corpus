@@ -191,7 +191,10 @@ func (s *Store) SaveDocument(ctx context.Context, doc model.Document) error {
 			}
 		}
 
-		document := fromDocument(doc)
+		document, err := fromDocument(doc)
+		if err != nil {
+			return errors.WithStack(err)
+		}
 
 		if res := tx.Create(document); res.Error != nil {
 			return errors.WithStack(res.Error)

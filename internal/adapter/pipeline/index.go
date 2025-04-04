@@ -11,6 +11,7 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/log"
 	"github.com/pkg/errors"
 )
 
@@ -80,6 +81,9 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 	errs := make(chan error, count)
 	defer close(errs)
 
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	var wg sync.WaitGroup
 
 	wg.Add(count)
@@ -88,12 +92,17 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 		go func(index port.Index) {
 			defer wg.Done()
 
-			slog.DebugContext(ctx, "indexing document", slog.String("indexType", fmt.Sprintf("%T", index)))
+			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index)), slog.String("documentID", string(document.ID())))
 
-			if err := index.Index(ctx, document); err != nil {
+			slog.DebugContext(indexCtx, "indexing document")
+
+			if err := index.Index(indexCtx, document); err != nil {
 				errs <- errors.WithStack(err)
+				cancel()
 				return
 			}
+
+			slog.DebugContext(indexCtx, "document indexed")
 
 			errs <- nil
 		}(index)
@@ -144,7 +153,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 
 	wg.Add(count)
 
-	maxResults := 5
+	maxResults := 3
 	if opts.MaxResults != 0 {
 		maxResults = opts.MaxResults
 	}
@@ -159,7 +168,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 			defer wg.Done()
 
 			results, err := index.Search(ctx, query, port.IndexSearchOptions{
-				MaxResults:  maxResults * 3,
+				MaxResults:  maxResults,
 				Collections: collections,
 			})
 			if err != nil {

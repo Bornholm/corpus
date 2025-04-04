@@ -1,12 +1,9 @@
 package markdown
 
 import (
-	"bytes"
 	"net/url"
 	"slices"
 
-	"github.com/Bornholm/amatl/pkg/markdown/renderer/markdown"
-	"github.com/Bornholm/amatl/pkg/markdown/renderer/markdown/node"
 	"github.com/bornholm/corpus/internal/core/model"
 	corpusText "github.com/bornholm/corpus/internal/text"
 	"github.com/pkg/errors"
@@ -49,10 +46,6 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 			extension.GFM,
 			meta.Meta,
 		),
-		goldmark.WithRenderer(markdown.NewRenderer()),
-		goldmark.WithRendererOptions(
-			markdown.WithNodeRenderers(node.Renderers()),
-		),
 	)
 
 	context := parser.NewContext()
@@ -61,6 +54,7 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 	document := &Document{
 		id:          model.NewDocumentID(),
 		collections: make([]model.Collection, 0),
+		data:        data,
 	}
 
 	current := &Section{
@@ -84,28 +78,20 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 		document.source = source
 	}
 
-	renderer := md.Renderer()
-
-	var buff bytes.Buffer
-
 	split := false
 
 	err := ast.Walk(root, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
 		if !entering {
-			if !split && current.parent != nil && current.content == current.parent.content {
+			if !split && current.parent != nil && current.start == current.parent.start && current.end == current.parent.end {
 				current.parent.sections = slices.DeleteFunc(current.parent.sections, func(s *Section) bool { return s == current })
 			}
 
 			return ast.WalkContinue, nil
 		}
 
-		buff.Reset()
-
 		previous := current
 
 		switch el := n.(type) {
-		case *ast.Text:
-			// No op
 		case *ast.Document:
 			// No op
 		case *ast.Heading:
@@ -147,21 +133,46 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 				}
 			}
 
-			if err := renderer.Render(&buff, data, n); err != nil {
-				return ast.WalkStop, errors.WithStack(err)
+			if lines := n.Lines(); lines.Len() > 0 {
+				firstLine := lines.At(0)
+				lastLine := lines.At(lines.Len() - 1)
+				current.start = firstLine.Start - (el.Level + 1)
+				current.AppendRange(lastLine.Stop)
+			} else {
+				return ast.WalkContinue, nil
 			}
 
-			current.Append(buff.String())
 		default:
-			if err := renderer.Render(&buff, data, n); err != nil {
+			var (
+				end int
+			)
+
+			if n.Type() == ast.TypeBlock {
+				if lines := n.Lines(); lines.Len() > 0 {
+					lastLine := lines.At(lines.Len() - 1)
+					end = lastLine.Stop
+					if _, isCodeBlock := n.(*ast.FencedCodeBlock); isCodeBlock {
+						end += 4
+					}
+				} else {
+					return ast.WalkContinue, nil
+				}
+			} else if n.Type() == ast.TypeInline {
+				if text, ok := n.(*ast.Text); ok {
+					end = text.Segment.Stop
+				}
+			} else {
+				return ast.WalkContinue, nil
+			}
+
+			current.AppendRange(end)
+
+			currentChunk, err := current.Content()
+			if err != nil {
 				return ast.WalkStop, errors.WithStack(err)
 			}
 
-			current.Append(buff.String())
-
-			totalWords := len(corpusText.SplitByWords(current.content))
-
-			if totalWords < opts.MaxWordPerSection {
+			if totalWords := len(corpusText.SplitByWords(string(currentChunk))); totalWords < opts.MaxWordPerSection {
 				return ast.WalkContinue, nil
 			}
 
@@ -171,6 +182,8 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 				level:    uint(current.level + 1),
 				sections: make([]*Section, 0),
 				parent:   previous,
+				start:    current.end,
+				end:      end,
 			}
 
 			current.branch = append(previous.branch, current.id)
@@ -181,7 +194,7 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 				current.branch = append(previous.parent.branch, current.id)
 				previous.parent.sections = append(previous.parent.sections, current)
 			} else {
-				current.content = previous.content
+				current.start = previous.end
 				current.parent.sections = append(current.parent.sections, current)
 			}
 
@@ -198,10 +211,25 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 }
 
 type Document struct {
+	data        []byte
 	id          model.DocumentID
 	source      *url.URL
 	collections []model.Collection
 	sections    []*Section
+}
+
+// Chunk implements model.Document.
+func (d *Document) Chunk(start int, end int) ([]byte, error) {
+	if start < 0 || end > len(d.data) {
+		return nil, errors.New("out of range")
+	}
+
+	return d.data[start:end], nil
+}
+
+// Content implements model.Document.
+func (d *Document) Content() ([]byte, error) {
+	return d.data, nil
 }
 
 type Collection struct {
@@ -270,11 +298,27 @@ var _ model.Document = &Document{}
 type Section struct {
 	id       model.SectionID
 	branch   []model.SectionID
-	content  string
 	level    uint
 	document *Document
 	parent   *Section
 	sections []*Section
+	start    int
+	end      int
+}
+
+// Content implements model.Section.
+func (s *Section) Content() ([]byte, error) {
+	return s.Document().Chunk(s.start, s.end)
+}
+
+// End implements model.Section.
+func (s *Section) End() int {
+	return s.end
+}
+
+// Start implements model.Section.
+func (s *Section) Start() int {
+	return s.start
 }
 
 // Branch implements model.Section.
@@ -292,16 +336,13 @@ func (s *Section) ID() model.SectionID {
 	return s.id
 }
 
-func (s *Section) Append(txt string) {
-	s.content += txt
-	if s.parent != nil {
-		s.parent.Append(txt)
+func (s *Section) AppendRange(end int) {
+	if end > s.end {
+		s.end = end
 	}
-}
-
-// Content implements model.Section.
-func (s *Section) Content() string {
-	return s.content
+	if s.parent != nil {
+		s.parent.AppendRange(end)
+	}
 }
 
 // Document implements model.Section.

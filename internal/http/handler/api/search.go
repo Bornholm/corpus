@@ -105,10 +105,15 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 
 			branch := branchToString(section.Branch())
 
+			content, err := section.Content()
+			if err != nil {
+				return nil, errors.WithStack(err)
+			}
+
 			sections[branch] = &Section{
 				ID:      section.ID(),
 				Source:  r.Source.String(),
-				Content: section.Content(),
+				Content: string(content),
 				Collections: slices.Collect(func(yield func(model.CollectionID) bool) {
 					for _, c := range section.Document().Collections() {
 						if !yield(c.ID()) {
