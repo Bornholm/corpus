@@ -16,12 +16,15 @@ type AskPageVModel struct {
 	TotalDocuments          int64
 	Results                 []*port.IndexSearchResult
 	Collections             []model.Collection
+	CollectionStats         map[model.CollectionID]*model.CollectionStats
 	SelectedCollectionNames []string
 
 	Response        string
 	Duration        time.Duration
 	UploadFileModal *UploadFileModalVModel
 }
+
+const defaultMaxCollections = 3
 
 templ AskPage(vmodel AskPageVModel) {
 	@common.Page(common.WithTitle("Interrogez vos documents !")) {
@@ -32,7 +35,7 @@ templ AskPage(vmodel AskPageVModel) {
 			<section class="section">
 				<div class="level">
 					<div class="level-left">
-						<h1 class="title is-size-1 level-item"><a href={ common.BaseURL(ctx) }><img style="height:2em;vertical-align:middle" src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }/><span class="ml-2 has-text-grey-dark" style="vertical-align:middle">Corpus</span></a></h1>
+						<h1 class="title is-size-1 level-item"><a href={ common.BaseURL(ctx) }><img style="height:1.5em;vertical-align:middle" src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }/><span class="ml-2 has-text-grey-dark" style="vertical-align:middle">Corpus</span></a></h1>
 					</div>
 					<div class="level-right">
 						<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
@@ -51,8 +54,9 @@ templ AskPage(vmodel AskPageVModel) {
 						<div class="column">
 							<label class="label">Collections</label>
 							<div class="tags are-large">
-								for _, c := range vmodel.Collections {
+								for i, c := range vmodel.Collections {
 									{{ selected := slices.Contains(vmodel.SelectedCollectionNames, c.Name()) }}
+									{{ stats := vmodel.CollectionStats[c.ID()] }}
 									{{ url := common.CurrentURL(ctx, common.WithValues("collection", c.Name())) }}
 									if selected {
 										{{ url = common.CurrentURL(ctx, common.WithoutValues("collection", c.Name())) }}
@@ -61,7 +65,15 @@ templ AskPage(vmodel AskPageVModel) {
 									if label == "" {
 										{{ label = c.Name() }}
 									}
-									<a href={ url } title={ c.Description() } class={ "tag", "is-light", templ.KV("is-link", selected) }>{ label }</a>
+									<a href={ url } title={ c.Description() } class={ "tag", "is-light", templ.KV("is-link", selected), templ.KV("is-hidden", i > defaultMaxCollections-1) }>
+										{ label }
+										if stats != nil {
+											({ strconv.FormatInt(stats.TotalDocuments, 10) })
+										}
+									</a>
+								}
+								if len(vmodel.Collections) > defaultMaxCollections {
+									<span class="tag is-clickable is-hoverable" hx-on:click="this.closest('.tags').querySelectorAll('.tag').forEach(t => t.classList.remove('is-hidden')); this.parentNode.removeChild(this)"><span class="icon"><i class="fas fa-ellipsis-h"></i></span></span>
 								}
 							</div>
 							<p class="help">Sélectionnez les collections de documents que vous souhaitez incorporer à votre recherche. Par défaut, toutes sont utilisées.</p>

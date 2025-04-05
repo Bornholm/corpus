@@ -16,6 +16,30 @@ type Store struct {
 	getDatabase func(ctx context.Context) (*gorm.DB, error)
 }
 
+// GetCollectionStats implements port.Store.
+func (s *Store) GetCollectionStats(ctx context.Context, id model.CollectionID) (*model.CollectionStats, error) {
+	db, err := s.getDatabase(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var collection *Collection
+
+	if err := db.Find(&collection, "id = ?", id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.WithStack(port.ErrNotFound)
+		}
+
+		return nil, errors.WithStack(err)
+	}
+
+	stats := &model.CollectionStats{
+		TotalDocuments: db.Model(&collection).Association("Documents").Count(),
+	}
+
+	return stats, nil
+}
+
 // CreateCollection implements port.Store.
 func (s *Store) CreateCollection(ctx context.Context, name string) (model.Collection, error) {
 	db, err := s.getDatabase(ctx)
@@ -37,11 +61,6 @@ func (s *Store) CreateCollection(ctx context.Context, name string) (model.Collec
 
 // UpdateCollection implements port.Store.
 func (s *Store) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.Collection, error) {
-	panic("unimplemented")
-}
-
-// GetCollectionByID implements port.Store.
-func (s *Store) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.Collection, error) {
 	panic("unimplemented")
 }
 

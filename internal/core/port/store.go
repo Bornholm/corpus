@@ -20,10 +20,10 @@ type Store interface {
 	DeleteDocumentBySource(ctx context.Context, source *url.URL) error
 	QueryDocuments(ctx context.Context, opts QueryDocumentsOptions) ([]*model.Document, int64, error)
 	GetCollectionByName(ctx context.Context, name string) (model.Collection, error)
-	GetCollectionByID(ctx context.Context, id model.CollectionID) (model.Collection, error)
 	QueryCollections(ctx context.Context, opts QueryCollectionsOptions) ([]model.Collection, error)
 	CreateCollection(ctx context.Context, name string) (model.Collection, error)
 	UpdateCollection(ctx context.Context, id model.CollectionID, updates CollectionUpdates) (model.Collection, error)
+	GetCollectionStats(ctx context.Context, id model.CollectionID) (*model.CollectionStats, error)
 }
 
 type QueryDocumentsOptions struct {

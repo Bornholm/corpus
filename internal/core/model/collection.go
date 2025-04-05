@@ -17,6 +17,9 @@ type Collection interface {
 	Description() string
 }
 
+type CollectionStats struct {
+	TotalDocuments int64
+}
 type ReadOnlyCollection struct {
 	id          CollectionID
 	name        string

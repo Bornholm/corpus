@@ -4,9 +4,11 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask/component"
@@ -214,6 +216,23 @@ func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *comp
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	vmodel.CollectionStats = make(map[model.CollectionID]*model.CollectionStats)
+
+	for _, c := range collections {
+		stats, err := h.documentManager.Store.GetCollectionStats(ctx, c.ID())
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		vmodel.CollectionStats[c.ID()] = stats
+	}
+
+	slices.SortFunc(collections, func(c1, c2 model.Collection) int {
+		s1 := vmodel.CollectionStats[c1.ID()]
+		s2 := vmodel.CollectionStats[c2.ID()]
+		return int(s2.TotalDocuments - s1.TotalDocuments)
+	})
 
 	vmodel.Collections = collections
 
