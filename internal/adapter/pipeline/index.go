@@ -38,8 +38,19 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 
 	wg.Add(count)
 
+	aggregatedErr := NewAggregatedError()
+
 	for index := range i.indexes {
 		go func(index port.Index) {
+			defer func() {
+				if r := recover(); r != nil {
+					if err, ok := r.(error); ok {
+						aggregatedErr.Add(errors.WithStack(err))
+					} else {
+						panic(r)
+					}
+				}
+			}()
 			defer wg.Done()
 
 			if err := index.DeleteBySource(ctx, source); err != nil {
@@ -53,7 +64,6 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 
 	wg.Wait()
 
-	aggregatedErr := NewAggregatedError()
 	idx := 0
 
 	for e := range errs {
@@ -88,8 +98,19 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 
 	wg.Add(count)
 
+	aggregatedErr := NewAggregatedError()
+
 	for index := range i.indexes {
 		go func(index port.Index) {
+			defer func() {
+				if r := recover(); r != nil {
+					if err, ok := r.(error); ok {
+						aggregatedErr.Add(errors.WithStack(err))
+					} else {
+						panic(r)
+					}
+				}
+			}()
 			defer wg.Done()
 
 			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index)), slog.String("documentID", string(document.ID())))
@@ -110,7 +131,6 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 
 	wg.Wait()
 
-	aggregatedErr := NewAggregatedError()
 	idx := 0
 
 	for e := range errs {
@@ -163,12 +183,25 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 		collections = opts.Collections
 	}
 
+	aggregatedErr := NewAggregatedError()
+
 	for index := range i.indexes {
 		go func(index port.Index) {
+			defer func() {
+				if r := recover(); r != nil {
+					if err, ok := r.(error); ok {
+						aggregatedErr.Add(errors.WithStack(err))
+					} else {
+						panic(r)
+					}
+				}
+			}()
 			defer wg.Done()
 
-			results, err := index.Search(ctx, query, port.IndexSearchOptions{
-				MaxResults:  maxResults,
+			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index)))
+
+			results, err := index.Search(indexCtx, query, port.IndexSearchOptions{
+				MaxResults:  maxResults * 2,
 				Collections: collections,
 			})
 			if err != nil {
@@ -178,7 +211,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 				return
 			}
 
-			slog.DebugContext(ctx, "found documents", slog.Int("total", len(results)), slog.String("indexType", fmt.Sprintf("%T", index)))
+			slog.DebugContext(indexCtx, "found documents", slog.Int("total", len(results)))
 
 			messages <- &Message{
 				Results: &indexSearchResults{
@@ -192,7 +225,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 	wg.Wait()
 
 	results := make([]*indexSearchResults, 0)
-	aggregatedErr := NewAggregatedError()
+
 	idx := 0
 
 	for m := range messages {

@@ -15,6 +15,7 @@ type AskPageVModel struct {
 	Query                   string
 	TotalDocuments          int64
 	Results                 []*port.IndexSearchResult
+	SectionContents         map[model.SectionID]string
 	Collections             []model.Collection
 	CollectionStats         map[model.CollectionID]*model.CollectionStats
 	SelectedCollectionNames []string
@@ -149,7 +150,22 @@ templ AskPage(vmodel AskPageVModel) {
 							<div class="content">
 								<ol>
 									for _, r := range vmodel.Results {
-										<li><a href={ templ.SafeURL(r.Source.String()) }>{ r.Source.String() }</a></li>
+										<li>
+											<details>
+												<summary><a target="_blank" href={ templ.SafeURL(r.Source.String()) }>{ r.Source.String() }</a></summary>
+												<ul>
+													for _, sectionID := range r.Sections {
+														{{ content, ok := vmodel.SectionContents[sectionID] }}
+														if ok {
+															<li>
+																<code>{ string(sectionID) }</code>
+																<pre>{ content }</pre>
+															</li>
+														}
+													}
+												</ul>
+											</details>
+										</li>
 									}
 								</ol>
 							</div>

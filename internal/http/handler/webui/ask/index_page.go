@@ -1,6 +1,7 @@
 package ask
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -60,7 +61,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	slog.DebugContext(ctx, "indexing uploaded document")
 
-	_, err = h.documentManager.IndexFile(ctx, fileHeader.Filename, file, options...)
+	taskID, err := h.documentManager.IndexFile(ctx, fileHeader.Filename, file, options...)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not index uploaded file", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -69,7 +70,9 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	baseURL := httpCtx.BaseURL(ctx)
 
-	http.Redirect(w, r, baseURL.String(), http.StatusSeeOther)
+	taskURL := baseURL.JoinPath(fmt.Sprintf("/tasks/%s", taskID))
+
+	http.Redirect(w, r, taskURL.String(), http.StatusSeeOther)
 }
 
 func sanitizeCollections(collections []string) []string {

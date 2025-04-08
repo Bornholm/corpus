@@ -70,6 +70,31 @@ paths:
           description: Request invalid or malformed
         "500":
           description: The server could not execute the search
+  /tasks:
+    get:
+      summary: List current tasks
+      operationId: list-tasks
+      responses:
+        "200":
+          description: Successful operation
+        "500":
+          description: The server could not list the tasks
+  /tasks/{taskId}:
+    get:
+      summary: Get task info
+      operationId: get-task
+      parameters:
+        - in: path
+          name: taskId
+          schema:
+            type: string
+          description: The task identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "500":
+          description: The server could not list the tasks
 components:
   securitySchemes:
     auth:

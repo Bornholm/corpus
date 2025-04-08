@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/url"
+	"os"
 	"path/filepath"
 	"slices"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/markdown"
 	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/pkg/errors"
@@ -41,6 +44,7 @@ type DocumentManager struct {
 	maxWordPerSection int
 	fileConverter     port.FileConverter
 	port.Store
+	port.TaskManager
 	index port.Index
 }
 
@@ -133,18 +137,67 @@ func (m *DocumentManager) SupportedExtensions() []string {
 
 var ErrNotSupported = errors.New("not supported")
 
-func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (model.Document, error) {
+func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (port.TaskID, error) {
 	opts := NewDocumentManagerIndexFileOptions(funcs...)
+
+	tempDir, err := os.MkdirTemp("", "corpus-*")
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	path := filepath.Join(tempDir, "document")
+
+	file, err := os.Create(path)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	if _, err := io.Copy(file, r); err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	taskID := port.NewTaskID()
+
+	indexFileTask := &indexFileTask{
+		id:           taskID,
+		path:         path,
+		originalName: filename,
+		opts:         opts,
+	}
+
+	taskCtx := log.WithAttrs(context.Background(), slog.String("filename", filename))
+
+	if err := m.TaskManager.Schedule(taskCtx, indexFileTask); err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return taskID, nil
+}
+
+func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Task, progress chan float64) error {
+	indexFileTask, ok := task.(*indexFileTask)
+	if !ok {
+		return errors.Errorf("unexpected task type '%T'", task)
+	}
 
 	var (
 		document *markdown.Document
 	)
 
+	var reader io.ReadCloser
+
 	wf := workflow.New(
 		workflow.StepFunc(
 			func(ctx context.Context) error {
-				ext := filepath.Ext(filename)
+				file, err := os.Open(indexFileTask.path)
+				if err != nil {
+					return errors.WithStack(err)
+				}
+
+				ext := filepath.Ext(indexFileTask.originalName)
 				if ext == ".md" || m.fileConverter == nil {
+					reader = file
+					progress <- 25
 					return nil
 				}
 
@@ -154,12 +207,14 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 					return errors.Wrapf(ErrNotSupported, "file extension '%s' is not supported by the file converter", ext)
 				}
 
-				readCloser, err := m.fileConverter.Convert(ctx, filename, r)
+				readCloser, err := m.fileConverter.Convert(ctx, indexFileTask.originalName, file)
 				if err != nil {
 					return errors.WithStack(err)
 				}
 
-				r = readCloser
+				reader = readCloser
+
+				progress <- 25
 
 				return nil
 			},
@@ -167,11 +222,9 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 		),
 		workflow.StepFunc(
 			func(ctx context.Context) error {
-				if rc := r.(io.ReadCloser); rc != nil {
-					defer rc.Close()
-				}
+				defer reader.Close()
 
-				data, err := io.ReadAll(r)
+				data, err := io.ReadAll(reader)
 				if err != nil {
 					return errors.WithStack(err)
 				}
@@ -181,15 +234,15 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 					return errors.Wrap(err, "could not build document")
 				}
 
-				if opts.Source != nil {
-					doc.SetSource(opts.Source)
+				if indexFileTask.opts.Source != nil {
+					doc.SetSource(indexFileTask.opts.Source)
 				}
 
 				if doc.Source() == nil {
 					return errors.New("document source missing")
 				}
 
-				for _, name := range opts.Collections {
+				for _, name := range indexFileTask.opts.Collections {
 					coll, err := m.Store.GetCollectionByName(ctx, name)
 					if err != nil {
 						if !errors.Is(err, port.ErrNotFound) {
@@ -207,6 +260,8 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 
 				document = doc
 
+				progress <- 50
+
 				return nil
 			},
 			nil,
@@ -216,6 +271,8 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 				if err := m.SaveDocument(ctx, document); err != nil {
 					return errors.WithStack(err)
 				}
+
+				progress <- 60
 
 				return nil
 			},
@@ -233,6 +290,8 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 					return errors.WithStack(err)
 				}
 
+				progress <- 90
+
 				return nil
 			},
 			func(ctx context.Context) error {
@@ -245,18 +304,47 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 		),
 	)
 	if err := wf.Execute(ctx); err != nil {
-		return nil, errors.WithStack(err)
+		return errors.WithStack(err)
 	}
 
-	return document, nil
+	progress <- 100
+
+	return nil
 }
 
-func NewDocumentManager(store port.Store, index port.Index, funcs ...DocumentManagerOptionFunc) *DocumentManager {
+func NewDocumentManager(store port.Store, index port.Index, taskManager port.TaskManager, funcs ...DocumentManagerOptionFunc) *DocumentManager {
 	opts := NewDocumentManagerOptions(funcs...)
-	return &DocumentManager{
+
+	documentManager := &DocumentManager{
 		maxWordPerSection: opts.MaxWordPerSection,
 		Store:             store,
+		TaskManager:       taskManager,
 		index:             index,
 		fileConverter:     opts.FileConverter,
 	}
+
+	taskManager.Register(indexFileTaskType, port.TaskHandlerFunc(documentManager.handleIndexFileTask))
+
+	return documentManager
 }
+
+const indexFileTaskType port.TaskType = "indexFile"
+
+type indexFileTask struct {
+	id           port.TaskID
+	path         string
+	originalName string
+	opts         *DocumentManagerIndexFileOptions
+}
+
+// ID implements port.Task.
+func (i *indexFileTask) ID() port.TaskID {
+	return i.id
+}
+
+// Type implements port.Task.
+func (i *indexFileTask) Type() port.TaskType {
+	return indexFileTaskType
+}
+
+var _ port.Task = &indexFileTask{}

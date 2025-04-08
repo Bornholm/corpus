@@ -4,14 +4,14 @@ go 1.24.1
 
 require (
 	github.com/abadojack/whatlanggo v1.0.1
-	github.com/asg017/sqlite-vec-go-bindings v0.1.6
+	github.com/asg017/sqlite-vec-go-bindings v0.0.0-00010101000000-000000000000
 	github.com/blevesearch/bleve/v2 v2.4.4
 	github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gabriel-vasile/mimetype v1.4.8
-	github.com/ncruces/go-sqlite3 v0.20.3
+	github.com/ncruces/go-sqlite3 v0.23.0
 	github.com/ncruces/go-sqlite3/gormlite v0.20.3
 	github.com/pkg/errors v0.9.1
 	github.com/samber/slog-http v1.5.1
@@ -65,7 +65,7 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0 // indirect
 	go.opentelemetry.io/otel/metric v1.29.0 // indirect
-	golang.org/x/crypto v0.33.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 )
 
 require (
@@ -116,8 +116,10 @@ require (
 	go.etcd.io/bbolt v1.3.7 // indirect
 	go.opentelemetry.io/otel v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/asg017/sqlite-vec-go-bindings => github.com/Bornholm/sqlite-vec-go-bindings v0.0.0-20250407170538-55971919e573

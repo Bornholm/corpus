@@ -1,0 +1,61 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/build"
+	"github.com/bornholm/corpus/internal/core/port"
+	webCommon "github.com/bornholm/corpus/internal/http/handler/webui/common"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
+)
+
+type TaskPageVModel struct {
+	Task *port.TaskState
+}
+
+templ TaskPage(vmodel TaskPageVModel) {
+	@common.Page(common.WithTitle("Indexation en cours...")) {
+		<div class="container">
+			<section class="section">
+				<div class="level">
+					<div class="level-left">
+						<h1 class="title is-size-1 level-item"><a href={ common.BaseURL(ctx) }><img style="height:1.5em;vertical-align:middle" src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }/><span class="ml-2 has-text-grey-dark" style="vertical-align:middle">Corpus</span></a></h1>
+					</div>
+					<div class="level-right"></div>
+				</div>
+				<div id="progress-container" hx-select="#progress-container" hx-trigger="every 2s" hx-get={ string(common.CurrentURL(ctx)) } hx-swap="outerHTML" hx-target="this">
+					{{ progress := strconv.FormatFloat(vmodel.Task.Progress, 'f', 0, 32) }}
+					switch vmodel.Task.Status {
+						case port.TaskStatusSucceeded:
+							<div class="message is-success">
+								<div class="message-body">
+									<strong>Document indexé !</strong>
+									<p class="mt-5"><a href={ common.BaseURL(ctx) } hx-disable>Cliquer ici pour retourner à la page d'accueil.</a></p>
+								</div>
+							</div>
+						case port.TaskStatusFailed:
+							<div class="message is-danger">
+								<div class="message-body">
+									<strong>Une erreur est survenue !</strong>
+									if userFacingErr, ok := vmodel.Task.Error.(webCommon.UserFacingError); ok {
+										<p>{ userFacingErr.UserMessage() }</p>
+									}
+									<p class="mt-5"><a href={ common.BaseURL(ctx) } hx-disable>Cliquer ici pour retourner à la page d'accueil.</a></p>
+								</div>
+							</div>
+						default:
+							<p class="has-text-centered"><strong>Indexation en cours, veuillez patienter...</strong></p>
+							<progress class="progress is-info is-large" value={ progress } max="100">{ progress }%</progress>
+					}
+				</div>
+			</section>
+			<footer class="footer">
+				<div class="content has-text-centered">
+					<p>
+						<b>Corpus</b> (version <a href="https://github.com/Bornholm/corpus" target="_blank">{ build.ShortVersion }</a>) | 
+						<a target="_blank" href={ common.BaseURL(ctx, common.WithPath("/docs/index.html")) }>Documentation API</a>
+					</p>
+				</div>
+			</footer>
+		</div>
+	}
+}

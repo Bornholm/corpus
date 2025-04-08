@@ -5,14 +5,15 @@ type ErrorPageVModel struct {
 }
 
 templ ErrorPage(vmodel ErrorPageVModel) {
-	@Page(WithTitle("Error")) {
+	@Page(WithTitle("Erreur")) {
 		<div class="is-flex is-justify-content-center is-align-items-center is-fullheight">
 			<article class="message is-danger">
 				<div class="message-header">
-					<p>Error</p>
+					<p>Erreur</p>
 				</div>
 				<div class="message-body">
 					{ vmodel.Message }
+					<p class="has-text-centered mt-5"><a href={ BaseURL(ctx) }>Retour à la page d'accueil</a></p>
 				</div>
 			</article>
 		</div>

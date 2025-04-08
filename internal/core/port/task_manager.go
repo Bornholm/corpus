@@ -1,0 +1,56 @@
+package port
+
+import (
+	"context"
+	"time"
+
+	"github.com/rs/xid"
+)
+
+type TaskID string
+
+func NewTaskID() TaskID {
+	return TaskID(xid.New().String())
+}
+
+type TaskType string
+
+type TaskStatus string
+
+const (
+	TaskStatusPending   = "pending"
+	TaskStatusRunning   = "running"
+	TaskStatusSucceeded = "succeeded"
+	TaskStatusFailed    = "failed"
+)
+
+type TaskState struct {
+	ScheduledAt time.Time
+	FinishedAt  time.Time
+	Progress    float64
+	Status      TaskStatus
+	Error       error
+}
+
+type Task interface {
+	ID() TaskID
+	Type() TaskType
+}
+
+type TaskHandler interface {
+	Handle(ctx context.Context, task Task, progress chan float64) error
+}
+
+type TaskHandlerFunc func(ctx context.Context, task Task, progress chan float64) error
+
+func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, progress chan float64) error {
+	return f(ctx, task, progress)
+}
+
+type TaskManager interface {
+	Schedule(ctx context.Context, task Task) error
+	State(ctx context.Context, id TaskID) (*TaskState, error)
+	List(ctx context.Context) ([]TaskID, error)
+	Register(taskType TaskType, handler TaskHandler)
+	Run(ctx context.Context) error
+}
