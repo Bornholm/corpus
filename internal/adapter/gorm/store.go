@@ -2,11 +2,15 @@ package gorm
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
+	"slices"
 	"sync"
+	"time"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/ncruces/go-sqlite3"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -127,22 +131,24 @@ func (s *Store) GetSectionBySourceAndID(ctx context.Context, source *url.URL, id
 		return nil, errors.WithStack(ErrMissingSource)
 	}
 
-	db, err := s.getDatabase(ctx)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
 	var section Section
 
-	err = db.Preload("Document").
-		Joins("left join documents on documents.id = sections.document_id").
-		Where("sections.id = ? and documents.source = ?", string(id), source.String()).
-		First(&section).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.WithStack(port.ErrNotFound)
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		err := db.Preload("Document").
+			Joins("left join documents on documents.id = sections.document_id").
+			Where("sections.id = ? and documents.source = ?", string(id), source.String()).
+			First(&section).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WithStack(port.ErrNotFound)
+			}
+
+			return errors.WithStack(err)
 		}
 
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -155,21 +161,23 @@ func (s *Store) DeleteDocumentBySource(ctx context.Context, source *url.URL) err
 		return errors.WithStack(ErrMissingSource)
 	}
 
-	db, err := s.getDatabase(ctx)
-	if err != nil {
-		return errors.WithStack(err)
-	}
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var doc Document
+		if err := db.First(&doc, "source = ?", source.String()).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
 
-	var doc Document
-	if err := db.First(&doc, "source = ?", source.String()).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
+			return errors.WithStack(err)
 		}
 
-		return errors.WithStack(err)
-	}
+		if err := db.Select(clause.Associations).Delete(&doc).Error; err != nil {
+			return errors.WithStack(err)
+		}
 
-	if err := db.Select(clause.Associations).Delete(&doc).Error; err != nil {
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -188,24 +196,19 @@ func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOpti
 
 // SaveDocument implements port.Store.
 func (s *Store) SaveDocument(ctx context.Context, doc model.Document) error {
-	db, err := s.getDatabase(ctx)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	err = db.Transaction(func(tx *gorm.DB) error {
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		source := doc.Source()
 		if source == nil {
 			return errors.WithStack(ErrMissingSource)
 		}
 
 		var existing Document
-		if err := tx.First(&existing, "source = ?", source.String()).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		if err := db.First(&existing, "source = ?", source.String()).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.WithStack(err)
 		}
 
 		if existing.ID != "" {
-			if err := tx.Select(clause.Associations).Delete(&existing).Error; err != nil {
+			if err := db.Select(clause.Associations).Delete(&existing).Error; err != nil {
 				return errors.WithStack(err)
 			}
 		}
@@ -215,17 +218,59 @@ func (s *Store) SaveDocument(ctx context.Context, doc model.Document) error {
 			return errors.WithStack(err)
 		}
 
-		if res := tx.Create(document); res.Error != nil {
+		if res := db.Create(document); res.Error != nil {
 			return errors.WithStack(res.Error)
 		}
 
 		return nil
-	})
+	}, sqlite3.LOCKED, sqlite3.BUSY)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
 	return nil
+}
+
+func (s *Store) withRetry(ctx context.Context, fn func(ctx context.Context, db *gorm.DB) error, codes ...sqlite3.ErrorCode) error {
+	db, err := s.getDatabase(ctx)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	backoff := 500 * time.Millisecond
+	maxRetries := 5
+	retries := 0
+
+	for {
+		err := db.Transaction(func(tx *gorm.DB) error {
+			if err := fn(ctx, tx); err != nil {
+				return errors.WithStack(err)
+			}
+
+			return nil
+		})
+		if err != nil {
+			if retries >= maxRetries {
+				return errors.WithStack(err)
+			}
+
+			var sqliteErr *sqlite3.Error
+			if errors.As(err, &sqliteErr) {
+				if !slices.Contains(codes, sqliteErr.Code()) {
+					return errors.WithStack(err)
+				}
+
+				slog.DebugContext(ctx, "transaction failed, will retry", slog.Int("retries", retries), slog.Duration("backoff", backoff), slog.Any("error", errors.WithStack(err)))
+
+				retries++
+				time.Sleep(backoff)
+				backoff *= 2
+				continue
+			}
+		}
+
+		return nil
+	}
 }
 
 func NewStore(db *gorm.DB) *Store {

@@ -66,13 +66,14 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	vmodel.Results = results
 
 	if len(results) > 0 {
-		response, err := h.generateResponse(ctx, vmodel.Query, results)
+		response, contents, err := h.generateResponse(ctx, vmodel.Query, results)
 		if err != nil {
 			common.HandleError(w, r, errors.WithStack(err))
 			return
 		}
 
 		vmodel.Response = response
+		vmodel.SectionContents = contents
 	}
 
 	renderPage()
@@ -101,11 +102,13 @@ const systemPromptTemplate string = `
 {{ end }}
 `
 
-func (h *Handler) generateResponse(ctx context.Context, query string, results []*port.IndexSearchResult) (string, error) {
+func (h *Handler) generateResponse(ctx context.Context, query string, results []*port.IndexSearchResult) (string, map[model.SectionID]string, error) {
 	type contextSection struct {
 		Source  string
 		Content string
 	}
+
+	contents := map[model.SectionID]string{}
 
 	contextSections := make([]contextSection, 0)
 	for _, r := range results {
@@ -118,8 +121,10 @@ func (h *Handler) generateResponse(ctx context.Context, query string, results []
 
 			content, err := section.Content()
 			if err != nil {
-				return "", errors.WithStack(err)
+				return "", contents, errors.WithStack(err)
 			}
+
+			contents[sectionID] = string(content)
 
 			contextSections = append(contextSections, contextSection{
 				Source:  r.Source.String(),
@@ -134,7 +139,7 @@ func (h *Handler) generateResponse(ctx context.Context, query string, results []
 		Sections: contextSections,
 	})
 	if err != nil {
-		return "", errors.WithStack(err)
+		return "", contents, errors.WithStack(err)
 	}
 
 	res, err := h.llm.ChatCompletion(
@@ -145,10 +150,10 @@ func (h *Handler) generateResponse(ctx context.Context, query string, results []
 		),
 	)
 	if err != nil {
-		return "", errors.WithStack(err)
+		return "", contents, errors.WithStack(err)
 	}
 
-	return res.Message().Content(), nil
+	return res.Message().Content(), contents, nil
 }
 
 func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVModel, error) {
@@ -162,8 +167,8 @@ func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVMode
 		h.fillAskPageVModelTotalDocuments,
 		h.fillAskPageVModelQuery,
 		h.fillAskPageVModelFileUploadModal,
-		h.fillAskPageVModelCollections,
 		h.fillAskPageVModelSelectedCollectionIDs,
+		h.fillAskPageVModelCollections,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -229,9 +234,20 @@ func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *comp
 	}
 
 	slices.SortFunc(collections, func(c1, c2 model.Collection) int {
-		s1 := vmodel.CollectionStats[c1.ID()]
-		s2 := vmodel.CollectionStats[c2.ID()]
-		return int(s2.TotalDocuments - s1.TotalDocuments)
+		selected1 := slices.Contains(vmodel.SelectedCollectionNames, c1.Name())
+		selected2 := slices.Contains(vmodel.SelectedCollectionNames, c2.Name())
+
+		if selected1 && !selected2 {
+			return -1
+		}
+		if selected2 && !selected1 {
+			return 1
+		}
+
+		stats1 := vmodel.CollectionStats[c1.ID()]
+		stats2 := vmodel.CollectionStats[c2.ID()]
+
+		return int(stats2.TotalDocuments - stats1.TotalDocuments)
 	})
 
 	vmodel.Collections = collections

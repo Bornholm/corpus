@@ -78,7 +78,9 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	}
 
 	source := section.Document().Source()
-	sectionID := source.JoinPath()
+	sectionID := func(u url.URL) *url.URL {
+		return &u
+	}(*source)
 	sectionID.Fragment = string(section.ID())
 
 	collections := slices.Collect(func(yield func(s string) bool) {

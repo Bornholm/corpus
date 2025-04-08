@@ -30,7 +30,12 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 		options = append(options, service.WithDocumentManagerFileConverter(fileConverter))
 	}
 
-	documentManager := service.NewDocumentManager(store, index, options...)
+	taskManager, err := getTaskManager(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create task manager from config")
+	}
+
+	documentManager := service.NewDocumentManager(store, index, taskManager, options...)
 
 	return documentManager, nil
 })

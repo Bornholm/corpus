@@ -104,7 +104,7 @@ templ UploadFileModal(vmodel UploadFileModalVModel) {
         
         const sourceInput = this.closest("form").querySelector(`input[name="source"]`)
         if (!sourceInput.value) {
-          sourceInput.value = `file://${name}`
+          sourceInput.value = `file://${name.replace(/\s+/g, '-')}`
         }
       }
     }

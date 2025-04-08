@@ -36,7 +36,7 @@ paths:
         "400":
           description: Request invalid or malformed
         "500":
-          description: The server could not index the file
+          description: An unknown error occured
   /search:
     get:
       summary: Search documents
@@ -69,7 +69,34 @@ paths:
         "400":
           description: Request invalid or malformed
         "500":
-          description: The server could not execute the search
+          description: An unknown error occured
+  /tasks:
+    get:
+      summary: List current tasks
+      operationId: list-tasks
+      responses:
+        "200":
+          description: Successful operation
+        "500":
+          description: An unknown error occured
+  /tasks/{taskId}:
+    get:
+      summary: Get task info
+      operationId: get-task
+      parameters:
+        - in: path
+          name: taskId
+          schema:
+            type: string
+          description: The task identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "404":
+          description: The task could not be found
+        "500":
+          description: An unknown error occured
 components:
   securitySchemes:
     auth:

@@ -2,7 +2,6 @@ package setup
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"github.com/bornholm/corpus/internal/config"
@@ -44,7 +43,6 @@ func (r *RateLimitedClient) ChatCompletion(ctx context.Context, funcs ...llm.Cha
 	if err := r.limiter.Wait(ctx); err != nil {
 		return nil, errors.WithStack(err)
 	}
-	slog.DebugContext(ctx, "retrieving chat completing")
 	return r.client.ChatCompletion(ctx, funcs...)
 }
 
@@ -53,7 +51,6 @@ func (r *RateLimitedClient) Embeddings(ctx context.Context, funcs ...llm.Embeddi
 	if err := r.limiter.Wait(ctx); err != nil {
 		return nil, errors.WithStack(err)
 	}
-	slog.DebugContext(ctx, "retrieving embeddings")
 	return r.client.Embeddings(ctx, funcs...)
 }
 

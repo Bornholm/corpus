@@ -1,7 +1,7 @@
 package api
 
 import (
-	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/service"
+	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/pkg/errors"
 )
 
@@ -53,19 +54,17 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 
 	slog.DebugContext(ctx, "indexing uploaded document")
 
-	document, err := h.documentManager.IndexFile(ctx, fileHeader.Filename, file, options...)
+	taskID, err := h.documentManager.IndexFile(ctx, fileHeader.Filename, file, options...)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not index uploaded file", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	encoder := json.NewEncoder(w)
-	encoder.SetIndent("", " ")
+	baseURL := httpCtx.BaseURL(ctx)
+	taskURL := baseURL.JoinPath(fmt.Sprintf("/api/v1/tasks/%s", taskID))
 
-	if err := encoder.Encode(toIndexResponse(document)); err != nil {
-		slog.ErrorContext(ctx, "could not write document", slog.Any("error", errors.WithStack(err)))
-	}
+	http.Redirect(w, r, taskURL.String(), http.StatusSeeOther)
 }
 
 type indexResponse struct {

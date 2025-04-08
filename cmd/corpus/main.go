@@ -12,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 
 	// Adapters
+	_ "github.com/bornholm/corpus/internal/adapter/memory"
 	_ "github.com/bornholm/corpus/internal/adapter/pandoc"
 )
 

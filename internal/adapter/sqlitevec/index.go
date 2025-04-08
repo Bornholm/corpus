@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"slices"
 	"sync"
+	"time"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -54,24 +55,54 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 	return nil
 }
 
-// Index implements port.Index.
-func (i *Index) Index(ctx context.Context, document model.Document) error {
-	source := document.Source()
-
-	if err := i.DeleteBySource(ctx, source); err != nil {
+func (i *Index) deleteBySource(ctx context.Context, conn *sqlite3.Conn, source *url.URL) error {
+	stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE source = ?;")
+	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	for _, s := range document.Sections() {
-		if err := i.indexSection(ctx, s); err != nil {
-			return errors.WithStack(err)
-		}
+	defer stmt.Close()
+
+	if err := stmt.BindText(1, source.String()); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := stmt.Exec(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := stmt.Err(); err != nil {
+		return errors.WithStack(err)
 	}
 
 	return nil
 }
 
-func (i *Index) indexSection(ctx context.Context, section model.Section) (err error) {
+// Index implements port.Index.
+func (i *Index) Index(ctx context.Context, document model.Document) error {
+	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
+		source := document.Source()
+
+		if err := i.deleteBySource(ctx, conn, source); err != nil {
+			return errors.WithStack(err)
+		}
+
+		for _, s := range document.Sections() {
+			if err := i.indexSection(ctx, conn, s); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
+func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section model.Section) (err error) {
 	content, err := section.Content()
 	if err != nil {
 		return errors.WithStack(err)
@@ -87,11 +118,6 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) (err er
 	slog.DebugContext(ctx, "indexing section", slog.String("sectionID", string(section.ID())), slog.Int("sectionSize", len(truncated)))
 
 	res, err := i.llm.Embeddings(ctx, llm.WithInput(truncated))
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	conn, err := i.getConn(ctx)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -137,7 +163,7 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) (err er
 	}
 
 	for _, s := range section.Sections() {
-		if err := i.indexSection(ctx, s); err != nil {
+		if err := i.indexSection(ctx, conn, s); err != nil {
 			return errors.WithStack(err)
 		}
 	}
@@ -199,8 +225,6 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 	}
 
 	sql += `;`
-
-	slog.DebugContext(ctx, "executing vector index query", slog.String("query", sql))
 
 	stmt, _, err := conn.Prepare(sql)
 	if err != nil {
@@ -296,6 +320,51 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 	})
 
 	return searchResults, nil
+}
+
+func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn *sqlite3.Conn) error, codes ...sqlite3.ErrorCode) error {
+	conn, err := i.getConn(ctx)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	backoff := 500 * time.Millisecond
+	maxRetries := 5
+	retries := 0
+
+	for {
+		err := func() (err error) {
+			tx := conn.Begin()
+			defer tx.End(&err)
+
+			if err := fn(ctx, conn); err != nil {
+				return errors.WithStack(err)
+			}
+
+			return
+		}()
+		if err != nil {
+			if retries >= maxRetries {
+				return errors.WithStack(err)
+			}
+
+			var sqliteErr *sqlite3.Error
+			if errors.As(err, &sqliteErr) {
+				if !slices.Contains(codes, sqliteErr.Code()) {
+					return errors.WithStack(err)
+				}
+
+				slog.DebugContext(ctx, "transaction failed, will retry", slog.Int("retries", retries), slog.Duration("backoff", backoff), slog.Any("error", errors.WithStack(err)))
+
+				retries++
+				time.Sleep(backoff)
+				backoff *= 2
+				continue
+			}
+		}
+
+		return nil
+	}
 }
 
 func NewIndex(conn *sqlite3.Conn, llm llm.Client, maxWords int) *Index {

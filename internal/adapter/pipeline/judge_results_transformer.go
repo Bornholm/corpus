@@ -14,8 +14,9 @@ import (
 
 // Hypothetical document
 type JudgeResultsTransformer struct {
-	llm   llm.Client
-	store port.Store
+	llm      llm.Client
+	store    port.Store
+	maxWords int
 }
 
 const defaultJudgeResultsTransformer = `
@@ -166,10 +167,11 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 	return sb.String(), nil
 }
 
-func NewJudgeResultsTransformer(client llm.Client, store port.Store) *JudgeResultsTransformer {
+func NewJudgeResultsTransformer(client llm.Client, store port.Store, maxWords int) *JudgeResultsTransformer {
 	return &JudgeResultsTransformer{
-		llm:   client,
-		store: store,
+		llm:      client,
+		store:    store,
+		maxWords: maxWords,
 	}
 }
 

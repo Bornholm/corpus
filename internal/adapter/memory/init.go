@@ -1,0 +1,44 @@
+package memory
+
+import (
+	"net/url"
+	"strconv"
+	"time"
+
+	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/setup"
+	"github.com/pkg/errors"
+)
+
+func init() {
+	setup.TaskManager.Register("memory", func(u *url.URL) (port.TaskManager, error) {
+		parallelism := 100
+		if rawValue := u.Query().Get("parallelism"); rawValue != "" {
+			v, err := strconv.ParseInt(rawValue, 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse 'parallelism' parameter")
+			}
+			parallelism = int(v)
+		}
+
+		cleanupDelay := time.Minute * 60
+		if rawValue := u.Query().Get("cleanupDelay"); rawValue != "" {
+			v, err := time.ParseDuration(rawValue)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse 'cleanupDelay' parameter")
+			}
+			cleanupDelay = v
+		}
+
+		cleanupInterval := time.Minute * 10
+		if rawValue := u.Query().Get("cleanupInterval"); rawValue != "" {
+			v, err := time.ParseDuration(rawValue)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse 'cleanupInterval' parameter")
+			}
+			cleanupInterval = v
+		}
+
+		return NewTaskManager(parallelism, cleanupDelay, cleanupInterval), nil
+	})
+}
