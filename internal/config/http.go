@@ -6,7 +6,12 @@ type HTTP struct {
 	Auth    Auth   `envPrefix:"AUTH_"`
 }
 type Auth struct {
-	Enabled  bool   `env:"ENABLED,expand" envDefault:"true"`
-	Username string `env:"USERNAME,expand" envDefault:"corpus"`
-	Password string `env:"PASSWORD,expand" envDefault:"corpus"`
+	AllowAnonymous bool `env:"ALLOW_ANONYMOUS,expand" envDefault:"true"`
+	Reader         User `envPrefix:"READER_"`
+	Writer         User `envPrefix:"WRITER_"`
+}
+
+type User struct {
+	Username string `env:"USERNAME,expand"`
+	Password string `env:"PASSWORD,expand"`
 }

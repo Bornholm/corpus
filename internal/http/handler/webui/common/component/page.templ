@@ -1,9 +1,12 @@
 package component
 
+import "github.com/bornholm/corpus/internal/build"
+
 type PageOptions struct {
-	Title  string
-	Navbar bool
-	Head   func() templ.Component
+	Title             string
+	IncludeFooter     bool
+	IncludeAuthBanner bool
+	Head              func() templ.Component
 }
 
 type PageOptionFunc func(opts *PageOptions)
@@ -20,10 +23,24 @@ func WithHead(fn func() templ.Component) PageOptionFunc {
 	}
 }
 
+func WithAuthBanner(includeAuthBanner bool) PageOptionFunc {
+	return func(opts *PageOptions) {
+		opts.IncludeAuthBanner = includeAuthBanner
+	}
+}
+
+func WithFooter(includeFooter bool) PageOptionFunc {
+	return func(opts *PageOptions) {
+		opts.IncludeFooter = includeFooter
+	}
+}
+
 func NewPageOptions(funcs ...PageOptionFunc) *PageOptions {
 	opts := &PageOptions{
-		Title: "",
-		Head:  nil,
+		Title:             "",
+		Head:              nil,
+		IncludeFooter:     true,
+		IncludeAuthBanner: true,
 	}
 	for _, fn := range funcs {
 		fn(opts)
@@ -35,7 +52,7 @@ func NewPageOptions(funcs ...PageOptionFunc) *PageOptions {
 templ Page(funcs ...PageOptionFunc) {
 	{{ opts := NewPageOptions(funcs...) }}
 	<!DOCTYPE html>
-	<html class={ templ.KV("has-navbar-fixed-top", opts.Navbar) } data-theme="light">
+	<html data-theme="light">
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -57,7 +74,29 @@ templ Page(funcs ...PageOptionFunc) {
 		</head>
 		<body hx-boost="true" class="is-fullheight">
 			<div id="main" class="is-fullheight">
+				if opts.IncludeAuthBanner {
+					<div class="container">
+						{{ user := User(ctx) }}
+						<div class="has-text-right is-size-6 mt-3" style="padding:0 3rem">
+							if user != nil {
+								<p>Bonjour <b>{ user.Username() }</b> | <a hx-disable href={ BaseURL(ctx, WithUser("log", "out"), WithPath("/logout")) }>[Se déconnecter]</a></p>
+							} else {
+								<p><a hx-disable href={ BaseURL(ctx, WithPath("/login")) }>[Se connecter]</a></p>
+							}
+						</div>
+					</div>
+				}
 				{ children... }
+				if opts.IncludeFooter {
+					<footer class="footer">
+						<div class="content has-text-centered">
+							<p>
+								<b>Corpus</b> (version <a href="https://github.com/Bornholm/corpus" target="_blank">{ build.ShortVersion }</a>) | 
+								<a target="_blank" href={ BaseURL(ctx, WithPath("/docs/index.html")) }>Documentation API</a>
+							</p>
+						</div>
+					</footer>
+				}
 			</div>
 			<script type="text/javascript">
 				htmx.config.responseHandling = [

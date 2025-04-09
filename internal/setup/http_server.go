@@ -5,6 +5,7 @@ import (
 
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/http"
+	"github.com/bornholm/corpus/internal/http/authz"
 	"github.com/bornholm/corpus/internal/http/handler/webui"
 	"github.com/pkg/errors"
 )
@@ -36,9 +37,25 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		options = append(options, http.WithMount("/", webui.NewHandler(documentManager, llm)))
 	}
 
-	if conf.HTTP.Auth.Enabled {
-		options = append(options, http.WithBasicAuth(conf.HTTP.Auth.Username, conf.HTTP.Auth.Password))
+	users := []http.User{}
+	if conf.HTTP.Auth.Reader.Username != "" && conf.HTTP.Auth.Reader.Password != "" {
+		users = append(users, http.User{
+			Username: conf.HTTP.Auth.Reader.Username,
+			Password: conf.HTTP.Auth.Reader.Password,
+			Roles:    []string{authz.RoleReader},
+		})
 	}
+
+	if conf.HTTP.Auth.Writer.Username != "" && conf.HTTP.Auth.Writer.Password != "" {
+		users = append(users, http.User{
+			Username: conf.HTTP.Auth.Writer.Username,
+			Password: conf.HTTP.Auth.Writer.Password,
+			Roles:    []string{authz.RoleWriter},
+		})
+	}
+
+	options = append(options, http.WithAuth(users...))
+	options = append(options, http.WithAllowAnonymous(conf.HTTP.Auth.AllowAnonymous))
 
 	// Create HTTP server
 

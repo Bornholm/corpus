@@ -2,9 +2,9 @@ package component
 
 import (
 	"encoding/base64"
-	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/http/authz"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"slices"
 	"strconv"
@@ -29,18 +29,20 @@ type AskPageVModel struct {
 const defaultMaxCollections = 3
 
 templ AskPage(vmodel AskPageVModel) {
-	@common.Page(common.WithTitle("Interrogez vos documents !")) {
+	@common.Page(common.WithTitle("Posez votre question")) {
 		if vmodel.UploadFileModal != nil {
 			@UploadFileModal(*vmodel.UploadFileModal)
 		}
 		<div class="container">
-			<section class="section">
+			<section class="section pt-0">
 				<div class="level">
 					<div class="level-left">
 						<h1 class="title is-size-1 level-item"><a href={ common.BaseURL(ctx) }><img style="height:1.5em;vertical-align:middle" src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }/><span class="ml-2 has-text-grey-dark" style="vertical-align:middle">Corpus</span></a></h1>
 					</div>
 					<div class="level-right">
-						<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
+						if common.AssertUser(ctx, authz.Has(authz.RoleWriter)) {
+							<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
+						}
 					</div>
 				</div>
 				<form method="post" hx-on:submit="htmx.addClass(htmx.find('#submit-button'), 'is-loading')">
@@ -176,14 +178,6 @@ templ AskPage(vmodel AskPageVModel) {
 					</div>
 				}
 			</section>
-			<footer class="footer">
-				<div class="content has-text-centered">
-					<p>
-						<b>Corpus</b> (version <a href="https://github.com/Bornholm/corpus" target="_blank">{ build.ShortVersion }</a>) | 
-						<a target="_blank" href={ common.BaseURL(ctx, common.WithPath("/docs/index.html")) }>Documentation API</a>
-					</p>
-				</div>
-			</footer>
 		</div>
 	}
 }

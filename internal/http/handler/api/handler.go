@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/bornholm/corpus/internal/core/service"
+	"github.com/bornholm/corpus/internal/http/authz"
 )
 
 type Handler struct {
@@ -22,11 +23,14 @@ func NewHandler(documentManager *service.DocumentManager) *Handler {
 		mux:             &http.ServeMux{},
 	}
 
-	h.mux.HandleFunc("GET /search", h.handleSearch)
-	h.mux.HandleFunc("GET /ask", h.handleAsk)
-	h.mux.HandleFunc("POST /index", h.handleIndexDocument)
-	h.mux.HandleFunc("GET /tasks", h.listTasks)
-	h.mux.HandleFunc("GET /tasks/{taskID}", h.showTask)
+	assertAuthenticated := authz.Middleware(authz.IsAuthenticated)
+	assertWriter := authz.Middleware(authz.Has(authz.RoleWriter))
+
+	h.mux.Handle("GET /search", assertAuthenticated(http.HandlerFunc(h.handleSearch)))
+	h.mux.Handle("GET /ask", assertAuthenticated(http.HandlerFunc(h.handleAsk)))
+	h.mux.Handle("POST /index", assertWriter(http.HandlerFunc(h.handleIndexDocument)))
+	h.mux.Handle("GET /tasks", assertAuthenticated(http.HandlerFunc(h.listTasks)))
+	h.mux.Handle("GET /tasks/{taskID}", assertAuthenticated(http.HandlerFunc(h.showTask)))
 
 	return h
 }

@@ -25,16 +25,17 @@ func (s *Server) Run(ctx context.Context) error {
 		mount(mux, mountpoint, handler)
 	}
 
+	mux.Handle("GET /login", s.basicAuth(http.HandlerFunc(s.login)))
+	mux.HandleFunc("GET /logout", s.logout)
+
 	handler := sloghttp.Recovery(mux)
 	handler = sloghttp.New(slog.Default())(handler)
-
-	if s.opts.BasicAuth != nil {
-		handler = s.basicAuth(handler)
-	}
+	handler = s.basicAuth(handler)
 
 	handler = func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
+
 			ctx = httpCtx.SetBaseURL(ctx, s.opts.BaseURL)
 			ctx = httpCtx.SetCurrentURL(ctx, r.URL)
 

@@ -5,7 +5,7 @@ type ErrorPageVModel struct {
 }
 
 templ ErrorPage(vmodel ErrorPageVModel) {
-	@Page(WithTitle("Erreur")) {
+	@Page(WithTitle("Erreur"), WithFooter(false), WithAuthBanner(false)) {
 		<div class="is-flex is-justify-content-center is-align-items-center is-fullheight">
 			<article class="message is-danger">
 				<div class="message-header">

@@ -35,6 +35,8 @@ paths:
           description: Successful operation
         "400":
           description: Request invalid or malformed
+        "403":
+          description: Action forbidden to your level of authentication
         "500":
           description: An unknown error occured
   /search:
@@ -68,6 +70,8 @@ paths:
           description: Successful operation
         "400":
           description: Request invalid or malformed
+        "403":
+          description: Action forbidden to your level of authentication
         "500":
           description: An unknown error occured
   /ask:
@@ -96,6 +100,8 @@ paths:
           description: No result was found in documents
         "400":
           description: Request invalid or malformed
+        "403":
+          description: Action forbidden to your level of authentication
         "500":
           description: An unknown error occured
   /tasks:
@@ -105,6 +111,8 @@ paths:
       responses:
         "200":
           description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
         "500":
           description: An unknown error occured
   /tasks/{taskId}:
@@ -121,6 +129,8 @@ paths:
       responses:
         "200":
           description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
         "404":
           description: The task could not be found
         "500":

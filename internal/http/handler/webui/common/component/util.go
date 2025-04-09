@@ -2,28 +2,37 @@ package component
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/a-h/templ"
+	"github.com/bornholm/corpus/internal/http/authz"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
-	"github.com/bornholm/corpus/internal/http/url"
+	httpURL "github.com/bornholm/corpus/internal/http/url"
+	"github.com/pkg/errors"
 )
 
 var (
-	WithPath        = url.WithPath
-	WithoutValues   = url.WithoutValues
-	WithValuesReset = url.WithValuesReset
-	WithValues      = url.WithValues
+	WithPath        = httpURL.WithPath
+	WithoutValues   = httpURL.WithoutValues
+	WithValuesReset = httpURL.WithValuesReset
+	WithValues      = httpURL.WithValues
 )
 
-func BaseURL(ctx context.Context, funcs ...url.MutationFunc) templ.SafeURL {
+func WithUser(username string, password string) httpURL.MutationFunc {
+	return func(u *url.URL) {
+		u.User = url.UserPassword(username, password)
+	}
+}
+
+func BaseURL(ctx context.Context, funcs ...httpURL.MutationFunc) templ.SafeURL {
 	baseURL := httpCtx.BaseURL(ctx)
-	mutated := url.Mutate(baseURL, funcs...)
+	mutated := httpURL.Mutate(baseURL, funcs...)
 	return templ.SafeURL(mutated.String())
 }
 
-func CurrentURL(ctx context.Context, funcs ...url.MutationFunc) templ.SafeURL {
+func CurrentURL(ctx context.Context, funcs ...httpURL.MutationFunc) templ.SafeURL {
 	currentURL := clone(httpCtx.CurrentURL(ctx))
-	mutated := url.Mutate(currentURL, funcs...)
+	mutated := httpURL.Mutate(currentURL, funcs...)
 	return templ.SafeURL(mutated.String())
 }
 
@@ -36,3 +45,16 @@ func clone[T any](v *T) *T {
 	copy := *v
 	return &copy
 }
+
+func AssertUser(ctx context.Context, funcs ...authz.AssertFunc) bool {
+	user := httpCtx.User(ctx)
+
+	allowed, err := authz.Assert(ctx, user, funcs...)
+	if err != nil {
+		panic(errors.WithStack(err))
+	}
+
+	return allowed
+}
+
+var User = httpCtx.User

@@ -1,17 +1,24 @@
 package http
 
-import "net/http"
+import (
+	"net/http"
+)
 
-type BasicAuth struct {
-	Username string
-	Password string
+type Auth struct {
+	Users []User
 }
 
+type User struct {
+	Username string
+	Password string
+	Roles    []string
+}
 type Options struct {
-	Address   string
-	BaseURL   string
-	BasicAuth *BasicAuth
-	Mounts    map[string]http.Handler
+	Address        string
+	BaseURL        string
+	Auth           Auth
+	AllowAnonymous bool
+	Mounts         map[string]http.Handler
 }
 
 type OptionFunc func(opts *Options)
@@ -46,11 +53,14 @@ func WithAddress(addr string) OptionFunc {
 	}
 }
 
-func WithBasicAuth(username, password string) OptionFunc {
+func WithAllowAnonymous(allowed bool) OptionFunc {
 	return func(opts *Options) {
-		opts.BasicAuth = &BasicAuth{
-			Username: username,
-			Password: password,
-		}
+		opts.AllowAnonymous = allowed
+	}
+}
+
+func WithAuth(users ...User) OptionFunc {
+	return func(opts *Options) {
+		opts.Auth.Users = users
 	}
 }
