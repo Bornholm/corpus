@@ -267,6 +267,8 @@ func (s *Store) withRetry(ctx context.Context, fn func(ctx context.Context, db *
 				backoff *= 2
 				continue
 			}
+
+			return errors.WithStack(err)
 		}
 
 		return nil

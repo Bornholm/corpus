@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/bornholm/corpus/internal/core/port"
@@ -12,17 +13,38 @@ import (
 )
 
 type ListTasksResponse struct {
-	Tasks []port.TaskID `json:"tasks"`
+	Tasks []TaskStateHeader `json:"tasks"`
+}
+
+type TaskStateHeader struct {
+	ID          port.TaskID     `json:"id"`
+	ScheduledAt time.Time       `json:"scheduledAt"`
+	Status      port.TaskStatus `json:"status"`
 }
 
 func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	tasks, err := h.documentManager.TaskManager.List(ctx)
+	headers, err := h.documentManager.TaskManager.List(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not list tasks", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
+	}
+
+	slices.SortFunc(headers, func(h1, h2 port.TaskStateHeader) int {
+		return h1.ScheduledAt.Compare(h2.ScheduledAt)
+	})
+
+	tasks := slices.Collect(func(yield func(TaskStateHeader) bool) {
+		for _, h := range headers {
+			if !yield(TaskStateHeader{ID: h.ID, ScheduledAt: h.ScheduledAt, Status: h.Status}) {
+				return
+			}
+		}
+	})
+	if tasks == nil {
+		tasks = make([]TaskStateHeader, 0)
 	}
 
 	res := ListTasksResponse{

@@ -35,7 +35,12 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 		return nil, errors.Wrap(err, "could not create task manager from config")
 	}
 
-	documentManager := service.NewDocumentManager(store, index, taskManager, options...)
+	llmClient, err := getLLMClientFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create llm client from config")
+	}
+
+	documentManager := service.NewDocumentManager(store, index, taskManager, llmClient, options...)
 
 	return documentManager, nil
 })

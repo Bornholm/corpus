@@ -54,37 +54,34 @@ templ UploadFileModal(vmodel UploadFileModalVModel) {
 						</div>
 						<p class="help">L'URL unique qui sera associée au document.</p>
 					</div>
-					<details class="is-clickable">
-						<summary>Paramètres avancés</summary>
-						<div class="field">
-							<div class="level">
-								<div class="level-left">
-									<label class="label level-item">Collection(s)</label>
-								</div>
-								<div class="level-right">
-									<button class="button level-item" hx-on:click="onAddCollectionClick.call(this, event)"><span class="icon"><i class="fa fa-plus"></i></span></button>
-								</div>
+					<div class="field">
+						<div class="level">
+							<div class="level-left">
+								<label class="label level-item">Collection(s)</label>
 							</div>
-							<div id="collectionContainer" class="control">
-								<input class="input" type="text" name="collection"/>
-								<template id="newCollection">
-									<div class="field has-addons mt-3">
-										<div class="control is-expanded">
-											<input class="input" type="text" name="collection"/>
-										</div>
-										<div class="control">
-											<button class="button is-danger" hx-on:click="onRemoveCollectionClick.call(this, event)">
-												<span class="icon">
-													<i class="fa fa-trash"></i>
-												</span>
-											</button>
-										</div>
-									</div>
-								</template>
+							<div class="level-right">
+								<button class="button level-item" hx-on:click="onAddCollectionClick.call(this, event)"><span class="icon"><i class="fa fa-plus"></i></span></button>
 							</div>
-							<p class="help">Associer une ou plusieurs collections au document.</p>
 						</div>
-					</details>
+						<div id="collectionContainer" class="control">
+							<input class="input" type="text" name="collection"/>
+							<template id="newCollection">
+								<div class="field has-addons mt-3">
+									<div class="control is-expanded">
+										<input class="input" type="text" name="collection"/>
+									</div>
+									<div class="control">
+										<button class="button is-danger" hx-on:click="onRemoveCollectionClick.call(this, event)">
+											<span class="icon">
+												<i class="fa fa-trash"></i>
+											</span>
+										</button>
+									</div>
+								</div>
+							</template>
+						</div>
+						<p class="help">Associer une ou plusieurs collections au document.</p>
+					</div>
 				</section>
 				<footer class="modal-card-foot">
 					<div class="buttons is-right" style="width:100%">

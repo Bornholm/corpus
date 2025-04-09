@@ -66,13 +66,13 @@ func (m *TaskManager) Run(ctx context.Context) error {
 }
 
 // List implements port.TaskManager.
-func (m *TaskManager) List(ctx context.Context) ([]port.TaskID, error) {
-	tasks := make([]port.TaskID, 0)
-	m.tasks.Range(func(id port.TaskID, _ *port.TaskState) bool {
-		tasks = append(tasks, id)
+func (m *TaskManager) List(ctx context.Context) ([]port.TaskStateHeader, error) {
+	headers := make([]port.TaskStateHeader, 0)
+	m.tasks.Range(func(id port.TaskID, state *port.TaskState) bool {
+		headers = append(headers, state.TaskStateHeader)
 		return true
 	})
-	return tasks, nil
+	return headers, nil
 }
 
 // Register implements port.TaskManager.
@@ -90,6 +90,7 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 	)
 
 	m.updateState(taskID, func(s *port.TaskState) {
+		s.ID = taskID
 		s.ScheduledAt = time.Now()
 		s.Status = port.TaskStatusPending
 	})
@@ -166,7 +167,11 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 }
 
 func (m *TaskManager) updateState(taskID port.TaskID, fn func(s *port.TaskState)) {
-	state, _ := m.tasks.LoadOrStore(taskID, &port.TaskState{})
+	state, _ := m.tasks.LoadOrStore(taskID, &port.TaskState{
+		TaskStateHeader: port.TaskStateHeader{
+			ID: taskID,
+		},
+	})
 
 	fn(state)
 

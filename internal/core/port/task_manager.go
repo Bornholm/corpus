@@ -24,12 +24,17 @@ const (
 	TaskStatusFailed    = "failed"
 )
 
-type TaskState struct {
+type TaskStateHeader struct {
+	ID          TaskID
 	ScheduledAt time.Time
-	FinishedAt  time.Time
-	Progress    float64
 	Status      TaskStatus
-	Error       error
+}
+
+type TaskState struct {
+	TaskStateHeader
+	FinishedAt time.Time
+	Progress   float64
+	Error      error
 }
 
 type Task interface {
@@ -50,7 +55,7 @@ func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, progress chan fl
 type TaskManager interface {
 	Schedule(ctx context.Context, task Task) error
 	State(ctx context.Context, id TaskID) (*TaskState, error)
-	List(ctx context.Context) ([]TaskID, error)
+	List(ctx context.Context) ([]TaskStateHeader, error)
 	Register(taskType TaskType, handler TaskHandler)
 	Run(ctx context.Context) error
 }

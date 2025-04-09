@@ -23,6 +23,7 @@ func NewHandler(documentManager *service.DocumentManager) *Handler {
 	}
 
 	h.mux.HandleFunc("GET /search", h.handleSearch)
+	h.mux.HandleFunc("GET /ask", h.handleAsk)
 	h.mux.HandleFunc("POST /index", h.handleIndexDocument)
 	h.mux.HandleFunc("GET /tasks", h.listTasks)
 	h.mux.HandleFunc("GET /tasks/{taskID}", h.showTask)

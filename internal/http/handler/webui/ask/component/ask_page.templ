@@ -8,6 +8,7 @@ import (
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -153,17 +154,19 @@ templ AskPage(vmodel AskPageVModel) {
 										<li>
 											<details>
 												<summary><a target="_blank" href={ templ.SafeURL(r.Source.String()) }>{ r.Source.String() }</a></summary>
-												<ul>
-													for _, sectionID := range r.Sections {
-														{{ content, ok := vmodel.SectionContents[sectionID] }}
-														if ok {
-															<li>
-																<code>{ string(sectionID) }</code>
-																<pre>{ content }</pre>
-															</li>
+												for idx, sectionID := range r.Sections {
+													{{ content, ok := vmodel.SectionContents[sectionID] }}
+													if ok {
+														if idx != 0 {
+															<hr/>
 														}
+														<div class={ "content is-size-6", templ.KV("mt-5", idx == 0) }>
+															{ "[...]" }
+															@common.Markdown(strings.TrimSpace(content))
+															{ "[...]" }
+														</div>
 													}
-												</ul>
+												}
 											</details>
 										</li>
 									}

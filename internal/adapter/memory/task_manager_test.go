@@ -48,22 +48,22 @@ func TestTaskManager(t *testing.T) {
 		t.Logf("executed: expected %d, got %d", e, g)
 	}
 
-	taskIDs, err := tm.List(ctx)
+	taskHeaders, err := tm.List(ctx)
 	if err != nil {
 		t.Fatalf("%+v", errors.WithStack(err))
 	}
 
-	if e, g := int(total), len(taskIDs); e != g {
-		t.Logf("len(taskIDs): expected %d, got %d", e, g)
+	if e, g := int(total), len(taskHeaders); e != g {
+		t.Logf("len(taskHeaders): expected %d, got %d", e, g)
 	}
 
-	for _, id := range taskIDs {
-		task, err := tm.State(ctx, id)
+	for _, header := range taskHeaders {
+		state, err := tm.State(ctx, header.ID)
 		if err != nil {
 			t.Fatalf("%+v", errors.WithStack(err))
 		}
 
-		if task.ScheduledAt.IsZero() {
+		if state.ScheduledAt.IsZero() {
 			t.Errorf("task.ScheduledAt should not be zero value")
 		}
 	}
