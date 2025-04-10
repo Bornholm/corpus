@@ -41,12 +41,14 @@ func (t *BranchMergeResultsTransformer) TransformResults(ctx context.Context, qu
 
 		for _, s := range sections {
 			ancestor := findAncestor(sections, s)
-			if ancestor == nil {
-				// If the result contains a section and its children (more than one)
-				// include only children
-				if children := getChildren(sections, s); len(children) > 1 {
-					continue
-				}
+			if ancestor != nil {
+				continue
+			}
+
+			// If the result contains a section and its children (more than one)
+			// include only children
+			if children := getChildren(sections, s); len(children) > 1 {
+				continue
 			}
 
 			updated.Sections = append(updated.Sections, s.ID())
@@ -65,16 +67,6 @@ func NewBranchMergeResultsTransformer(store port.Store) *BranchMergeResultsTrans
 }
 
 var _ ResultsTransformer = &BranchMergeResultsTransformer{}
-
-func hasSiblings(sections []model.Section, ancestor model.SectionID, section model.Section) bool {
-	for _, other := range sections {
-		if other.ID() == section.ID() {
-			continue
-		}
-	}
-
-	return false
-}
 
 func getChildren(sections []model.Section, parent model.Section) []model.Section {
 	children := make([]model.Section, 0)

@@ -58,6 +58,7 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string)
 		llm.WithMessages(
 			llm.NewMessage(llm.RoleUser, prompt),
 		),
+		llm.WithTemperature(0.2),
 	)
 	if err != nil {
 		return "", errors.WithStack(err)

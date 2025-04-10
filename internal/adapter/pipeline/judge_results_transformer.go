@@ -83,15 +83,15 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 		Identifiers []string `json:"identifiers"`
 	}
 
-	documents, err := llm.ParseJSON[llmResponse](completion.Message())
+	sections, err := llm.ParseJSON[llmResponse](completion.Message())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	slog.DebugContext(ctx, "selected documents", slog.Any("documents", documents))
+	slog.DebugContext(ctx, "relevant sections", slog.Any("sections", sections))
 
 	selected := map[model.SectionID]struct{}{}
-	for _, d := range documents {
+	for _, d := range sections {
 		for _, s := range d.Identifiers {
 			selected[model.SectionID(s)] = struct{}{}
 		}
