@@ -6,14 +6,14 @@ import (
 )
 
 const (
-	NameTotalTasks = "total_tasks"
-	LabelStatus    = "status"
+	NameTasks   = "tasks"
+	LabelStatus = "status"
 )
 
-var TotalTasks = promauto.NewGaugeVec(
+var Tasks = promauto.NewGaugeVec(
 	prometheus.GaugeOpts{
-		Name:      NameTotalTasks,
-		Help:      "Total tasks",
+		Name:      NameTasks,
+		Help:      "Current tasks",
 		Namespace: Namespace,
 	},
 	[]string{LabelStatus},

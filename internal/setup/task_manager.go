@@ -59,7 +59,7 @@ var getTaskManager = createFromConfigOnce(func(ctx context.Context, conf *config
 			}
 
 			for status, total := range stats {
-				metrics.TotalTasks.With(prometheus.Labels{
+				metrics.Tasks.With(prometheus.Labels{
 					metrics.LabelStatus: string(status),
 				}).Set(total)
 			}
