@@ -162,7 +162,7 @@ templ AskPage(vmodel AskPageVModel) {
 														if idx != 0 {
 															<hr/>
 														}
-														<div class={ "content is-size-6", templ.KV("mt-5", idx == 0) }>
+														<div class={ "content is-size-6 mt-5 has-background-light has-text-grey-dark	px-5 py-3 is-family-monospace", templ.KV("mt-5", idx == 0) }>
 															{ "[...]" }
 															@common.Markdown(strings.TrimSpace(content))
 															{ "[...]" }

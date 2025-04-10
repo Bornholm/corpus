@@ -355,7 +355,7 @@ func AskPage(vmodel AskPageVModel) templ.Component {
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
 								}
-								var templ_7745c5c3_Var18 = []any{"content is-size-6", templ.KV("mt-5", idx == 0)}
+								var templ_7745c5c3_Var18 = []any{"content is-size-6 mt-5 has-background-light has-text-grey-dark	px-5 py-3 is-family-monospace", templ.KV("mt-5", idx == 0)}
 								templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var18...)
 								if templ_7745c5c3_Err != nil {
 									return templ_7745c5c3_Err
