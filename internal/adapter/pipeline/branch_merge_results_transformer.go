@@ -24,8 +24,10 @@ func (t *BranchMergeResultsTransformer) TransformResults(ctx context.Context, qu
 			Sections: make([]model.SectionID, 0),
 		}
 
+		sections := make([]model.Section, 0, len(r.Sections))
+
 		for _, sectionID := range r.Sections {
-			section, err := t.store.GetSectionBySourceAndID(ctx, r.Source, sectionID)
+			s, err := t.store.GetSectionBySourceAndID(ctx, r.Source, sectionID)
 			if err != nil {
 				if errors.Is(err, port.ErrNotFound) {
 					continue
@@ -34,9 +36,20 @@ func (t *BranchMergeResultsTransformer) TransformResults(ctx context.Context, qu
 				return nil, errors.WithStack(err)
 			}
 
-			if len(section.Branch()) > 1 {
-				updated.Sections = append(updated.Sections, sectionID)
+			sections = append(sections, s)
+		}
+
+		for _, s := range sections {
+			ancestor := findAncestor(sections, s)
+			if ancestor == nil {
+				// If the result contains a section and its children (more than one)
+				// include only children
+				if children := getChildren(sections, s); len(children) > 1 {
+					continue
+				}
 			}
+
+			updated.Sections = append(updated.Sections, s.ID())
 		}
 
 		merged = append(merged, updated)
@@ -52,3 +65,48 @@ func NewBranchMergeResultsTransformer(store port.Store) *BranchMergeResultsTrans
 }
 
 var _ ResultsTransformer = &BranchMergeResultsTransformer{}
+
+func hasSiblings(sections []model.Section, ancestor model.SectionID, section model.Section) bool {
+	for _, other := range sections {
+		if other.ID() == section.ID() {
+			continue
+		}
+	}
+
+	return false
+}
+
+func getChildren(sections []model.Section, parent model.Section) []model.Section {
+	children := make([]model.Section, 0)
+	for _, s := range sections {
+		if isAncestor(parent.Branch(), s.Branch()) {
+			children = append(children, s)
+		}
+	}
+	return children
+}
+
+func findAncestor(sections []model.Section, section model.Section) model.Section {
+	var ancestor model.Section
+	for _, other := range sections {
+		if other.ID() == section.ID() {
+			continue
+		}
+
+		if isAncestor(other.Branch(), section.Branch()) && (ancestor == nil || len(other.Branch()) < len(ancestor.Branch())) {
+			ancestor = other
+		}
+	}
+
+	return ancestor
+}
+
+func isAncestor(parentBranch []model.SectionID, childBranch []model.SectionID) bool {
+	for i, p := range parentBranch {
+		if i >= len(childBranch) || p != childBranch[i] {
+			return false
+		}
+	}
+
+	return true
+}
