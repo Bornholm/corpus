@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -16,15 +14,16 @@ import (
 )
 
 type SearchResponse struct {
-	Sections []*Section `json:"sections"`
-	Sources  []string   `json:"sources"`
+	Results []*Result `json:"results"`
 }
 
+type Result struct {
+	Source   string     `json:"source"`
+	Sections []*Section `json:"sections"`
+}
 type Section struct {
-	ID          model.SectionID      `json:"id"`
-	Source      string               `json:"source"`
-	Content     string               `json:"content"`
-	Collections []model.CollectionID `json:"collections,omitempty"`
+	ID      model.SectionID `json:"id"`
+	Content string          `json:"content"`
 }
 
 func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -82,81 +81,39 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 		return nil, errors.WithStack(err)
 	}
 
-	sources := map[string]struct{}{}
 	res := &SearchResponse{
-		Sections: make([]*Section, 0),
-		Sources:  []string{},
+		Results: []*Result{},
 	}
 
 	for _, r := range searchResults {
-		sources[r.Source.String()] = struct{}{}
-		sections := map[string]*Section{}
+		result := &Result{
+			Source:   r.Source.String(),
+			Sections: []*Section{},
+		}
 
-		for _, s := range r.Sections {
-			section, err := h.documentManager.GetSectionBySourceAndID(ctx, r.Source, s)
+		for _, sectionID := range r.Sections {
+			section, err := h.documentManager.Store.GetSectionBySourceAndID(ctx, r.Source, sectionID)
 			if err != nil {
 				if errors.Is(err, port.ErrNotFound) {
-					slog.ErrorContext(ctx, "could not find section", slog.String("source", r.Source.String()), slog.String("sectionID", string(s)))
 					continue
 				}
 
 				return nil, errors.WithStack(err)
 			}
 
-			branch := branchToString(section.Branch())
-
 			content, err := section.Content()
 			if err != nil {
 				return nil, errors.WithStack(err)
 			}
 
-			sections[branch] = &Section{
-				ID:      section.ID(),
-				Source:  r.Source.String(),
+			result.Sections = append(result.Sections, &Section{
+				ID:      sectionID,
 				Content: string(content),
-				Collections: slices.Collect(func(yield func(model.CollectionID) bool) {
-					for _, c := range section.Document().Collections() {
-						if !yield(c.ID()) {
-							return
-						}
-					}
-				}),
-			}
+			})
 		}
 
-		// Keep only ancestors
-		for branch, section := range sections {
-			if !hasAncestor(sections, branch) {
-				res.Sections = append(res.Sections, section)
-			}
-		}
-
-	}
-
-	for s := range sources {
-		res.Sources = append(res.Sources, s)
+		res.Results = append(res.Results, result)
 	}
 
 	return res, nil
-}
-
-func branchToString(branch []model.SectionID) string {
-	var sb strings.Builder
-	for i, s := range branch {
-		if i > 0 {
-			sb.WriteString(".")
-		}
-		sb.WriteString(string(s))
-	}
-	return sb.String()
-}
-
-func hasAncestor(sections map[string]*Section, branch string) bool {
-	for ancestor := range sections {
-		if ancestor != branch && strings.HasPrefix(branch, ancestor) {
-			return true
-		}
-	}
-
-	return false
 }
