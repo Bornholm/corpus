@@ -13,6 +13,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/markdown"
+	"github.com/bornholm/corpus/internal/metrics"
 	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
@@ -82,6 +83,8 @@ func WithDocumentManagerSearchCollections(collections ...string) DocumentManager
 }
 
 func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...DocumentManagerSearchOptionFunc) ([]*port.IndexSearchResult, error) {
+	metrics.TotalSearchRequests.Add(1)
+
 	opts := NewDocumentManagerSearchOptions(funcs...)
 
 	collections := make([]model.CollectionID, 0)
@@ -183,6 +186,8 @@ var (
 )
 
 func (m *DocumentManager) Ask(ctx context.Context, query string, results []*port.IndexSearchResult, funcs ...DocumentManagerAskOptionFunc) (string, map[model.SectionID]string, error) {
+	metrics.TotalAskRequests.Add(1)
+
 	opts := NewDocumentManagerAskOptions(funcs...)
 
 	systemPromptTemplate := opts.SystemPromptTemplate
@@ -209,7 +214,7 @@ func (m *DocumentManager) generateResponse(ctx context.Context, systemPromptTemp
 	contextSections := make([]contextSection, 0)
 	for _, r := range results {
 		for _, sectionID := range r.Sections {
-			section, err := m.GetSectionBySourceAndID(ctx, r.Source, sectionID)
+			section, err := m.GetSectionByID(ctx, sectionID)
 			if err != nil {
 				slog.ErrorContext(ctx, "could not retrieve section", slog.Any("errors", errors.WithStack(err)))
 				continue
@@ -259,6 +264,8 @@ func (m *DocumentManager) SupportedExtensions() []string {
 var ErrNotSupported = errors.New("not supported")
 
 func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (port.TaskID, error) {
+	metrics.TotalIndexRequests.Add(1)
+
 	opts := NewDocumentManagerIndexFileOptions(funcs...)
 
 	tempDir, err := os.MkdirTemp("", "corpus-*")

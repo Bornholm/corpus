@@ -280,6 +280,10 @@ func (i *Index) transformResults(ctx context.Context, query string, results []*p
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+
+		if emptyResults(results) {
+			return []*port.IndexSearchResult{}, nil
+		}
 	}
 
 	return results, nil
@@ -395,3 +399,17 @@ func NewIndex(indexes WeightedIndexes, funcs ...OptionFunc) *Index {
 }
 
 var _ port.Index = &Index{}
+
+func emptyResults(results []*port.IndexSearchResult) bool {
+	if len(results) == 0 {
+		return true
+	}
+
+	for _, r := range results {
+		if len(r.Sections) > 0 {
+			return false
+		}
+	}
+
+	return true
+}
