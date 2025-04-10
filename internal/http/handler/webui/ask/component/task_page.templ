@@ -1,7 +1,6 @@
 package component
 
 import (
-	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/core/port"
 	webCommon "github.com/bornholm/corpus/internal/http/handler/webui/common"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
@@ -48,14 +47,6 @@ templ TaskPage(vmodel TaskPageVModel) {
 					}
 				</div>
 			</section>
-			<footer class="footer">
-				<div class="content has-text-centered">
-					<p>
-						<b>Corpus</b> (version <a href="https://github.com/Bornholm/corpus" target="_blank">{ build.ShortVersion }</a>) | 
-						<a target="_blank" href={ common.BaseURL(ctx, common.WithPath("/docs/index.html")) }>Documentation API</a>
-					</p>
-				</div>
-			</footer>
 		</div>
 	}
 }

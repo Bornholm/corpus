@@ -27,7 +27,7 @@ func (t *BranchMergeResultsTransformer) TransformResults(ctx context.Context, qu
 		sections := make([]model.Section, 0, len(r.Sections))
 
 		for _, sectionID := range r.Sections {
-			s, err := t.store.GetSectionBySourceAndID(ctx, r.Source, sectionID)
+			s, err := t.store.GetSectionByID(ctx, sectionID)
 			if err != nil {
 				if errors.Is(err, port.ErrNotFound) {
 					continue
@@ -41,14 +41,15 @@ func (t *BranchMergeResultsTransformer) TransformResults(ctx context.Context, qu
 
 		for _, s := range sections {
 			ancestor := findAncestor(sections, s)
-			if ancestor != nil {
-				continue
-			}
 
-			// If the result contains a section and its children (more than one)
-			// include only children
-			if children := getChildren(sections, s); len(children) > 1 {
-				continue
+			// If the section does not have any ancestor present
+			if ancestor == nil {
+				// Retrieve the number of children present
+				// if they are more than one, use children instead of the
+				// ancestor
+				if children := getChildren(sections, s); len(children) > 1 {
+					continue
+				}
 			}
 
 			updated.Sections = append(updated.Sections, s.ID())
@@ -67,6 +68,20 @@ func NewBranchMergeResultsTransformer(store port.Store) *BranchMergeResultsTrans
 }
 
 var _ ResultsTransformer = &BranchMergeResultsTransformer{}
+
+func hasSiblings(sections []model.Section, ancestor model.Section, section model.Section) bool {
+	for _, other := range sections {
+		if other.ID() == section.ID() {
+			continue
+		}
+
+		if isAncestor(ancestor.Branch(), other.Branch()) {
+			return true
+		}
+	}
+
+	return false
+}
 
 func getChildren(sections []model.Section, parent model.Section) []model.Section {
 	children := make([]model.Section, 0)

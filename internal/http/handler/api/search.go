@@ -92,7 +92,7 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 		}
 
 		for _, sectionID := range r.Sections {
-			section, err := h.documentManager.Store.GetSectionBySourceAndID(ctx, r.Source, sectionID)
+			section, err := h.documentManager.Store.GetSectionByID(ctx, sectionID)
 			if err != nil {
 				if errors.Is(err, port.ErrNotFound) {
 					continue

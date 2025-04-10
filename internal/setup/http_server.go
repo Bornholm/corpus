@@ -6,6 +6,7 @@ import (
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/http"
 	"github.com/bornholm/corpus/internal/http/authz"
+	"github.com/bornholm/corpus/internal/http/handler/metrics"
 	"github.com/bornholm/corpus/internal/http/handler/webui"
 	"github.com/pkg/errors"
 )
@@ -21,6 +22,7 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		http.WithAddress(conf.HTTP.Address),
 		http.WithBaseURL(conf.HTTP.BaseURL),
 		http.WithMount("/api/v1/", api),
+		http.WithMount("/metrics/", metrics.NewHandler()),
 	}
 
 	if conf.WebUI.Enabled {

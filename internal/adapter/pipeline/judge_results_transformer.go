@@ -136,12 +136,8 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 
 	for _, r := range results {
 		for _, s := range r.Sections {
-			section, err := t.store.GetSectionBySourceAndID(ctx, r.Source, s)
+			section, err := t.store.GetSectionByID(ctx, s)
 			if err != nil {
-				if errors.Is(err, port.ErrNotFound) {
-					continue
-				}
-
 				return "", errors.WithStack(err)
 			}
 

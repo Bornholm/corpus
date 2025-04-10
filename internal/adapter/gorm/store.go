@@ -125,19 +125,12 @@ func (s *Store) CountDocuments(ctx context.Context) (int64, error) {
 	return total, nil
 }
 
-// GetSectionBySourceAndID implements port.Store.
-func (s *Store) GetSectionBySourceAndID(ctx context.Context, source *url.URL, id model.SectionID) (model.Section, error) {
-	if source == nil {
-		return nil, errors.WithStack(ErrMissingSource)
-	}
-
+// GetSectionByID implements port.Store.
+func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error) {
 	var section Section
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		err := db.Preload("Document").
-			Joins("left join documents on documents.id = sections.document_id").
-			Where("sections.id = ? and documents.source = ?", string(id), source.String()).
-			First(&section).Error
+		err := db.Preload("Document").Find(&section, "id = ?", id).Error
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
