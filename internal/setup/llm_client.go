@@ -14,13 +14,20 @@ import (
 )
 
 var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (llm.Client, error) {
-	client, err := provider.Create(ctx, provider.WithConfig(&provider.Config{
-		Provider:            provider.Name(conf.LLM.Provider.Name),
-		BaseURL:             conf.LLM.Provider.BaseURL,
-		Key:                 conf.LLM.Provider.Key,
-		ChatCompletionModel: conf.LLM.Provider.ChatCompletionModel,
-		EmbeddingsModel:     conf.LLM.Provider.EmbeddingsModel,
-	}))
+	client, err := provider.Create(ctx,
+		provider.WithChatCompletionOptions(provider.ClientOptions{
+			Provider: provider.Name(conf.LLM.Provider.Name),
+			BaseURL:  conf.LLM.Provider.BaseURL,
+			APIKey:   conf.LLM.Provider.Key,
+			Model:    conf.LLM.Provider.ChatCompletionModel,
+		}),
+		provider.WithEmbeddingsOptions(provider.ClientOptions{
+			Provider: provider.Name(conf.LLM.Provider.Name),
+			BaseURL:  conf.LLM.Provider.BaseURL,
+			APIKey:   conf.LLM.Provider.Key,
+			Model:    conf.LLM.Provider.EmbeddingsModel,
+		}),
+	)
 
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -39,7 +46,7 @@ type RateLimitedClient struct {
 }
 
 // ChatCompletion implements llm.Client.
-func (r *RateLimitedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (llm.CompletionResponse, error) {
+func (r *RateLimitedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (llm.ChatCompletionResponse, error) {
 	if err := r.limiter.Wait(ctx); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -47,11 +54,11 @@ func (r *RateLimitedClient) ChatCompletion(ctx context.Context, funcs ...llm.Cha
 }
 
 // Embeddings implements llm.Client.
-func (r *RateLimitedClient) Embeddings(ctx context.Context, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
+func (r *RateLimitedClient) Embeddings(ctx context.Context, input string, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
 	if err := r.limiter.Wait(ctx); err != nil {
 		return nil, errors.WithStack(err)
 	}
-	return r.client.Embeddings(ctx, funcs...)
+	return r.client.Embeddings(ctx, input, funcs...)
 }
 
 func NewRateLimitedClient(client llm.Client, minDelay time.Duration) *RateLimitedClient {

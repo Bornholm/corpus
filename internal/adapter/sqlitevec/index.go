@@ -117,7 +117,7 @@ func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section mo
 
 	slog.DebugContext(ctx, "indexing section", slog.String("sectionID", string(section.ID())), slog.Int("sectionSize", len(truncated)))
 
-	res, err := i.llm.Embeddings(ctx, llm.WithInput(truncated))
+	res, err := i.llm.Embeddings(ctx, truncated)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -201,7 +201,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 		return nil, errors.WithStack(err)
 	}
 
-	res, err := i.llm.Embeddings(ctx, llm.WithInput(query))
+	res, err := i.llm.Embeddings(ctx, query)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

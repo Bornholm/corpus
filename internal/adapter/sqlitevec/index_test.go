@@ -60,12 +60,18 @@ func TestIndex(t *testing.T) {
 		t.Fatalf("failed to get connection string: %+v", errors.WithStack(err))
 	}
 
-	client, err := provider.Create(ctx, provider.WithConfig(&provider.Config{
-		Provider:            openai.Name,
-		BaseURL:             connectionStr + "/v1/",
-		ChatCompletionModel: chatCompletionModel,
-		EmbeddingsModel:     embeddingsModel,
-	}))
+	client, err := provider.Create(ctx,
+		provider.WithChatCompletionOptions(provider.ClientOptions{
+			Provider: openai.Name,
+			BaseURL:  connectionStr + "/v1/",
+			Model:    chatCompletionModel,
+		}),
+		provider.WithEmbeddingsOptions(provider.ClientOptions{
+			Provider: openai.Name,
+			BaseURL:  connectionStr + "/v1/",
+			Model:    embeddingsModel,
+		}),
+	)
 	if err != nil {
 		t.Fatalf("failed to create llm client: %+v", errors.WithStack(err))
 	}

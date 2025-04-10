@@ -6,7 +6,7 @@ require (
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.0.0-00010101000000-000000000000
 	github.com/blevesearch/bleve/v2 v2.4.4
-	github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712
+	github.com/bornholm/genai v0.0.0-20250410201127-8b972027d08b
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dustin/go-humanize v1.0.1
@@ -43,6 +43,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect

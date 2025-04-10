@@ -54,8 +54,8 @@ github.com/blevesearch/zapx/v15 v15.3.16 h1:Ct3rv7FUJPfPk99TI/OofdC+Kpb4IdyfdMH4
 github.com/blevesearch/zapx/v15 v15.3.16/go.mod h1:Turk/TNRKj9es7ZpKK95PS7f6D44Y7fAFy8F4LXQtGg=
 github.com/blevesearch/zapx/v16 v16.1.9-0.20241217210638-a0519e7caf3b h1:ju9Az5YgrzCeK3M1QwvZIpxYhChkXp7/L0RhDYsxXoE=
 github.com/blevesearch/zapx/v16 v16.1.9-0.20241217210638-a0519e7caf3b/go.mod h1:BlrYNpOu4BvVRslmIG+rLtKhmjIaRhIbG8sb9scGTwI=
-github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712 h1:wXNwtT1Bsakc9wB65AkpgBrG5foIhrneFMe6kuiRy7g=
-github.com/bornholm/genai v0.0.0-20250328114552-58b5e8596712/go.mod h1:NOfFqk+aWxKLTa3D2Aa0ovGIoDmwfX3cn3SntSaoS5c=
+github.com/bornholm/genai v0.0.0-20250410201127-8b972027d08b h1:pkstMXkVOdiaWwpN0MbiCvsdviho/2y1K+Dz18cnfOE=
+github.com/bornholm/genai v0.0.0-20250410201127-8b972027d08b/go.mod h1:Vn/RI/V+VMgZ72Mr8JMnxkEJc4nHbGEfQDalz3un0dI=
 github.com/caarlos0/env/v11 v11.3.1 h1:cArPWC15hWmEt+gWk7YBi7lEXTXCvpaSdCiZE2X5mCA=
 github.com/caarlos0/env/v11 v11.3.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
@@ -118,6 +118,8 @@ github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD
 github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
 github.com/jinzhu/now v1.1.5 h1:/o9tlHleP7gOFmsnYNz3RGnqzefHA47wQpKrrdTIwXQ=
 github.com/jinzhu/now v1.1.5/go.mod h1:d3SSVoowX0Lcu0IBviAWJpolVfI5UJVZZ7cO71lE/z8=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnrnM=
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=

@@ -3,3 +3,4 @@
 /tools
 *.sqlite*
 index.bleve
+/data
