@@ -27,10 +27,12 @@ docker run \
   -e CORPUS_LLM_PROVIDER_BASE_URL="<LLM_SERVICE_BASE_URL>" \
   -e CORPUS_LLM_PROVIDER_CHAT_COMPLETION_MODEL="<LLM_SERVICE_CHAT_COMPLETION_MODEL>" \
   -e CORPUS_LLM_PROVIDER_EMBEDDINGS_MODEL="<LLM_SERVICE_EMBEDDINGS_MODEL>" \
+  -e CORPUS_HTTP_AUTH_WRITER_USERNAME="writer" \
+  -e CORPUS_HTTP_AUTH_WRITER_PASSWORD="corpus" \
   ghcr.io/bornholm/corpus:latest
 ```
 
-Then open http://localhost:3002 in your browser, default credentials are `corpus` / `corpus`.
+Then open http://localhost:3002 in your browser, credentials are `writer` / `corpus`.
 
 **Examples**
 
