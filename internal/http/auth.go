@@ -44,7 +44,7 @@ func (s *Server) basicAuth(next http.Handler) http.Handler {
 				}
 			}
 
-			if s.opts.AllowAnonymous && !strings.HasSuffix(r.URL.Path, "/login") {
+			if strings.HasSuffix(r.URL.Path, "/logout") || (s.opts.AllowAnonymous && !strings.HasSuffix(r.URL.Path, "/login")) {
 				next.ServeHTTP(w, r)
 				return
 			}
