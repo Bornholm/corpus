@@ -6,6 +6,7 @@ import (
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/http"
 	"github.com/bornholm/corpus/internal/http/authz"
+	"github.com/bornholm/corpus/internal/http/handler/mcp"
 	"github.com/bornholm/corpus/internal/http/handler/metrics"
 	"github.com/bornholm/corpus/internal/http/handler/webui"
 	"github.com/pkg/errors"
@@ -18,22 +19,23 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		return nil, errors.Wrap(err, "could not configure api handler from config")
 	}
 
+	documentManager, err := getDocumentManager(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create index from config")
+	}
+
 	options := []http.OptionFunc{
 		http.WithAddress(conf.HTTP.Address),
 		http.WithBaseURL(conf.HTTP.BaseURL),
 		http.WithMount("/api/v1/", api),
 		http.WithMount("/metrics/", metrics.NewHandler()),
+		http.WithMount("/mcp/", mcp.NewHandler(conf.HTTP.BaseURL, "/mcp", documentManager)),
 	}
 
 	if conf.WebUI.Enabled {
 		llm, err := getLLMClientFromConfig(ctx, conf)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not create llm client from config")
-		}
-
-		documentManager, err := getDocumentManager(ctx, conf)
-		if err != nil {
-			return nil, errors.Wrap(err, "could not create index from config")
 		}
 
 		options = append(options, http.WithMount("/", webui.NewHandler(documentManager, llm)))
