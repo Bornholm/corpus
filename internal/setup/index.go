@@ -41,7 +41,7 @@ var getIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *co
 			pipeline.NewHyDEQueryTransformer(llmClient, store),
 		),
 		pipeline.WithResultsTransformers(
-			pipeline.NewBranchMergeResultsTransformer(store),
+			pipeline.NewDuplicateContentResultsTransformer(store),
 			pipeline.NewJudgeResultsTransformer(llmClient, store, conf.LLM.Index.MaxWords),
 		),
 	)
