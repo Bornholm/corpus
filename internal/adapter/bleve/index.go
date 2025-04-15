@@ -54,15 +54,29 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 }
 
 // Index implements port.Index.
-func (i *Index) Index(ctx context.Context, document model.Document) error {
+func (i *Index) Index(ctx context.Context, document model.Document, funcs ...port.IndexOptionFunc) error {
+	opts := port.NewIndexOptions(funcs...)
 	source := document.Source()
 
 	if err := i.DeleteBySource(ctx, source); err != nil {
 		return errors.WithStack(err)
 	}
 
+	totalSections := model.CountSections(document)
+
+	totalIndexed := 0
+	onSectionIndexed := func() {
+		if opts.OnProgress == nil {
+			return
+		}
+
+		totalIndexed++
+		progress := float32(totalIndexed) / float32(totalSections)
+		opts.OnProgress(progress)
+	}
+
 	for _, s := range document.Sections() {
-		if err := i.indexSection(ctx, s); err != nil {
+		if err := i.indexSection(ctx, s, onSectionIndexed); err != nil {
 			return errors.WithStack(err)
 		}
 	}
@@ -70,9 +84,9 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 	return nil
 }
 
-func (i *Index) indexSection(ctx context.Context, section model.Section) error {
+func (i *Index) indexSection(ctx context.Context, section model.Section, onSectionIndexed func()) error {
 	for _, s := range section.Sections() {
-		if err := i.indexSection(ctx, s); err != nil {
+		if err := i.indexSection(ctx, s, onSectionIndexed); err != nil {
 			return errors.WithStack(err)
 		}
 	}
@@ -113,6 +127,8 @@ func (i *Index) indexSection(ctx context.Context, section model.Section) error {
 	if err := i.index.Index(sectionID.String(), data); err != nil {
 		return errors.WithStack(err)
 	}
+
+	onSectionIndexed()
 
 	return nil
 }

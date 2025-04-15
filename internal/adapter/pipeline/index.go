@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
@@ -86,7 +87,11 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 }
 
 // Index implements port.Index.
-func (i *Index) Index(ctx context.Context, document model.Document) error {
+func (i *Index) Index(ctx context.Context, document model.Document, funcs ...port.IndexOptionFunc) error {
+	opts := port.NewIndexOptions(funcs...)
+
+	var progress syncx.Map[port.Index, float32]
+
 	count := len(i.indexes)
 	errs := make(chan error, count)
 	defer close(errs)
@@ -117,7 +122,24 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 
 			slog.DebugContext(indexCtx, "indexing document")
 
-			if err := index.Index(indexCtx, document); err != nil {
+			indexOptions := []port.IndexOptionFunc{}
+
+			if opts.OnProgress != nil {
+				indexOptions = append(indexOptions, port.WithIndexOnProgress(func(p float32) {
+					progress.Store(index, p)
+					var globalProgress float32
+					progress.Range(func(_ port.Index, p float32) bool {
+						globalProgress += p
+						return true
+					})
+					globalProgress /= float32(count)
+					opts.OnProgress(globalProgress)
+				}))
+
+				defer opts.OnProgress(1)
+			}
+
+			if err := index.Index(indexCtx, document, indexOptions...); err != nil {
 				errs <- errors.WithStack(err)
 				cancel()
 				return

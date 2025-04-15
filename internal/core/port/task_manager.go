@@ -33,7 +33,7 @@ type TaskStateHeader struct {
 type TaskState struct {
 	TaskStateHeader
 	FinishedAt time.Time
-	Progress   float64
+	Progress   float32
 	Error      error
 }
 
@@ -43,12 +43,12 @@ type Task interface {
 }
 
 type TaskHandler interface {
-	Handle(ctx context.Context, task Task, progress chan float64) error
+	Handle(ctx context.Context, task Task, progress chan float32) error
 }
 
-type TaskHandlerFunc func(ctx context.Context, task Task, progress chan float64) error
+type TaskHandlerFunc func(ctx context.Context, task Task, progress chan float32) error
 
-func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, progress chan float64) error {
+func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, progress chan float32) error {
 	return f(ctx, task, progress)
 }
 

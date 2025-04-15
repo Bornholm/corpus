@@ -1,6 +1,7 @@
 package component
 
 import (
+	"fmt"
 	"github.com/bornholm/corpus/internal/core/port"
 	webCommon "github.com/bornholm/corpus/internal/http/handler/webui/common"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
@@ -12,7 +13,8 @@ type TaskPageVModel struct {
 }
 
 templ TaskPage(vmodel TaskPageVModel) {
-	@common.Page(common.WithTitle("Indexation en cours...")) {
+	{{ progress := strconv.FormatFloat(float64(vmodel.Task.Progress*100), 'f', 0, 32) }}
+	@common.Page(common.WithTitle(fmt.Sprintf("(%s%%) Indexation en cours...", progress))) {
 		<div class="container">
 			<section class="section">
 				<div class="level">
@@ -22,7 +24,6 @@ templ TaskPage(vmodel TaskPageVModel) {
 					<div class="level-right"></div>
 				</div>
 				<div id="progress-container" hx-select="#progress-container" hx-trigger="every 2s" hx-get={ string(common.CurrentURL(ctx)) } hx-swap="outerHTML" hx-target="this">
-					{{ progress := strconv.FormatFloat(vmodel.Task.Progress, 'f', 0, 32) }}
 					switch vmodel.Task.Status {
 						case port.TaskStatusSucceeded:
 							<div class="message is-success">
@@ -42,8 +43,9 @@ templ TaskPage(vmodel TaskPageVModel) {
 								</div>
 							</div>
 						default:
-							<p class="has-text-centered"><strong>Indexation en cours, veuillez patienter...</strong></p>
+							<p class="has-text-centered"><strong>Indexation en cours, veuillez patienter ({ progress }%)...</strong></p>
 							<progress class="progress is-info is-large" value={ progress } max="100">{ progress }%</progress>
+							<p class="has-text-centered is-italic is-size-6">Vous pouvez quitter la page, le document sera indexé en tâche de fond.</p>
 					}
 				</div>
 			</section>

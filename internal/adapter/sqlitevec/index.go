@@ -79,7 +79,9 @@ func (i *Index) deleteBySource(ctx context.Context, conn *sqlite3.Conn, source *
 }
 
 // Index implements port.Index.
-func (i *Index) Index(ctx context.Context, document model.Document) error {
+func (i *Index) Index(ctx context.Context, document model.Document, funcs ...port.IndexOptionFunc) error {
+	opts := port.NewIndexOptions(funcs...)
+
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
 		source := document.Source()
 
@@ -87,8 +89,21 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 			return errors.WithStack(err)
 		}
 
+		totalSections := model.CountSections(document)
+
+		totalIndexed := 0
+		onSectionIndexed := func() {
+			if opts.OnProgress == nil {
+				return
+			}
+
+			totalIndexed++
+			progress := float32(totalIndexed) / float32(totalSections)
+			opts.OnProgress(progress)
+		}
+
 		for _, s := range document.Sections() {
-			if err := i.indexSection(ctx, conn, s); err != nil {
+			if err := i.indexSection(ctx, conn, s, onSectionIndexed); err != nil {
 				return errors.WithStack(err)
 			}
 		}
@@ -102,7 +117,7 @@ func (i *Index) Index(ctx context.Context, document model.Document) error {
 	return nil
 }
 
-func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section model.Section) (err error) {
+func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section model.Section, onSectionIndexed func()) (err error) {
 	content, err := section.Content()
 	if err != nil {
 		return errors.WithStack(err)
@@ -162,8 +177,10 @@ func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section mo
 		}
 	}
 
+	defer onSectionIndexed()
+
 	for _, s := range section.Sections() {
-		if err := i.indexSection(ctx, conn, s); err != nil {
+		if err := i.indexSection(ctx, conn, s, onSectionIndexed); err != nil {
 			return errors.WithStack(err)
 		}
 	}

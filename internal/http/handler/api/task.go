@@ -68,7 +68,7 @@ type ShowTaskResponse struct {
 type Task struct {
 	ID          port.TaskID     `json:"id"`
 	Status      port.TaskStatus `json:"status"`
-	Progress    float64         `json:"progress"`
+	Progress    float32         `json:"progress"`
 	ScheduledAt time.Time       `json:"scheduledAt"`
 	FinishedAt  time.Time       `json:"finishedAt"`
 	Error       string          `json:"error,omitempty"`

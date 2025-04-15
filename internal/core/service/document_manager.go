@@ -108,34 +108,6 @@ func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...Doc
 	return searchResults, nil
 }
 
-type DocumentManagerIndexFileOptions struct {
-	Source *url.URL
-	// Names of the collection to associate with the document
-	Collections []string
-}
-
-type DocumentManagerIndexFileOptionFunc func(opts *DocumentManagerIndexFileOptions)
-
-func WithDocumentManagerIndexFileCollections(collections ...string) DocumentManagerIndexFileOptionFunc {
-	return func(opts *DocumentManagerIndexFileOptions) {
-		opts.Collections = collections
-	}
-}
-
-func WithDocumentManagerIndexFileSource(source *url.URL) DocumentManagerIndexFileOptionFunc {
-	return func(opts *DocumentManagerIndexFileOptions) {
-		opts.Source = source
-	}
-}
-
-func NewDocumentManagerIndexFileOptions(funcs ...DocumentManagerIndexFileOptionFunc) *DocumentManagerIndexFileOptions {
-	opts := &DocumentManagerIndexFileOptions{}
-	for _, fn := range funcs {
-		fn(opts)
-	}
-	return opts
-}
-
 type DocumentManagerAskOptions struct {
 	SystemPromptTemplate string
 }
@@ -261,7 +233,33 @@ func (m *DocumentManager) SupportedExtensions() []string {
 	return m.fileConverter.SupportedExtensions()
 }
 
-var ErrNotSupported = errors.New("not supported")
+type DocumentManagerIndexFileOptions struct {
+	Source *url.URL
+	// Names of the collection to associate with the document
+	Collections []string
+}
+
+type DocumentManagerIndexFileOptionFunc func(opts *DocumentManagerIndexFileOptions)
+
+func WithDocumentManagerIndexFileCollections(collections ...string) DocumentManagerIndexFileOptionFunc {
+	return func(opts *DocumentManagerIndexFileOptions) {
+		opts.Collections = collections
+	}
+}
+
+func WithDocumentManagerIndexFileSource(source *url.URL) DocumentManagerIndexFileOptionFunc {
+	return func(opts *DocumentManagerIndexFileOptions) {
+		opts.Source = source
+	}
+}
+
+func NewDocumentManagerIndexFileOptions(funcs ...DocumentManagerIndexFileOptionFunc) *DocumentManagerIndexFileOptions {
+	opts := &DocumentManagerIndexFileOptions{}
+	for _, fn := range funcs {
+		fn(opts)
+	}
+	return opts
+}
 
 func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (port.TaskID, error) {
 	metrics.TotalIndexRequests.Add(1)
@@ -302,7 +300,9 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 	return taskID, nil
 }
 
-func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Task, progress chan float64) error {
+var ErrNotSupported = errors.New("not supported")
+
+func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Task, progress chan float32) error {
 	indexFileTask, ok := task.(*indexFileTask)
 	if !ok {
 		return errors.Errorf("unexpected task type '%T'", task)
@@ -325,7 +325,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 				ext := filepath.Ext(indexFileTask.originalName)
 				if ext == ".md" || m.fileConverter == nil {
 					reader = file
-					progress <- 10
+					progress <- 0.1
 					return nil
 				}
 
@@ -342,7 +342,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 
 				reader = readCloser
 
-				progress <- 10
+				progress <- 0.05
 
 				return nil
 			},
@@ -388,7 +388,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 
 				document = doc
 
-				progress <- 25
+				progress <- 0.1
 
 				return nil
 			},
@@ -400,7 +400,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.WithStack(err)
 				}
 
-				progress <- 40
+				progress <- 0.2
 
 				return nil
 			},
@@ -414,11 +414,13 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 		),
 		workflow.StepFunc(
 			func(ctx context.Context) error {
-				if err := m.index.Index(ctx, document); err != nil {
-					return errors.WithStack(err)
+				onProgress := func(p float32) {
+					progress <- 0.2 + (0.7 * p)
 				}
 
-				progress <- 90
+				if err := m.index.Index(ctx, document, port.WithIndexOnProgress(onProgress)); err != nil {
+					return errors.WithStack(err)
+				}
 
 				return nil
 			},
@@ -435,7 +437,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 		return errors.WithStack(err)
 	}
 
-	progress <- 100
+	progress <- 1
 
 	return nil
 }

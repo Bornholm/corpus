@@ -136,13 +136,13 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 			s.Status = port.TaskStatusRunning
 		})
 
-		progress := make(chan float64)
+		progress := make(chan float32)
 		defer close(progress)
 
 		go func() {
 			for p := range progress {
 				m.updateState(taskID, func(s *port.TaskState) {
-					s.Progress = max(min(p, 100), 0)
+					s.Progress = float32(max(min(p, 1), 0))
 				})
 			}
 		}()

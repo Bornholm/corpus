@@ -19,3 +19,12 @@ type Section interface {
 	End() int
 	Content() ([]byte, error)
 }
+
+func CountSections(d interface{ Sections() []Section }) int {
+	sections := d.Sections()
+	total := len(sections)
+	for _, s := range sections {
+		total += CountSections(s)
+	}
+	return total
+}

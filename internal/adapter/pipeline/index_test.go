@@ -48,7 +48,7 @@ func (m *mockIndex) DeleteBySource(ctx context.Context, source *url.URL) error {
 }
 
 // Index implements port.Index.
-func (m *mockIndex) Index(ctx context.Context, document model.Document) error {
+func (m *mockIndex) Index(ctx context.Context, document model.Document, funcs ...port.IndexOptionFunc) error {
 	return m.indexErr
 }
 
