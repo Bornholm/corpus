@@ -22,7 +22,7 @@ func TestParser(t *testing.T) {
 	testCases := []testCase{
 		{
 			File:              "testdata/test.md",
-			ExpectedSections:  12,
+			ExpectedSections:  11,
 			MaxWordPerSection: 5,
 		},
 		{
@@ -31,16 +31,19 @@ func TestParser(t *testing.T) {
 			MaxWordPerSection: 200,
 		},
 		{
-			File:             "../core/port/testsuite/testdata/documents/programming_go.md",
-			ExpectedSections: 3,
+			File:              "../core/port/testsuite/testdata/documents/programming_go.md",
+			ExpectedSections:  4,
+			MaxWordPerSection: 200,
 		},
 		{
-			File:             "../core/port/testsuite/testdata/documents/programming_rust.md",
-			ExpectedSections: 3,
+			File:              "../core/port/testsuite/testdata/documents/programming_rust.md",
+			ExpectedSections:  3,
+			MaxWordPerSection: 200,
 		},
 		{
-			File:             "../core/port/testsuite/testdata/documents/cooking_boeuf_bourguignon.md",
-			ExpectedSections: 4,
+			File:              "../core/port/testsuite/testdata/documents/cooking_boeuf_bourguignon.md",
+			ExpectedSections:  4,
+			MaxWordPerSection: 200,
 		},
 	}
 
@@ -71,7 +74,7 @@ func TestParser(t *testing.T) {
 			var after runtime.MemStats
 			runtime.ReadMemStats(&after)
 
-			if e, g := tc.ExpectedSections, countSections(doc); e != g {
+			if e, g := tc.ExpectedSections, model.CountSections(doc); e != g {
 				t.Errorf("len(doc.Sections()): expected '%d', got '%v'", e, g)
 			}
 
@@ -82,21 +85,9 @@ func TestParser(t *testing.T) {
 	}
 }
 
-type Sections interface {
-	Sections() []model.Section
-}
-
-func countSections(root Sections) int {
-	total := 0
-	for _, s := range root.Sections() {
-		total += 1 + countSections(s)
-	}
-	return total
-}
-
 func dumpDocument(t *testing.T, doc *Document) {
 	t.Logf("Document #%s", doc.ID())
-	t.Logf("├─ Total sections: %d", countSections(doc))
+	t.Logf("├─ Total sections: %d", model.CountSections(doc))
 	t.Log("├─ Sections")
 	for _, s := range doc.Sections() {
 		dumpSection(t, s, " ")
