@@ -130,8 +130,7 @@ func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.S
 	var section Section
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		err := db.Preload("Document").Find(&section, "id = ?", id).Error
-		if err != nil {
+		if err := db.Preload("Document").First(&section, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -231,7 +230,7 @@ func (s *Store) withRetry(ctx context.Context, fn func(ctx context.Context, db *
 	}
 
 	backoff := 500 * time.Millisecond
-	maxRetries := 5
+	maxRetries := 10
 	retries := 0
 
 	for {

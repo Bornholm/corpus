@@ -140,7 +140,9 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 			}
 
 			if err := index.Index(indexCtx, document, indexOptions...); err != nil {
-				errs <- errors.WithStack(err)
+				err = errors.WithStack(err)
+				slog.ErrorContext(indexCtx, "could not index document", slog.Any("error", err))
+				errs <- err
 				cancel()
 				return
 			}
@@ -227,8 +229,10 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 				Collections: collections,
 			})
 			if err != nil {
+				err = errors.WithStack(err)
+				slog.ErrorContext(indexCtx, "could not search documents", slog.Any("error", err))
 				messages <- &Message{
-					Err: errors.WithStack(err),
+					Err: err,
 				}
 				return
 			}

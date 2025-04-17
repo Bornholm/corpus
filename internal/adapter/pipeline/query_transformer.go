@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"log/slog"
+	"strings"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -17,11 +18,9 @@ type HyDEQueryTransformer struct {
 }
 
 const defaultHyDEPromptTemplate = `
-As a knowledgeable and helpful research assistant, your task is to provide informative informations about the given context. Use your extensive knowledge base to offer clear, concise, and accurate responses to the user's inquiries.
+As a knowledgeable and helpful research assistant, generate a hypothetical best-guess answer to the following query. Do not output anything than your answer.
 
-Do not output anything than your answer.
-
-## Topic
+## Query
 
 {{ .Query }}
 
@@ -68,7 +67,13 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string)
 
 	slog.DebugContext(ctx, "generated hypothetic answer", slog.String("answer", answer))
 
-	return answer, nil
+	var sb strings.Builder
+
+	sb.WriteString(query)
+	sb.WriteString("\n\n")
+	sb.WriteString(answer)
+
+	return sb.String(), nil
 }
 
 func NewHyDEQueryTransformer(client llm.Client, store port.Store) *HyDEQueryTransformer {

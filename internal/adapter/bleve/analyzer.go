@@ -76,6 +76,7 @@ func (c *DetectLangAppendCharFilter) Filter(input []byte) []byte {
 	if !hasDefLang {
 		langs = append(langs, c.defaultLang)
 	}
+
 	input = append(input, []byte(";"+strings.Join(langs, ","))...)
 	return input
 }

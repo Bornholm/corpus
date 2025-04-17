@@ -91,6 +91,8 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 
 		totalSections := model.CountSections(document)
 
+		slog.DebugContext(ctx, "total sections", slog.Int("total", totalSections))
+
 		totalIndexed := 0
 		onSectionIndexed := func() {
 			if opts.OnProgress == nil {
@@ -161,18 +163,16 @@ func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section mo
 		return errors.WithStack(err)
 	}
 
-	if stmt.Step() {
-		if err := stmt.Err(); err != nil {
-			return errors.WithStack(err)
-		}
+	stmt.Step()
+
+	if err := stmt.Err(); err != nil {
+		return errors.WithStack(err)
 	}
 
 	embeddingsID := stmt.ColumnInt(0)
 
-	stmt.Close()
-
 	for _, coll := range section.Document().Collections() {
-		if err := i.insertCollection(ctx, conn, int(embeddingsID), coll.ID()); err != nil {
+		if err := i.insertCollection(ctx, conn, embeddingsID, coll.ID()); err != nil {
 			return errors.WithStack(err)
 		}
 	}
@@ -346,7 +346,7 @@ func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn
 	}
 
 	backoff := 500 * time.Millisecond
-	maxRetries := 5
+	maxRetries := 10
 	retries := 0
 
 	for {
@@ -354,8 +354,9 @@ func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn
 			tx := conn.Begin()
 			defer tx.End(&err)
 
-			if err := fn(ctx, conn); err != nil {
-				return errors.WithStack(err)
+			if err = fn(ctx, conn); err != nil {
+				err = errors.WithStack(err)
+				return
 			}
 
 			return
@@ -378,6 +379,8 @@ func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn
 				backoff *= 2
 				continue
 			}
+
+			return errors.WithStack(err)
 		}
 
 		return nil

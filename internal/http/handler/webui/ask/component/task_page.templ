@@ -23,7 +23,16 @@ templ TaskPage(vmodel TaskPageVModel) {
 					</div>
 					<div class="level-right"></div>
 				</div>
-				<div id="progress-container" hx-select="#progress-container" hx-trigger="every 2s" hx-get={ string(common.CurrentURL(ctx)) } hx-swap="outerHTML" hx-target="this">
+				<div
+					id="progress-container"
+					hx-select="#progress-container"
+					if vmodel.Task.Status == port.TaskStatusPending || vmodel.Task.Status == port.TaskStatusRunning {
+						hx-trigger="every 2s"
+					}
+					hx-get={ string(common.CurrentURL(ctx)) }
+					hx-swap="outerHTML"
+					hx-target="this"
+				>
 					switch vmodel.Task.Status {
 						case port.TaskStatusSucceeded:
 							<div class="message is-success">

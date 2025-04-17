@@ -1,6 +1,7 @@
 package markdown
 
 import (
+	"bytes"
 	"net/url"
 	"slices"
 
@@ -11,12 +12,14 @@ import (
 	meta "github.com/yuin/goldmark-meta"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
+	gmParser "github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 type Options struct {
 	MaxWordPerSection int
+	Transformers      []NodeTransformer
 }
 
 type OptionFunc func(opts *Options)
@@ -24,6 +27,7 @@ type OptionFunc func(opts *Options)
 func NewOptions(funcs ...OptionFunc) *Options {
 	opts := &Options{
 		MaxWordPerSection: 250,
+		Transformers:      make([]NodeTransformer, 0),
 	}
 
 	for _, fn := range funcs {
@@ -39,6 +43,12 @@ func WithMaxWordPerSection(maxWord int) OptionFunc {
 	}
 }
 
+func WithNodeTransformers(transformers ...NodeTransformer) OptionFunc {
+	return func(opts *Options) {
+		opts.Transformers = transformers
+	}
+}
+
 func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 	opts := NewOptions(funcs...)
 	md := goldmark.New(
@@ -48,13 +58,39 @@ func Parse(data []byte, funcs ...OptionFunc) (*Document, error) {
 		),
 	)
 
-	context := parser.NewContext()
-	root := md.Parser().Parse(text.NewReader(data), parser.WithContext(context))
+	context := gmParser.NewContext()
+	parser := md.Parser()
+
+	transformer := &Transformer{
+		transformers: opts.Transformers,
+	}
+
+	parser.AddOptions(gmParser.WithASTTransformers(
+		util.Prioritized(
+			transformer,
+			999,
+		),
+	))
+
+	root := parser.Parse(
+		text.NewReader(data),
+		gmParser.WithContext(context),
+	)
+
+	if err := transformer.Error(); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	var buff bytes.Buffer
+
+	if err := md.Renderer().Render(&buff, data, root); err != nil {
+		return nil, errors.WithStack(err)
+	}
 
 	document := &Document{
 		id:          model.NewDocumentID(),
 		collections: make([]model.Collection, 0),
-		data:        data,
+		data:        buff.Bytes(),
 	}
 
 	current := &Section{

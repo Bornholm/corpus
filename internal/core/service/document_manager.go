@@ -357,9 +357,12 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.WithStack(err)
 				}
 
-				doc, err := markdown.Parse(data, markdown.WithMaxWordPerSection(m.maxWordPerSection))
+				doc, err := markdown.Parse(
+					data,
+					markdown.WithMaxWordPerSection(m.maxWordPerSection),
+				)
 				if err != nil {
-					return errors.Wrap(err, "could not build document")
+					return errors.Wrap(err, "could not parse document")
 				}
 
 				if indexFileTask.opts.Source != nil {
