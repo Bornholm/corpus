@@ -15,11 +15,11 @@ func TestTaskManager(t *testing.T) {
 
 	var executed atomic.Int64
 
-	tm.Register("dummy", port.TaskHandlerFunc(func(ctx context.Context, task port.Task, progress chan float32) error {
+	tm.Register("dummy", port.TaskHandlerFunc(func(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
 		t.Logf("[%s] start", task.ID())
-		progress <- 0
-		progress <- 0.5
-		progress <- 1
+		events <- port.NewTaskEvent(port.WithTaskProgress(0.1))
+		events <- port.NewTaskEvent(port.WithTaskProgress(0.5))
+		events <- port.NewTaskEvent(port.WithTaskProgress(1))
 		t.Logf("[%s] done", task.ID())
 		executed.Add(1)
 		return nil

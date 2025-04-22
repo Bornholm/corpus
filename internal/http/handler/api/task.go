@@ -72,6 +72,7 @@ type Task struct {
 	ScheduledAt time.Time       `json:"scheduledAt"`
 	FinishedAt  time.Time       `json:"finishedAt"`
 	Error       string          `json:"error,omitempty"`
+	Message     string          `json:"message"`
 }
 
 func (h *Handler) showTask(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +99,7 @@ func (h *Handler) showTask(w http.ResponseWriter, r *http.Request) {
 			Progress:    taskState.Progress,
 			ScheduledAt: taskState.ScheduledAt,
 			FinishedAt:  taskState.FinishedAt,
+			Message:     taskState.Message,
 		},
 	}
 

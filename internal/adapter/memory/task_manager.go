@@ -136,20 +136,25 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 			s.Status = port.TaskStatusRunning
 		})
 
-		progress := make(chan float32)
-		defer close(progress)
+		events := make(chan port.TaskEvent)
+		defer close(events)
 
 		go func() {
-			for p := range progress {
+			for e := range events {
 				m.updateState(taskID, func(s *port.TaskState) {
-					s.Progress = float32(max(min(p, 1), 0))
+					if e.Progress != nil {
+						s.Progress = float32(max(min(*e.Progress, 1), 0))
+					}
+					if e.Message != nil {
+						s.Message = *e.Message
+					}
 				})
 			}
 		}()
 
 		slog.DebugContext(ctx, "executing task")
 
-		if err := handler.Handle(ctx, task, progress); err != nil {
+		if err := handler.Handle(ctx, task, events); err != nil {
 			m.updateState(taskID, func(s *port.TaskState) {
 				s.Error = errors.WithStack(err)
 				s.Status = port.TaskStatusFailed

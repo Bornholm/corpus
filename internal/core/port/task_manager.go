@@ -35,6 +35,34 @@ type TaskState struct {
 	FinishedAt time.Time
 	Progress   float32
 	Error      error
+	Message    string
+}
+
+type TaskEvent struct {
+	Message  *string
+	Progress *float32
+}
+
+type TaskEventFunc func(p *TaskEvent)
+
+func WithTaskMessage(message string) TaskEventFunc {
+	return func(p *TaskEvent) {
+		p.Message = &message
+	}
+}
+
+func WithTaskProgress(progress float32) TaskEventFunc {
+	return func(p *TaskEvent) {
+		p.Progress = &progress
+	}
+}
+
+func NewTaskEvent(funcs ...TaskEventFunc) TaskEvent {
+	p := TaskEvent{}
+	for _, fn := range funcs {
+		fn(&p)
+	}
+	return p
 }
 
 type Task interface {
@@ -43,13 +71,13 @@ type Task interface {
 }
 
 type TaskHandler interface {
-	Handle(ctx context.Context, task Task, progress chan float32) error
+	Handle(ctx context.Context, task Task, events chan TaskEvent) error
 }
 
-type TaskHandlerFunc func(ctx context.Context, task Task, progress chan float32) error
+type TaskHandlerFunc func(ctx context.Context, task Task, events chan TaskEvent) error
 
-func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, progress chan float32) error {
-	return f(ctx, task, progress)
+func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, events chan TaskEvent) error {
+	return f(ctx, task, events)
 }
 
 type TaskManager interface {

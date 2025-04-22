@@ -302,7 +302,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 
 var ErrNotSupported = errors.New("not supported")
 
-func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Task, progress chan float32) error {
+func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
 	indexFileTask, ok := task.(*indexFileTask)
 	if !ok {
 		return errors.Errorf("unexpected task type '%T'", task)
@@ -325,7 +325,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 				ext := filepath.Ext(indexFileTask.originalName)
 				if ext == ".md" || m.fileConverter == nil {
 					reader = file
-					progress <- 0.1
+					events <- port.NewTaskEvent(port.WithTaskProgress(0.05))
 					return nil
 				}
 
@@ -335,6 +335,8 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.Wrapf(ErrNotSupported, "file extension '%s' is not supported by the file converter", ext)
 				}
 
+				events <- port.NewTaskEvent(port.WithTaskMessage("converting document"))
+
 				readCloser, err := m.fileConverter.Convert(ctx, indexFileTask.originalName, file)
 				if err != nil {
 					return errors.WithStack(err)
@@ -342,7 +344,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 
 				reader = readCloser
 
-				progress <- 0.05
+				events <- port.NewTaskEvent(port.WithTaskProgress(0.05))
 
 				return nil
 			},
@@ -356,6 +358,8 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 				if err != nil {
 					return errors.WithStack(err)
 				}
+
+				events <- port.NewTaskEvent(port.WithTaskMessage("parsing document"))
 
 				doc, err := markdown.Parse(
 					data,
@@ -391,7 +395,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 
 				document = doc
 
-				progress <- 0.1
+				events <- port.NewTaskEvent(port.WithTaskProgress(0.1))
 
 				return nil
 			},
@@ -399,11 +403,13 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 		),
 		workflow.StepFunc(
 			func(ctx context.Context) error {
+				events <- port.NewTaskEvent(port.WithTaskMessage("saving document"))
+
 				if err := m.SaveDocument(ctx, document); err != nil {
 					return errors.WithStack(err)
 				}
 
-				progress <- 0.2
+				events <- port.NewTaskEvent(port.WithTaskProgress(0.2))
 
 				return nil
 			},
@@ -418,8 +424,10 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 		workflow.StepFunc(
 			func(ctx context.Context) error {
 				onProgress := func(p float32) {
-					progress <- 0.2 + (0.7 * p)
+					events <- port.NewTaskEvent(port.WithTaskProgress(0.2 + (0.7 * p)))
 				}
+
+				events <- port.NewTaskEvent(port.WithTaskMessage("indexing document"))
 
 				if err := m.index.Index(ctx, document, port.WithIndexOnProgress(onProgress)); err != nil {
 					return errors.WithStack(err)
@@ -440,7 +448,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 		return errors.WithStack(err)
 	}
 
-	progress <- 1
+	events <- port.NewTaskEvent(port.WithTaskProgress(1))
 
 	return nil
 }

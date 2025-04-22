@@ -52,7 +52,7 @@ templ TaskPage(vmodel TaskPageVModel) {
 								</div>
 							</div>
 						default:
-							<p class="has-text-centered"><strong>Indexation en cours, veuillez patienter ({ progress }%)...</strong></p>
+							<p class="has-text-centered is-capitalized"><strong>{ vmodel.Task.Message } ({ progress }%)...</strong></p>
 							<progress class="progress is-info is-large" value={ progress } max="100">{ progress }%</progress>
 							<p class="has-text-centered is-italic is-size-6">Vous pouvez quitter la page, le document sera indexé en tâche de fond.</p>
 					}

@@ -52,6 +52,8 @@ func init() {
 			query.Del(ParamExtensions)
 		}
 
+		u.RawQuery = query.Encode()
+
 		opts.BaseURL = u.String()
 
 		client, err := provider.Create(
