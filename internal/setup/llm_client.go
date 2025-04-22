@@ -48,6 +48,16 @@ type InstrumentedClient struct {
 	embeddingsModel     string
 }
 
+// ExtractText implements llm.Client.
+func (c *InstrumentedClient) ExtractText(ctx context.Context, funcs ...llm.ExtractTextOptionFunc) (llm.ExtractTextResponse, error) {
+	res, err := c.client.ExtractText(ctx, funcs...)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return res, nil
+}
+
 // ChatCompletion implements llm.Client.
 func (c *InstrumentedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (llm.ChatCompletionResponse, error) {
 	res, err := c.client.ChatCompletion(ctx, funcs...)
@@ -110,6 +120,14 @@ var _ llm.Client = &InstrumentedClient{}
 type RateLimitedClient struct {
 	limiter *rate.Limiter
 	client  llm.Client
+}
+
+// ExtractText implements llm.Client.
+func (r *RateLimitedClient) ExtractText(ctx context.Context, funcs ...llm.ExtractTextOptionFunc) (llm.ExtractTextResponse, error) {
+	if err := r.limiter.Wait(ctx); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return r.client.ExtractText(ctx, funcs...)
 }
 
 // ChatCompletion implements llm.Client.

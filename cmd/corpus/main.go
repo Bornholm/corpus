@@ -12,8 +12,11 @@ import (
 	"github.com/pkg/errors"
 
 	// Adapters
+	_ "github.com/bornholm/corpus/internal/adapter/genai"
 	_ "github.com/bornholm/corpus/internal/adapter/memory"
 	_ "github.com/bornholm/corpus/internal/adapter/pandoc"
+
+	_ "github.com/bornholm/genai/llm/provider/marker"
 )
 
 func main() {

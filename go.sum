@@ -60,6 +60,10 @@ github.com/blevesearch/zapx/v16 v16.1.9-0.20241217210638-a0519e7caf3b h1:ju9Az5Y
 github.com/blevesearch/zapx/v16 v16.1.9-0.20241217210638-a0519e7caf3b/go.mod h1:BlrYNpOu4BvVRslmIG+rLtKhmjIaRhIbG8sb9scGTwI=
 github.com/bornholm/genai v0.0.0-20250410201127-8b972027d08b h1:pkstMXkVOdiaWwpN0MbiCvsdviho/2y1K+Dz18cnfOE=
 github.com/bornholm/genai v0.0.0-20250410201127-8b972027d08b/go.mod h1:Vn/RI/V+VMgZ72Mr8JMnxkEJc4nHbGEfQDalz3un0dI=
+github.com/bornholm/genai v0.0.0-20250421214128-848e53c1bd9d h1:VrpbPd+kfrHcokTvqKKq3btNgOTH2M7Thhyhzwg0Ck8=
+github.com/bornholm/genai v0.0.0-20250421214128-848e53c1bd9d/go.mod h1:PJyAH38WJCAgfXPUFXiz9oTEbtd91E3mfLnERUgi1TQ=
+github.com/bornholm/genai v0.0.0-20250422075827-36fd7cf38f6e h1:uUeKuAObLoBE8p6mDgxh6GquHLE86MXCdjfKXAI+utE=
+github.com/bornholm/genai v0.0.0-20250422075827-36fd7cf38f6e/go.mod h1:PJyAH38WJCAgfXPUFXiz9oTEbtd91E3mfLnERUgi1TQ=
 github.com/caarlos0/env/v11 v11.3.1 h1:cArPWC15hWmEt+gWk7YBi7lEXTXCvpaSdCiZE2X5mCA=
 github.com/caarlos0/env/v11 v11.3.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
