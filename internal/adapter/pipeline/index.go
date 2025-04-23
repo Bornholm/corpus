@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type WeightedIndexes map[port.Index]float64
+type WeightedIndexes map[*IdentifiedIndex]float64
 
 type Index struct {
 	queryTransformers   []QueryTransformer
@@ -26,7 +26,7 @@ type Index struct {
 
 type indexSearchResults struct {
 	Results []*port.IndexSearchResult
-	Index   port.Index
+	Index   *IdentifiedIndex
 }
 
 // DeleteBySource implements port.Index.
@@ -42,7 +42,7 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 	aggregatedErr := NewAggregatedError()
 
 	for index := range i.indexes {
-		go func(index port.Index) {
+		go func(index *IdentifiedIndex) {
 			defer func() {
 				if r := recover(); r != nil {
 					if err, ok := r.(error); ok {
@@ -54,7 +54,7 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 			}()
 			defer wg.Done()
 
-			if err := index.DeleteBySource(ctx, source); err != nil {
+			if err := index.Index().DeleteBySource(ctx, source); err != nil {
 				errs <- errors.WithStack(err)
 				return
 			}
@@ -106,7 +106,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 	aggregatedErr := NewAggregatedError()
 
 	for index := range i.indexes {
-		go func(index port.Index) {
+		go func(index *IdentifiedIndex) {
 			defer func() {
 				if r := recover(); r != nil {
 					if err, ok := r.(error); ok {
@@ -118,7 +118,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 			}()
 			defer wg.Done()
 
-			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index)), slog.String("documentID", string(document.ID())))
+			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index.Index())), slog.String("documentID", string(document.ID())))
 
 			slog.DebugContext(indexCtx, "indexing document")
 
@@ -126,7 +126,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 
 			if opts.OnProgress != nil {
 				indexOptions = append(indexOptions, port.WithIndexOnProgress(func(p float32) {
-					progress.Store(index, p)
+					progress.Store(index.Index(), p)
 					var globalProgress float32
 					progress.Range(func(_ port.Index, p float32) bool {
 						globalProgress += p
@@ -139,7 +139,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 				defer opts.OnProgress(1)
 			}
 
-			if err := index.Index(indexCtx, document, indexOptions...); err != nil {
+			if err := index.Index().Index(indexCtx, document, indexOptions...); err != nil {
 				err = errors.WithStack(err)
 				slog.ErrorContext(indexCtx, "could not index document", slog.Any("error", err))
 				errs <- err
@@ -210,7 +210,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 	aggregatedErr := NewAggregatedError()
 
 	for index := range i.indexes {
-		go func(index port.Index) {
+		go func(index *IdentifiedIndex) {
 			defer func() {
 				if r := recover(); r != nil {
 					if err, ok := r.(error); ok {
@@ -222,9 +222,9 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 			}()
 			defer wg.Done()
 
-			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index)))
+			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index.Index())))
 
-			results, err := index.Search(indexCtx, query, port.IndexSearchOptions{
+			results, err := index.Index().Search(indexCtx, query, port.IndexSearchOptions{
 				MaxResults:  maxResults * 2,
 				Collections: collections,
 			})

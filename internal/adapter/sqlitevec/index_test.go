@@ -88,7 +88,7 @@ func TestIndex(t *testing.T) {
 			return nil, errors.Wrap(err, "failed to open sqlite database")
 		}
 
-		index := NewIndex(db, client, 500)
+		index := NewIndex(db, client, "mxbai-embed-large:latest", 500)
 
 		return index, nil
 	})

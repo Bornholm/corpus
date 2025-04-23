@@ -135,6 +135,181 @@ paths:
           description: The task could not be found
         "500":
           description: An unknown error occured
+  /backup:
+    get:
+      summary: Generate a backup
+      operationId: generate-backup
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
+        "404":
+          description: The task could not be found
+        "500":
+          description: An unknown error occured
+    put:
+      summary: Restore a backup
+      operationId: restore-backup
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  description: The backup to restore
+                  format: binary
+              required: ["file"]
+      responses:
+        "204":
+          description: Backup restored successfully
+        "400":
+          description: Request invalid or malformed
+        "403":
+          description: Action forbidden to your level of authentication
+        "500":
+          description: An unknown error occured
+  /documents:
+    get:
+      summary: List documents
+      operationId: list-documents
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+          description: The page offset
+          min: 0
+        - in: query
+          name: limit
+          schema:
+            type: number
+            min: 1
+          description: Maximum number of results to return
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Request invalid or malformed
+        "403":
+          description: Action forbidden to your level of authentication
+        "500":
+          description: An unknown error occured
+  /documents/{documentId}:
+    get:
+      summary: Get document
+      operationId: get-document
+      parameters:
+        - in: path
+          name: documentId
+          schema:
+            type: string
+          description: The document identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
+        "404":
+          description: The document could not be found
+        "500":
+          description: An unknown error occured
+  /documents/{documentId}/content:
+    get:
+      summary: Get document content
+      operationId: get-document-content
+      parameters:
+        - in: path
+          name: documentId
+          schema:
+            type: string
+          description: The document identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
+        "404":
+          description: The document could not be found
+        "500":
+          description: An unknown error occured
+  /documents/{documentId}/reindex:
+    post:
+      summary: Reindex document
+      operationId: reindex-document
+      parameters:
+        - in: path
+          name: documentId
+          schema:
+            type: string
+          description: The document identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
+        "404":
+          description: The document could not be found
+        "500":
+          description: An unknown error occured
+  /documents/{documentId}/sections/{sectionId}:
+    get:
+      summary: Get document section
+      operationId: get-document-section
+      parameters:
+        - in: path
+          name: documentId
+          schema:
+            type: string
+          description: The document identifier
+          required: true
+        - in: path
+          name: sectionId
+          schema:
+            type: string
+          description: The section identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
+        "404":
+          description: The document could not be found
+        "500":
+          description: An unknown error occured
+  /documents/{documentId}/sections/{sectionId}/content:
+    get:
+      summary: Get section content
+      operationId: get-section-content
+      parameters:
+        - in: path
+          name: documentId
+          schema:
+            type: string
+          description: The document identifier
+          required: true
+        - in: path
+          name: sectionId
+          schema:
+            type: string
+          description: The section identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authentication
+        "404":
+          description: The document could not be found
+        "500":
+          description: An unknown error occured
 components:
   securitySchemes:
     auth:

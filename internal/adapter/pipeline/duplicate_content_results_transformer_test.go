@@ -42,6 +42,10 @@ func TestBranchMergeResultsTransformer(t *testing.T) {
 				id:     "child3",
 				branch: []model.SectionID{"parent2", "child3"},
 			},
+			"parent3": &dummySection{
+				id:     "parent3",
+				branch: []model.SectionID{"parent3"},
+			},
 		},
 	})
 
@@ -58,6 +62,7 @@ func TestBranchMergeResultsTransformer(t *testing.T) {
 				"grandchild2",
 				"parent2",
 				"child3",
+				"parent3",
 			},
 		},
 	}
@@ -67,7 +72,7 @@ func TestBranchMergeResultsTransformer(t *testing.T) {
 		t.Fatalf("%+v", errors.WithStack(err))
 	}
 
-	expected := []model.SectionID{"child1", "grandchild1", "grandchild2", "child3"}
+	expected := []model.SectionID{"child1", "grandchild1", "grandchild2", "child3", "parent3"}
 
 	for _, e := range expected {
 		if !slices.Contains(transformed[0].Sections, e) {
@@ -82,6 +87,11 @@ func TestBranchMergeResultsTransformer(t *testing.T) {
 
 type dummyStore struct {
 	sections map[model.SectionID]model.Section
+}
+
+// GetDocumentByID implements port.Store.
+func (d *dummyStore) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error) {
+	panic("unimplemented")
 }
 
 // CountDocuments implements port.Store.
@@ -109,11 +119,6 @@ func (d *dummyStore) GetCollectionStats(ctx context.Context, id model.Collection
 	panic("unimplemented")
 }
 
-// GetDocumentBySource implements port.Store.
-func (d *dummyStore) GetDocumentBySource(ctx context.Context, source *url.URL) (model.Document, error) {
-	panic("unimplemented")
-}
-
 // GetSectionByID implements port.Store.
 func (d *dummyStore) GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error) {
 	return d.sections[id], nil
@@ -125,7 +130,7 @@ func (d *dummyStore) QueryCollections(ctx context.Context, opts port.QueryCollec
 }
 
 // QueryDocuments implements port.Store.
-func (d *dummyStore) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]*model.Document, int64, error) {
+func (d *dummyStore) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.Document, int64, error) {
 	panic("unimplemented")
 }
 

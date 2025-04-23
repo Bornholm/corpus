@@ -24,6 +24,7 @@ type Index struct {
 	maxWords int
 	getConn  func(ctx context.Context) (*sqlite3.Conn, error)
 	llm      llm.Client
+	model    string
 }
 
 // DeleteBySource implements port.Index.
@@ -111,7 +112,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 		}
 
 		return nil
-	})
+	}, sqlite3.LOCKED, sqlite3.BUSY)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -387,7 +388,7 @@ func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn
 	}
 }
 
-func NewIndex(conn *sqlite3.Conn, llm llm.Client, maxWords int) *Index {
+func NewIndex(conn *sqlite3.Conn, llm llm.Client, model string, maxWords int) *Index {
 	return &Index{
 		maxWords: maxWords,
 		llm:      llm,

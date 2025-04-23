@@ -32,6 +32,16 @@ func NewHandler(documentManager *service.DocumentManager) *Handler {
 	h.mux.Handle("GET /tasks", assertAuthenticated(http.HandlerFunc(h.listTasks)))
 	h.mux.Handle("GET /tasks/{taskID}", assertAuthenticated(http.HandlerFunc(h.showTask)))
 
+	h.mux.Handle("GET /backup", assertAuthenticated(http.HandlerFunc(h.handleGenerateBackup)))
+	h.mux.Handle("PUT /backup", assertWriter(http.HandlerFunc(h.handleRestoreBackup)))
+
+	h.mux.Handle("GET /documents", assertAuthenticated(http.HandlerFunc(h.handleListDocuments)))
+	h.mux.Handle("GET /documents/{documentID}", assertAuthenticated(http.HandlerFunc(h.handleGetDocument)))
+	h.mux.Handle("GET /documents/{documentID}/content", assertAuthenticated(http.HandlerFunc(h.handleGetDocumentContent)))
+	h.mux.Handle("POST /documents/{documentID}/reindex", assertWriter(http.HandlerFunc(h.handleReindexDocument)))
+	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}", assertAuthenticated(http.HandlerFunc(h.handleGetDocumentSection)))
+	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}/content", assertAuthenticated(http.HandlerFunc(h.handleGetSectionContent)))
+
 	return h
 }
 

@@ -54,6 +54,7 @@ func (w *wrappedDocument) ID() model.DocumentID {
 func (w *wrappedDocument) Sections() []model.Section {
 	sections := make([]model.Section, 0, len(w.d.Sections))
 	for _, s := range w.d.Sections {
+		s.Document = w.d
 		sections = append(sections, &wrappedSection{s})
 	}
 	return sections

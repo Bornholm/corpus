@@ -30,7 +30,7 @@ build: generate
 			-o ./bin/corpus ./cmd/corpus
 
 purge:
-	rm -rf data.sqlite index.bleve
+	rm -rf data.sqlite* index.bleve
 
 release:
 	git tag -a v$(RELEASE_VERSION) -m $(RELEASE_VERSION)

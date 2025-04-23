@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/bornholm/corpus/internal/backup"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
@@ -20,6 +21,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 )
+
+const snapshotBoundary = "corpus-snapshot-v1"
 
 type DocumentManagerOptions struct {
 	MaxWordPerSection int
@@ -55,6 +58,72 @@ type DocumentManager struct {
 	tempDir           string
 	createTempDirErr  error
 	createTempDirOnce sync.Once
+}
+
+func (m *DocumentManager) Backup(ctx context.Context) (io.ReadCloser, error) {
+	snapshotable := m.getCompositeSnapshotable()
+
+	reader, err := snapshotable.GenerateSnapshot(ctx)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return reader, nil
+}
+
+func (m *DocumentManager) RestoreBackup(ctx context.Context, r io.Reader) error {
+	snapshotable := m.getCompositeSnapshotable()
+
+	if err := snapshotable.RestoreSnapshot(ctx, r); err != nil {
+		return errors.WithStack(err)
+	}
+
+	restorable := m.getRestorables()
+
+	page := 0
+	limit := 100
+	for {
+		documents, _, err := m.Store.QueryDocuments(ctx, port.QueryDocumentsOptions{Page: &page, Limit: &limit})
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		if len(documents) == 0 {
+			return nil
+		}
+
+		for _, r := range restorable {
+			if err := r.RestoreDocuments(ctx, documents); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+
+		page++
+	}
+}
+
+func (m *DocumentManager) getCompositeSnapshotable() *backup.Composite {
+	snapshotables := make([]backup.IdentifiedSnapshotable, 0)
+
+	if snapshotableIndex, ok := m.index.(backup.Snapshotable); ok {
+		snapshotables = append(snapshotables, backup.WithSnapshotID("index-v1", snapshotableIndex))
+	}
+
+	if snapshotableStore, ok := m.Store.(backup.Snapshotable); ok {
+		snapshotables = append(snapshotables, backup.WithSnapshotID("store-v1", snapshotableStore))
+	}
+
+	return backup.ComposeSnapshots(snapshotBoundary, snapshotables...)
+}
+
+func (m *DocumentManager) getRestorables() []Restorable {
+	restorables := make([]Restorable, 0)
+
+	if restorableIndex, ok := m.index.(Restorable); ok {
+		restorables = append(restorables, restorableIndex)
+	}
+
+	return restorables
 }
 
 type DocumentManagerSearchOptions struct {
@@ -520,3 +589,7 @@ func (i *indexFileTask) Type() port.TaskType {
 }
 
 var _ port.Task = &indexFileTask{}
+
+type Restorable interface {
+	RestoreDocuments(ctx context.Context, documents []model.Document) error
+}

@@ -2,6 +2,7 @@ package gorm
 
 import (
 	"context"
+	"database/sql"
 	"log/slog"
 	"net/url"
 	"slices"
@@ -18,6 +19,28 @@ import (
 
 type Store struct {
 	getDatabase func(ctx context.Context) (*gorm.DB, error)
+}
+
+// GetDocumentByID implements port.Store.
+func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error) {
+	var document Document
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		if err := db.Preload(clause.Associations).Preload("Sections", preloadSections).First(&document, "id = ?", id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WithStack(port.ErrNotFound)
+			}
+
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &wrappedDocument{&document}, nil
 }
 
 // GetCollectionStats implements port.Store.
@@ -130,7 +153,7 @@ func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.S
 	var section Section
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload("Document").First(&section, "id = ?", id).Error; err != nil {
+		if err := db.Preload(clause.Associations, preloadSections).First(&section, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -163,7 +186,7 @@ func (s *Store) DeleteDocumentBySource(ctx context.Context, source *url.URL) err
 			return errors.WithStack(err)
 		}
 
-		if err := db.Select(clause.Associations).Delete(&doc).Error; err != nil {
+		if err := db.Select(clause.Associations).Preload("Sections", preloadSections).Delete(&doc).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -176,14 +199,64 @@ func (s *Store) DeleteDocumentBySource(ctx context.Context, source *url.URL) err
 	return nil
 }
 
-// GetDocumentBySource implements port.Store.
-func (s *Store) GetDocumentBySource(ctx context.Context, source *url.URL) (model.Document, error) {
-	panic("unimplemented")
+// QueryDocuments implements port.Store.
+func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.Document, int64, error) {
+	db, err := s.getDatabase(ctx)
+	if err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	tx := db.Begin()
+	defer func() {
+		if err := tx.Rollback().Error; err != nil && !errors.Is(err, sql.ErrTxDone) {
+			slog.ErrorContext(ctx, "could not rollback transaction", slog.Any("error", errors.WithStack(err)))
+		}
+	}()
+
+	var documents []*Document
+
+	limit := 10
+	if opts.Limit != nil {
+		limit = *opts.Limit
+	}
+
+	page := 0
+	if opts.Page != nil {
+		page = *opts.Page
+	}
+
+	var total int64
+
+	if err := db.Model(&Document{}).Count(&total).Error; err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	query := db.Limit(limit).Offset(page * limit)
+
+	if !opts.HeaderOnly {
+		query = query.Preload(clause.Associations).Preload("Sections", preloadSections)
+	} else {
+		query = query.Select("ID", "CreatedAt", "UpdatedAt", "Source")
+	}
+
+	if err := query.Find(&documents).Error; err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	wrappedDocuments := make([]model.Document, 0, len(documents))
+	for _, d := range documents {
+		wrappedDocuments = append(wrappedDocuments, &wrappedDocument{d})
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	return wrappedDocuments, total, nil
 }
 
-// QueryDocuments implements port.Store.
-func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]*model.Document, int64, error) {
-	panic("unimplemented")
+func preloadSections(db *gorm.DB) *gorm.DB {
+	return db.Preload("Sections", preloadSections)
 }
 
 // SaveDocument implements port.Store.

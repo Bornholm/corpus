@@ -57,6 +57,9 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 func (i *Index) Index(ctx context.Context, document model.Document, funcs ...port.IndexOptionFunc) error {
 	opts := port.NewIndexOptions(funcs...)
 	source := document.Source()
+	if source == nil {
+		return errors.New("source missing")
+	}
 
 	if err := i.DeleteBySource(ctx, source); err != nil {
 		return errors.WithStack(err)
@@ -91,6 +94,28 @@ func (i *Index) indexSection(ctx context.Context, section model.Section, onSecti
 		}
 	}
 
+	id, resource, err := i.getIndexableResource(ctx, section)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	if resource == nil {
+		slog.DebugContext(ctx, "ignoring empty section", slog.String("sectionID", string(section.ID())))
+		return nil
+	}
+
+	slog.DebugContext(ctx, "indexing section", slog.String("sectionID", string(section.ID())))
+
+	if err := i.index.Index(id, resource); err != nil {
+		return errors.WithStack(err)
+	}
+
+	onSectionIndexed()
+
+	return nil
+}
+
+func (i *Index) getIndexableResource(ctx context.Context, section model.Section) (string, map[string]any, error) {
 	source := section.Document().Source()
 	sectionID := func(u url.URL) *url.URL {
 		return &u
@@ -107,30 +132,19 @@ func (i *Index) indexSection(ctx context.Context, section model.Section, onSecti
 
 	content, err := section.Content()
 	if err != nil {
-		return errors.WithStack(err)
+		return "", nil, errors.WithStack(err)
 	}
 
 	if len(content) == 0 {
-		slog.DebugContext(ctx, "ignoring empty section", slog.String("sectionID", string(section.ID())))
-		return nil
+		return "", nil, nil
 	}
 
-	data := map[string]any{
+	return sectionID.String(), map[string]any{
 		"_type":       "resource",
 		"content":     string(content),
 		"source":      source.String(),
 		"collections": collections,
-	}
-
-	slog.DebugContext(ctx, "indexing section", slog.String("sectionID", string(section.ID())), slog.Int("sectionSize", len(content)))
-
-	if err := i.index.Index(sectionID.String(), data); err != nil {
-		return errors.WithStack(err)
-	}
-
-	onSectionIndexed()
-
-	return nil
+	}, nil
 }
 
 // Search implements port.Index.

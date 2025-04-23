@@ -15,13 +15,13 @@ import (
 func TestIndex(t *testing.T) {
 	index := NewIndex(
 		WeightedIndexes{
-			&mockIndex{}: 1,
-			&mockIndex{
+			NewIdentifiedIndex("first", &mockIndex{}): 1,
+			NewIdentifiedIndex("second", &mockIndex{
 				indexErr: errors.New("Oh snap !"),
-			}: 1,
-			&mockIndex{
+			}): 1,
+			NewIdentifiedIndex("third", &mockIndex{
 				indexErr: errors.New("Oh snap !"),
-			}: 1,
+			}): 1,
 		},
 	)
 

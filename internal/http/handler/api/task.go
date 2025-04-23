@@ -115,5 +115,4 @@ func (h *Handler) showTask(w http.ResponseWriter, r *http.Request) {
 	if err := encoder.Encode(res); err != nil {
 		slog.ErrorContext(ctx, "could not encode response", slog.Any("error", errors.WithStack(err)))
 	}
-
 }

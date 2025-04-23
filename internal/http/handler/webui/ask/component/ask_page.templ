@@ -155,7 +155,7 @@ templ AskPage(vmodel AskPageVModel) {
 									for _, r := range vmodel.Results {
 										<li>
 											<details>
-												<summary><a target="_blank" href={ templ.SafeURL(r.Source.String()) }>{ r.Source.String() }</a></summary>
+												<summary><code class="is-clickable">{ r.Source.String() }</code> <a target="_blank" href={ templ.SafeURL(r.Source.String()) }><span class="icon"><i class="fas fa-external-link-alt"></i></span></a></summary>
 												for idx, sectionID := range r.Sections {
 													{{ content, ok := vmodel.SectionContents[sectionID] }}
 													if ok {
@@ -163,9 +163,7 @@ templ AskPage(vmodel AskPageVModel) {
 															<hr/>
 														}
 														<div class={ "content is-size-6 mt-5 has-background-light has-text-grey-dark	px-5 py-3 is-family-monospace", templ.KV("mt-5", idx == 0) }>
-															{ "[...]" }
 															@common.Markdown(strings.TrimSpace(content))
-															{ "[...]" }
 														</div>
 													}
 												}

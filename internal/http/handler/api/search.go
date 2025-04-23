@@ -14,14 +14,14 @@ import (
 )
 
 type SearchResponse struct {
-	Results []*Result `json:"results"`
+	Results []*SearchResult `json:"results"`
 }
 
-type Result struct {
-	Source   string     `json:"source"`
-	Sections []*Section `json:"sections"`
+type SearchResult struct {
+	Source   string                 `json:"source"`
+	Sections []*SearchResultSection `json:"sections"`
 }
-type Section struct {
+type SearchResultSection struct {
 	ID      model.SectionID `json:"id"`
 	Content string          `json:"content"`
 }
@@ -82,13 +82,13 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 	}
 
 	res := &SearchResponse{
-		Results: []*Result{},
+		Results: []*SearchResult{},
 	}
 
 	for _, r := range searchResults {
-		result := &Result{
+		result := &SearchResult{
 			Source:   r.Source.String(),
-			Sections: []*Section{},
+			Sections: []*SearchResultSection{},
 		}
 
 		for _, sectionID := range r.Sections {
@@ -106,7 +106,7 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 				return nil, errors.WithStack(err)
 			}
 
-			result.Sections = append(result.Sections, &Section{
+			result.Sections = append(result.Sections, &SearchResultSection{
 				ID:      sectionID,
 				Content: string(content),
 			})

@@ -31,8 +31,8 @@ var getIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *co
 	}
 
 	weightedIndexes := pipeline.WeightedIndexes{
-		bleveIndex:     0.4,
-		sqlitevecIndex: 0.6,
+		pipeline.NewIdentifiedIndex("bleve", bleveIndex):         0.4,
+		pipeline.NewIdentifiedIndex("sqlitevec", sqlitevecIndex): 0.6,
 	}
 
 	pipelinedIndex := pipeline.NewIndex(

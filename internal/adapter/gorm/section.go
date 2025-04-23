@@ -83,6 +83,7 @@ func (w *wrappedSection) Parent() model.Section {
 func (w *wrappedSection) Sections() []model.Section {
 	sections := make([]model.Section, 0, len(w.s.Sections))
 	for _, s := range w.s.Sections {
+		s.Document = w.s.Document
 		sections = append(sections, &wrappedSection{s})
 	}
 	return sections

@@ -1,6 +1,9 @@
 package model
 
-import "github.com/rs/xid"
+import (
+	"github.com/pkg/errors"
+	"github.com/rs/xid"
+)
 
 type SectionID string
 
@@ -18,6 +21,19 @@ type Section interface {
 	Start() int
 	End() int
 	Content() ([]byte, error)
+}
+
+func WalkSections(d interface{ Sections() []Section }, fn func(s Section) error) error {
+	sections := d.Sections()
+	for _, s := range sections {
+		if err := fn(s); err != nil {
+			return errors.WithStack(err)
+		}
+		if err := WalkSections(s, fn); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	return nil
 }
 
 func CountSections(d interface{ Sections() []Section }) int {

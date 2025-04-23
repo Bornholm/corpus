@@ -25,6 +25,8 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
+
 	file, fileHeader, err := r.FormFile("file")
 	if err != nil {
 		slog.ErrorContext(ctx, "could not read form file", slog.Any("error", errors.WithStack(err)))
