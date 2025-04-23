@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -17,6 +18,7 @@ import (
 	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
+	"github.com/rs/xid"
 )
 
 type DocumentManagerOptions struct {
@@ -49,6 +51,10 @@ type DocumentManager struct {
 	port.TaskManager
 	index port.Index
 	llm   llm.Client
+
+	tempDir           string
+	createTempDirErr  error
+	createTempDirOnce sync.Once
 }
 
 type DocumentManagerSearchOptions struct {
@@ -266,12 +272,13 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 
 	opts := NewDocumentManagerIndexFileOptions(funcs...)
 
-	tempDir, err := os.MkdirTemp("", "corpus-*")
+	tempDir, err := m.getDocumentTempDir()
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
 
-	path := filepath.Join(tempDir, "document")
+	ext := filepath.Ext(filename)
+	path := filepath.Join(tempDir, xid.New().String()+ext)
 
 	file, err := os.Create(path)
 	if err != nil {
@@ -291,13 +298,30 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 		opts:         opts,
 	}
 
-	taskCtx := log.WithAttrs(context.Background(), slog.String("filename", filename))
+	taskCtx := log.WithAttrs(context.Background(), slog.String("filename", filename), slog.String("filepath", path))
 
 	if err := m.TaskManager.Schedule(taskCtx, indexFileTask); err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	return taskID, nil
+}
+
+func (m *DocumentManager) getDocumentTempDir() (string, error) {
+	m.createTempDirOnce.Do(func() {
+		tmp, err := os.MkdirTemp("", "corpus-*")
+		if err != nil {
+			m.createTempDirErr = errors.WithStack(err)
+			return
+		}
+
+		m.tempDir = tmp
+	})
+	if m.createTempDirErr != nil {
+		return "", errors.WithStack(m.createTempDirErr)
+	}
+
+	return m.tempDir, nil
 }
 
 var ErrNotSupported = errors.New("not supported")
@@ -307,6 +331,12 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 	if !ok {
 		return errors.Errorf("unexpected task type '%T'", task)
 	}
+
+	defer func() {
+		if err := os.Remove(indexFileTask.path); err != nil && !errors.Is(err, os.ErrNotExist) {
+			slog.ErrorContext(ctx, "could not remove file", slog.Any("error", errors.WithStack(err)))
+		}
+	}()
 
 	var (
 		document *markdown.Document
@@ -335,7 +365,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.Wrapf(ErrNotSupported, "file extension '%s' is not supported by the file converter", ext)
 				}
 
-				events <- port.NewTaskEvent(port.WithTaskMessage("converting document"))
+				events <- port.NewTaskEvent(port.WithTaskMessage("converting document"), port.WithTaskProgress(0.01))
 
 				readCloser, err := m.fileConverter.Convert(ctx, indexFileTask.originalName, file)
 				if err != nil {

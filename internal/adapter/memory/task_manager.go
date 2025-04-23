@@ -104,6 +104,7 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 				}
 
 				slog.ErrorContext(ctx, "recovered panic while running task", slog.Any("error", errors.WithStack(err)))
+
 				m.updateState(taskID, func(s *port.TaskState) {
 					s.Error = errors.WithStack(err)
 					s.Status = port.TaskStatusFailed
@@ -155,8 +156,11 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 		slog.DebugContext(ctx, "executing task")
 
 		if err := handler.Handle(ctx, task, events); err != nil {
+			err = errors.WithStack(err)
+			slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
+
 			m.updateState(taskID, func(s *port.TaskState) {
-				s.Error = errors.WithStack(err)
+				s.Error = err
 				s.Status = port.TaskStatusFailed
 				s.FinishedAt = time.Now()
 			})

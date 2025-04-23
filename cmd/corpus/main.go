@@ -31,9 +31,11 @@ func main() {
 
 	logger := slog.New(log.ContextHandler{
 		Handler: slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.Level(conf.Logger.Level),
+			Level:     slog.Level(conf.Logger.Level),
+			AddSource: true,
 		}),
 	})
+
 	slog.SetDefault(logger)
 
 	slog.DebugContext(ctx, "using configuration", slog.Any("config", conf))

@@ -16,7 +16,7 @@ type FileConverter struct {
 
 // Convert implements port.FileConverter.
 func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reader) (io.ReadCloser, error) {
-	res, err := f.client.ExtractText(ctx, llm.WithReader(r))
+	res, err := f.client.ExtractText(ctx, llm.WithReader(r), llm.WithFilename(filename))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

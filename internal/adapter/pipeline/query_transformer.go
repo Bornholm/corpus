@@ -2,6 +2,8 @@ package pipeline
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/binary"
 	"log/slog"
 	"strings"
 
@@ -53,11 +55,17 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string)
 		return "", errors.WithStack(err)
 	}
 
+	seed, err := computeSeed(query)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
 	completion, err := t.llm.ChatCompletion(ctx,
 		llm.WithMessages(
 			llm.NewMessage(llm.RoleUser, prompt),
 		),
 		llm.WithTemperature(0.2),
+		llm.WithSeed(seed),
 	)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -84,3 +92,10 @@ func NewHyDEQueryTransformer(client llm.Client, store port.Store) *HyDEQueryTran
 }
 
 var _ QueryTransformer = &HyDEQueryTransformer{}
+
+func computeSeed(query string) (int, error) {
+	query = strings.ToLower(strings.TrimSpace(query))
+	sum := md5.Sum([]byte(query))
+	seed := binary.BigEndian.Uint32(sum[:])
+	return int(seed), nil
+}
