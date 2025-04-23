@@ -55,17 +55,19 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string)
 		return "", errors.WithStack(err)
 	}
 
-	seed, err := computeSeed(query)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
+	// seed, err := computeSeed(query)
+	// if err != nil {
+	// 	return "", errors.WithStack(err)
+	// }
+
+	// slog.DebugContext(ctx, "using seed", slog.Int("seed", seed))
 
 	completion, err := t.llm.ChatCompletion(ctx,
 		llm.WithMessages(
 			llm.NewMessage(llm.RoleUser, prompt),
 		),
 		llm.WithTemperature(0.2),
-		llm.WithSeed(seed),
+		//llm.WithSeed(seed),
 	)
 	if err != nil {
 		return "", errors.WithStack(err)
