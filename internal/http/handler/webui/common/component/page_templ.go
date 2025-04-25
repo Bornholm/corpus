@@ -206,21 +206,21 @@ func Page(funcs ...PageOptionFunc) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</b> | <a hx-disable href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</b> | <a hx-boost=\"false\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var9 templ.SafeURL = BaseURL(ctx, WithUser("log", "out"), WithPath("/logout"))
+				var templ_7745c5c3_Var9 templ.SafeURL = BaseURL(ctx, WithPath("/logout"))
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var9)))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\">[Se déconnecter]</a></p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" hx-on:click=\"logout.call(this, event)\">[Se déconnecter]</a></p><script type=\"text/javascript\">\n\t\t\t\t\t\t\t\tfunction logout(evt) {\n\t\t\t\t\t\t\t\t\tevt.preventDefault();\n\t\t\t\t\t\t\t\t\twindow.location = `${window.location.protocol}//${window.location.host}/logout`;\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t</script>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<p><a hx-disable href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<p><a hx-boost=\"false\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -229,7 +229,7 @@ func Page(funcs ...PageOptionFunc) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\">[Se connecter]</a></p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "\" hx-on:click=\"login.call(this, event)\">[Se connecter]</a></p><script type=\"text/javascript\">\n\t\t\t\t\t\t\t\tfunction login(evt) {\n\t\t\t\t\t\t\t\t\tevt.preventDefault();\n\t\t\t\t\t\t\t\t\twindow.location = `${window.location.protocol}//${window.location.host}/login`;\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t</script>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -251,7 +251,7 @@ func Page(funcs ...PageOptionFunc) templ.Component {
 			var templ_7745c5c3_Var11 string
 			templ_7745c5c3_Var11, templ_7745c5c3_Err = templ.JoinStringErrs(build.ShortVersion)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/common/component/page.templ`, Line: 94, Col: 112}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/common/component/page.templ`, Line: 106, Col: 112}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var11))
 			if templ_7745c5c3_Err != nil {

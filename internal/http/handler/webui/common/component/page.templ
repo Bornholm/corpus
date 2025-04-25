@@ -79,9 +79,21 @@ templ Page(funcs ...PageOptionFunc) {
 						{{ user := User(ctx) }}
 						<div class="has-text-right is-size-6 mt-3" style="padding:0 3rem">
 							if user != nil {
-								<p>Bonjour <b>{ user.Username() }</b> | <a hx-disable href={ BaseURL(ctx, WithUser("log", "out"), WithPath("/logout")) }>[Se déconnecter]</a></p>
+								<p>Bonjour <b>{ user.Username() }</b> | <a hx-boost="false" href={ BaseURL(ctx, WithPath("/logout")) } hx-on:click="logout.call(this, event)">[Se déconnecter]</a></p>
+								<script type="text/javascript">
+								function logout(evt) {
+									evt.preventDefault();
+									window.location = `${window.location.protocol}//${window.location.host}/logout`;
+								}
+								</script>
 							} else {
-								<p><a hx-disable href={ BaseURL(ctx, WithPath("/login")) }>[Se connecter]</a></p>
+								<p><a hx-boost="false" href={ BaseURL(ctx, WithPath("/login")) } hx-on:click="login.call(this, event)">[Se connecter]</a></p>
+								<script type="text/javascript">
+								function login(evt) {
+									evt.preventDefault();
+									window.location = `${window.location.protocol}//${window.location.host}/login`;
+								}
+								</script>
 							}
 						</div>
 					</div>
