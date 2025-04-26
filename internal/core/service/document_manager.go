@@ -547,7 +547,59 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 		return errors.WithStack(err)
 	}
 
-	events <- port.NewTaskEvent(port.WithTaskProgress(1))
+	events <- port.NewTaskEvent(port.WithTaskProgress(1), port.WithTaskMessage("done"))
+
+	return nil
+}
+
+func (m *DocumentManager) CleanupIndex(ctx context.Context) (port.TaskID, error) {
+	taskID := port.NewTaskID()
+
+	cleanupIndexTask := &cleanupIndexTask{
+		id: taskID,
+	}
+
+	if err := m.TaskManager.Schedule(ctx, cleanupIndexTask); err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return taskID, nil
+}
+
+func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
+	if _, ok := task.(*cleanupIndexTask); !ok {
+		return errors.Errorf("unexpected task type '%T'", task)
+	}
+
+	slog.DebugContext(ctx, "checking obsolete sections")
+
+	count := 0
+	err := m.index.All(ctx, func(id model.SectionID) bool {
+		count++
+		exists, err := m.Store.SectionExists(ctx, id)
+		if err != nil {
+			slog.ErrorContext(ctx, "could not check if section exists", slog.Any("error", errors.WithStack(err)))
+			return true
+		}
+
+		if exists {
+			return true
+		}
+
+		slog.InfoContext(ctx, "deleting obsolete section from index", slog.String("sectionID", string(id)))
+
+		if err := m.index.DeleteByID(ctx, id); err != nil {
+			slog.ErrorContext(ctx, "could not delete obsolete section", slog.Any("error", errors.WithStack(err)))
+			return true
+		}
+
+		return true
+	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	slog.DebugContext(ctx, "all sections checked", slog.Int64("total", int64(count)))
 
 	return nil
 }
@@ -565,6 +617,7 @@ func NewDocumentManager(store port.Store, index port.Index, taskManager port.Tas
 	}
 
 	taskManager.Register(indexFileTaskType, port.TaskHandlerFunc(documentManager.handleIndexFileTask))
+	taskManager.Register(cleanupIndexTaskType, port.TaskHandlerFunc(documentManager.handleCleanupIndexTask))
 
 	return documentManager
 }
@@ -586,6 +639,24 @@ func (i *indexFileTask) ID() port.TaskID {
 // Type implements port.Task.
 func (i *indexFileTask) Type() port.TaskType {
 	return indexFileTaskType
+}
+
+var _ port.Task = &indexFileTask{}
+
+const cleanupIndexTaskType port.TaskType = "cleanupIndex"
+
+type cleanupIndexTask struct {
+	id port.TaskID
+}
+
+// ID implements port.Task.
+func (i *cleanupIndexTask) ID() port.TaskID {
+	return i.id
+}
+
+// Type implements port.Task.
+func (i *cleanupIndexTask) Type() port.TaskType {
+	return cleanupIndexTaskType
 }
 
 var _ port.Task = &indexFileTask{}

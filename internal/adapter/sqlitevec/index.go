@@ -27,6 +27,35 @@ type Index struct {
 	model    string
 }
 
+// DeleteByID implements port.Index.
+func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
+	conn, err := i.getConn(ctx)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE section_id = ?;")
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	defer stmt.Close()
+
+	if err := stmt.BindText(1, string(id)); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := stmt.Exec(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := stmt.Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // DeleteBySource implements port.Index.
 func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 	conn, err := i.getConn(ctx)

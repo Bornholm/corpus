@@ -155,6 +155,8 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 
 		slog.DebugContext(ctx, "executing task")
 
+		start := time.Now()
+
 		if err := handler.Handle(ctx, task, events); err != nil {
 			err = errors.WithStack(err)
 			slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
@@ -166,6 +168,8 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 			})
 			return
 		}
+
+		slog.DebugContext(ctx, "task finished", slog.Duration("duration", time.Now().Sub(start)))
 
 		m.updateState(taskID, func(s *port.TaskState) {
 			s.Status = port.TaskStatusSucceeded

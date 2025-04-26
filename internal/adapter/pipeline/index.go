@@ -24,6 +24,63 @@ type Index struct {
 	indexes             WeightedIndexes
 }
 
+// DeleteByID implements port.Index.
+func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
+	count := len(i.indexes)
+	errs := make(chan error, count)
+	defer close(errs)
+
+	var wg sync.WaitGroup
+
+	wg.Add(count)
+
+	aggregatedErr := NewAggregatedError()
+
+	for index := range i.indexes {
+		go func(index *IdentifiedIndex) {
+			defer func() {
+				if r := recover(); r != nil {
+					if err, ok := r.(error); ok {
+						aggregatedErr.Add(errors.WithStack(err))
+					} else {
+						panic(r)
+					}
+				}
+			}()
+			defer wg.Done()
+
+			if err := index.Index().DeleteByID(ctx, id); err != nil {
+				errs <- errors.WithStack(err)
+				return
+			}
+
+			errs <- nil
+		}(index)
+	}
+
+	wg.Wait()
+
+	idx := 0
+
+	for e := range errs {
+		if e != nil {
+			aggregatedErr.Add(e)
+		}
+
+		if idx >= count-1 {
+			break
+		}
+
+		idx++
+	}
+
+	if aggregatedErr.Len() > 0 {
+		return errors.WithStack(aggregatedErr.OrOnlyOne())
+	}
+
+	return nil
+}
+
 type indexSearchResults struct {
 	Results []*port.IndexSearchResult
 	Index   *IdentifiedIndex

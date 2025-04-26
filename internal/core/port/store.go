@@ -15,6 +15,7 @@ var (
 type Store interface {
 	CountDocuments(ctx context.Context) (int64, error)
 	GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error)
+	SectionExists(ctx context.Context, id model.SectionID) (bool, error)
 	GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error)
 	SaveDocument(ctx context.Context, doc model.Document) error
 	DeleteDocumentBySource(ctx context.Context, source *url.URL) error

@@ -18,6 +18,15 @@ type Index struct {
 	index bleve.Index
 }
 
+// DeleteByID implements port.Index.
+func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
+	if err := i.index.Delete(string(id)); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // DeleteBySource implements port.Index.
 func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 	query := bleve.NewTermQuery(source.String())
@@ -117,10 +126,6 @@ func (i *Index) indexSection(ctx context.Context, section model.Section, onSecti
 
 func (i *Index) getIndexableResource(ctx context.Context, section model.Section) (string, map[string]any, error) {
 	source := section.Document().Source()
-	sectionID := func(u url.URL) *url.URL {
-		return &u
-	}(*source)
-	sectionID.Fragment = string(section.ID())
 
 	collections := slices.Collect(func(yield func(s string) bool) {
 		for _, c := range section.Document().Collections() {
@@ -139,7 +144,7 @@ func (i *Index) getIndexableResource(ctx context.Context, section model.Section)
 		return "", nil, nil
 	}
 
-	return sectionID.String(), map[string]any{
+	return string(section.ID()), map[string]any{
 		"_type":       "resource",
 		"content":     string(content),
 		"source":      source.String(),
@@ -167,6 +172,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 	req := bleve.NewSearchRequest(bleve.NewConjunctionQuery(queries...))
 
 	req.From = 0
+	req.Fields = []string{"source"}
 
 	if opts.MaxResults > 0 {
 		req.Size = opts.MaxResults
@@ -181,12 +187,17 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 	mappedSections := map[string][]model.SectionID{}
 
 	for _, r := range result.Hits {
-		source, err := url.Parse(r.ID)
+		rawSource, ok := r.Fields["source"].(string)
+		if !ok {
+			continue
+		}
+
+		source, err := url.Parse(rawSource)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 
-		sectionID := model.SectionID(source.Fragment)
+		sectionID := model.SectionID(r.ID)
 
 		source.Fragment = ""
 

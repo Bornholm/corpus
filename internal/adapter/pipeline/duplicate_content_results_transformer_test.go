@@ -89,6 +89,11 @@ type dummyStore struct {
 	sections map[model.SectionID]model.Section
 }
 
+// SectionExists implements port.Store.
+func (d *dummyStore) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
+	panic("unimplemented")
+}
+
 // GetDocumentByID implements port.Store.
 func (d *dummyStore) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error) {
 	panic("unimplemented")

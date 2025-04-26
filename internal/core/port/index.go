@@ -10,6 +10,8 @@ import (
 type Index interface {
 	Index(ctx context.Context, document model.Document, funcs ...IndexOptionFunc) error
 	DeleteBySource(ctx context.Context, source *url.URL) error
+	DeleteByID(ctx context.Context, id model.SectionID) error
+	All(ctx context.Context, yield func(model.SectionID) bool) error
 	Search(ctx context.Context, query string, opts IndexSearchOptions) ([]*IndexSearchResult, error)
 }
 

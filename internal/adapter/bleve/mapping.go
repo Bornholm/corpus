@@ -21,7 +21,7 @@ func IndexMapping() *mapping.IndexMappingImpl {
 
 	sourceFieldMapping := bleve.NewTextFieldMapping()
 	sourceFieldMapping.Analyzer = AnalyzerDynamicLang
-	sourceFieldMapping.Store = false
+	sourceFieldMapping.Store = true
 	sourceFieldMapping.IncludeTermVectors = true
 	resourceMapping.AddFieldMappingsAt("source", sourceFieldMapping)
 

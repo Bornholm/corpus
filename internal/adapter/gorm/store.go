@@ -21,6 +21,31 @@ type Store struct {
 	getDatabase func(ctx context.Context) (*gorm.DB, error)
 }
 
+// SectionExists implements port.Store.
+func (s *Store) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
+	var exists bool
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var count int64
+		if err := db.Model(&Section{}).Where("id = ?", string(id)).Count(&count).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WithStack(port.ErrNotFound)
+			}
+
+			return errors.WithStack(port.ErrNotFound)
+		}
+
+		exists = count > 0
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return false, errors.WithStack(err)
+	}
+
+	return exists, nil
+}
+
 // GetDocumentByID implements port.Store.
 func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error) {
 	var document Document
@@ -31,7 +56,7 @@ func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model
 				return errors.WithStack(port.ErrNotFound)
 			}
 
-			return errors.WithStack(err)
+			return errors.WithStack(port.ErrNotFound)
 		}
 
 		return nil
@@ -158,7 +183,7 @@ func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.S
 				return errors.WithStack(port.ErrNotFound)
 			}
 
-			return errors.WithStack(err)
+			return errors.WithStack(port.ErrNotFound)
 		}
 
 		return nil

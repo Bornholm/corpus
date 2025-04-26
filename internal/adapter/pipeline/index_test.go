@@ -42,6 +42,16 @@ type mockIndex struct {
 	indexErr error
 }
 
+// All implements port.Index.
+func (m *mockIndex) All(ctx context.Context, yield func(model.SectionID) bool) error {
+	panic("unimplemented")
+}
+
+// DeleteByID implements port.Index.
+func (m *mockIndex) DeleteByID(ctx context.Context, id model.SectionID) error {
+	panic("unimplemented")
+}
+
 // DeleteBySource implements port.Index.
 func (m *mockIndex) DeleteBySource(ctx context.Context, source *url.URL) error {
 	return nil
