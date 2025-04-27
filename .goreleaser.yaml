@@ -8,7 +8,7 @@ builds:
   - id: corpus-client
     targets: [go_first_class]
     mod_timestamp: "{{ .CommitTimestamp }}"
-    dir: ./cmd/cli
+    dir: ./cmd/client
     binary: corpus-client
     flags:
       - -trimpath
@@ -17,7 +17,7 @@ builds:
   - id: corpus-server
     targets: [go_first_class]
     mod_timestamp: "{{ .CommitTimestamp }}"
-    dir: ./cmd/corpus
+    dir: ./cmd/server
     binary: corpus-server
     flags:
       - -trimpath
