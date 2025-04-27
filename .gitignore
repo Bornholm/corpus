@@ -4,3 +4,4 @@
 *.sqlite*
 index.bleve
 /data
+/dist

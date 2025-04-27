@@ -2,6 +2,7 @@ package setup
 
 import (
 	"context"
+	"time"
 
 	"github.com/bornholm/corpus/internal/adapter/sqlitevec"
 	"github.com/bornholm/corpus/internal/config"
@@ -17,12 +18,12 @@ func NewSQLiteVecIndexFromConfig(ctx context.Context, conf *config.Config) (port
 		return nil, errors.WithStack(err)
 	}
 
-	db, err := sqlite3.Open(conf.Storage.Database.DSN)
+	db, err := sqlite3.Open(conf.Storage.SQLiteVec.DSN)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	if err := db.Exec("PRAGMA journal_mode=wal; PRAGMA foreign_keys=on; PRAGMA busy_timeout=30000"); err != nil {
+	if err := db.BusyTimeout(30 * time.Second); err != nil {
 		return nil, errors.WithStack(err)
 	}
 

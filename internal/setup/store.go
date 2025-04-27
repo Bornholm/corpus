@@ -21,15 +21,14 @@ var getStoreFromConfig = createFromConfigOnce(func(ctx context.Context, conf *co
 		return nil, errors.WithStack(err)
 	}
 
-	if err := db.Exec("PRAGMA journal_mode=wal").Error; err != nil {
+	internalDB, err := db.DB()
+	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	if err := db.Exec("PRAGMA foreign_keys=on").Error; err != nil {
-		return nil, errors.WithStack(err)
-	}
+	internalDB.SetMaxOpenConns(1)
 
-	if err := db.Exec("PRAGMA busy_timeout=30000").Error; err != nil {
+	if err := db.Exec("PRAGMA journal_mode=wal; PRAGMA foreign_keys=on; PRAGMA busy_timeout=30000").Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
 

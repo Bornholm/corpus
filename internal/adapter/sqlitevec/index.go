@@ -201,6 +201,10 @@ func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section mo
 
 	embeddingsID := stmt.ColumnInt(0)
 
+	if err := stmt.Close(); err != nil {
+		return errors.WithStack(err)
+	}
+
 	for _, coll := range section.Document().Collections() {
 		if err := i.insertCollection(ctx, conn, embeddingsID, coll.ID()); err != nil {
 			return errors.WithStack(err)
@@ -435,6 +439,11 @@ func createGetConn(conn *sqlite3.Conn) func(ctx context.Context) (*sqlite3.Conn,
 
 	return func(ctx context.Context) (*sqlite3.Conn, error) {
 		migrateOnce.Do(func() {
+			if err := conn.Exec("PRAGMA journal_mode=wal; PRAGMA foreign_keys=on; PRAGMA busy_timeout=30000"); err != nil {
+				migrateErr = errors.WithStack(err)
+				return
+			}
+
 			for _, sql := range migrations {
 				if err := conn.Exec(sql); err != nil {
 					migrateErr = errors.Wrapf(err, "could not execute migration '%s'", sql)

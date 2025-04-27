@@ -17,7 +17,7 @@ func getBleveIndexFromConfig(ctx context.Context, conf *config.Config) (port.Ind
 		err   error
 	)
 
-	stat, err := os.Stat(conf.Storage.Index.DSN)
+	stat, err := os.Stat(conf.Storage.Bleve.DSN)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, errors.WithStack(err)
 	}
@@ -25,12 +25,12 @@ func getBleveIndexFromConfig(ctx context.Context, conf *config.Config) (port.Ind
 	if stat == nil {
 		mapping := bleveAdapter.IndexMapping()
 
-		index, err = bleve.New(conf.Storage.Index.DSN, mapping)
+		index, err = bleve.New(conf.Storage.Bleve.DSN, mapping)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
 	} else {
-		index, err = bleve.Open(conf.Storage.Index.DSN)
+		index, err = bleve.Open(conf.Storage.Bleve.DSN)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}

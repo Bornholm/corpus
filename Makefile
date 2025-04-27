@@ -15,22 +15,26 @@ RELEASE_CHANNEL ?= $(shell git rev-parse --abbrev-ref HEAD)
 COMMIT_TIMESTAMP = $(shell git show -s --format=%ct)
 RELEASE_VERSION ?= $(shell TZ=Europe/Paris date -d "@$(COMMIT_TIMESTAMP)" +%Y.%-m.%-d)-$(RELEASE_CHANNEL).$(shell date -d "@${COMMIT_TIMESTAMP}" +%-H%M).$(shell git rev-parse --short HEAD)
 
+GORELEASER_ARGS ?= release --auto-snapshot --clean
+
 watch: tools/modd/bin/modd
 	tools/modd/bin/modd
 
 run-with-env: .env
 	( set -o allexport && source .env && set +o allexport && $(value CMD))
 
-build: generate
+build: build-server build-client
+
+build-%: generate
 	CGO_ENABLED=0 \
 		go build \
 			-ldflags "$(LDFLAGS)" \
 			-gcflags "$(GCFLAGS)" \
 			-asmflags "$(ASMFLAGS)" \
-			-o ./bin/corpus ./cmd/corpus
+			-o ./bin/$* ./cmd/$*
 
 purge:
-	rm -rf data.sqlite* index.bleve
+	rm -rf *.sqlite* index.bleve
 
 release:
 	git tag -a v$(RELEASE_VERSION) -m $(RELEASE_VERSION)
@@ -57,6 +61,13 @@ tools/act/bin/act:
 
 ci: tools/act/bin/act
 	tools/act/bin/act $(CI_EVENT)
+
+tools/goreleaser/bin/goreleaser:
+	mkdir -p tools/goreleaser/bin
+	GOBIN=$(PWD)/tools/goreleaser/bin go install github.com/goreleaser/goreleaser/v2@latest
+
+goreleaser: tools/goreleaser/bin/goreleaser
+	REPO_OWNER=$(shell whoami) tools/goreleaser/bin/goreleaser $(GORELEASER_ARGS)
 
 .env:
 	cp .env.dist .env

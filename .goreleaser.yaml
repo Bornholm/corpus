@@ -5,9 +5,20 @@ before:
     - go mod tidy
 
 builds:
-  - targets: [go_first_class]
+  - id: corpus-client
+    targets: [go_first_class]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    dir: ./cmd/cli
+    binary: corpus-client
+    flags:
+      - -trimpath
+    ldflags:
+      - -w -s -X 'github.com/bornholm/corpus/internal/build.ShortVersion={{ .Version }}' -X 'github.com/bornholm/corpus/internal/build.LongVersion={{ .Version }}'
+  - id: corpus-server
+    targets: [go_first_class]
     mod_timestamp: "{{ .CommitTimestamp }}"
     dir: ./cmd/corpus
+    binary: corpus-server
     flags:
       - -trimpath
     ldflags:
@@ -25,9 +36,21 @@ changelog:
 
 release:
   name_template: "v{{ .Version }}"
+
 dockers:
-  - use: docker
-    dockerfile: misc/docker/Dockerfile.goreleaser
+  - id: corpus-server
+    ids:
+      - corpus-server
+    use: docker
+    dockerfile: misc/docker/corpus-server.Dockerfile
     image_templates:
-      - ghcr.io/{{ tolower ( .Env.REPO_OWNER ) }}/corpus:{{ .Version }}
-      - ghcr.io/{{ tolower ( .Env.REPO_OWNER ) }}/corpus:latest
+      - ghcr.io/{{ tolower ( .Env.REPO_OWNER ) }}/corpus-server:{{ .Version }}
+      - ghcr.io/{{ tolower ( .Env.REPO_OWNER ) }}/corpus-server:latest
+  - id: corpus-client
+    ids:
+      - corpus-client
+    use: docker
+    dockerfile: misc/docker/corpus-client.Dockerfile
+    image_templates:
+      - ghcr.io/{{ tolower ( .Env.REPO_OWNER ) }}/corpus-client:{{ .Version }}
+      - ghcr.io/{{ tolower ( .Env.REPO_OWNER ) }}/corpus-client:latest
