@@ -3,6 +3,7 @@ package testsuite
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -23,7 +24,7 @@ func TestWatch(t *testing.T, dsn string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	expectedEvents := 3
+	var expectedEvents int64 = 3
 
 	err = backend.Mount(ctx, func(ctx context.Context, fs afero.Fs) error {
 		var handler filesystem.WatchHandlerFunc = func(ctx context.Context, w *watcher.Watcher, event filesystem.WatchEvent) error {
@@ -35,20 +36,20 @@ func TestWatch(t *testing.T, dsn string) {
 					t.Errorf("event.Path: expected '%v', got '%v'", e, g)
 				}
 
-				expectedEvents--
+				atomic.AddInt64(&expectedEvents, -1)
 
 			case "watched/2.txt":
 				switch event.Op.String() {
 
 				case "CREATE":
-					expectedEvents--
+					atomic.AddInt64(&expectedEvents, -1)
 
 				case "REMOVE":
 					if e, g := "watched/2.txt", event.OldPath; e != g {
 						t.Errorf("event.OldPath: expected '%v', got '%v'", e, g)
 					}
 
-					expectedEvents--
+					atomic.AddInt64(&expectedEvents, -1)
 
 				default:
 					t.Errorf("event.Op: expected 'CREATE' or 'REMOVE', got '%v'", event.Op.String())
@@ -56,7 +57,7 @@ func TestWatch(t *testing.T, dsn string) {
 
 			}
 
-			if expectedEvents <= 0 {
+			if atomic.LoadInt64(&expectedEvents) <= 0 {
 				cancel()
 			}
 
