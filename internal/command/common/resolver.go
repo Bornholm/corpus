@@ -12,6 +12,12 @@ import (
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 	"gopkg.in/yaml.v2"
+
+	// Import resolvers
+
+	_ "github.com/Bornholm/amatl/pkg/resolver/file"
+	_ "github.com/Bornholm/amatl/pkg/resolver/http"
+	_ "github.com/Bornholm/amatl/pkg/resolver/stdin"
 )
 
 func NewResolverSourceFromFlagFunc(flag string) func(cCtx *cli.Context) (altsrc.InputSourceContext, error) {
