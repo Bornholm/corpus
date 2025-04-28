@@ -3,6 +3,7 @@ package ask
 import (
 	"net/http"
 
+	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/authz"
 	"github.com/bornholm/genai/llm"
@@ -11,6 +12,7 @@ import (
 type Handler struct {
 	mux             *http.ServeMux
 	documentManager *service.DocumentManager
+	taskRunner      port.TaskRunner
 	llm             llm.Client
 }
 
@@ -19,10 +21,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager, llm llm.Client) *Handler {
+func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner) *Handler {
 	h := &Handler{
 		mux:             http.NewServeMux(),
 		documentManager: documentManager,
+		taskRunner:      taskRunner,
 		llm:             llm,
 	}
 

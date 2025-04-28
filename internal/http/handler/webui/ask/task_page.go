@@ -43,7 +43,7 @@ func (h *Handler) fillTaskPageViewModel(r *http.Request) (*component.TaskPageVMo
 func (h *Handler) fillTaskPageVModelTask(ctx context.Context, vmodel *component.TaskPageVModel, r *http.Request) error {
 	taskID := port.TaskID(r.PathValue("taskID"))
 
-	taskState, err := h.documentManager.TaskManager.State(ctx, taskID)
+	taskState, err := h.taskRunner.State(ctx, taskID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			return errors.WithStack(common.NewError(err.Error(), "La tâche n'a pas pu être trouvée.", http.StatusNotFound))

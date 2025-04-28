@@ -25,7 +25,7 @@ type TaskStateHeader struct {
 func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	headers, err := h.documentManager.TaskManager.List(ctx)
+	headers, err := h.taskRunner.List(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not list tasks", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -80,7 +80,7 @@ func (h *Handler) showTask(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	taskState, err := h.documentManager.TaskManager.State(ctx, taskID)
+	taskState, err := h.taskRunner.State(ctx, taskID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

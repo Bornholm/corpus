@@ -17,7 +17,7 @@ func (h *Handler) handleGenerateBackup(w http.ResponseWriter, r *http.Request) {
 
 	slog.DebugContext(ctx, "generating backup")
 
-	reader, err := h.documentManager.Backup(ctx)
+	reader, err := h.backupManager.Backup(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not restore backup", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -76,11 +76,15 @@ func (h *Handler) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.documentManager.RestoreBackup(ctx, decompressed); err != nil {
+	taskID, err := h.backupManager.RestoreBackup(ctx, decompressed)
+	if err != nil {
 		slog.ErrorContext(ctx, "could not restore backup", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	http.Error(w, http.StatusText(http.StatusNoContent), http.StatusNoContent)
+	baseURL := httpCtx.BaseURL(ctx)
+	taskURL := baseURL.JoinPath(fmt.Sprintf("/api/v1/tasks/%s", taskID))
+
+	http.Redirect(w, r, taskURL.String(), http.StatusSeeOther)
 }

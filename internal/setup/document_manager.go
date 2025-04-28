@@ -32,9 +32,9 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 		options = append(options, service.WithDocumentManagerFileConverter(fileConverter))
 	}
 
-	taskManager, err := getTaskManager(ctx, conf)
+	taskRunner, err := getTaskRunner(ctx, conf)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create task manager from config")
+		return nil, errors.Wrap(err, "could not create task runner from config")
 	}
 
 	llmClient, err := getLLMClientFromConfig(ctx, conf)
@@ -42,7 +42,7 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 		return nil, errors.Wrap(err, "could not create llm client from config")
 	}
 
-	documentManager := service.NewDocumentManager(store, index, taskManager, llmClient, options...)
+	documentManager := service.NewDocumentManager(store, index, taskRunner, llmClient, options...)
 
 	// Cleanup index every hour
 	go func() {

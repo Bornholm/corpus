@@ -80,7 +80,7 @@ func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, events chan Task
 	return f(ctx, task, events)
 }
 
-type TaskManager interface {
+type TaskRunner interface {
 	Schedule(ctx context.Context, task Task) error
 	State(ctx context.Context, id TaskID) (*TaskState, error)
 	List(ctx context.Context) ([]TaskStateHeader, error)

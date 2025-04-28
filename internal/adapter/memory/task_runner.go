@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type TaskManager struct {
+type TaskRunner struct {
 	runningMutex *sync.Mutex
 	runningCond  sync.Cond
 	running      bool
@@ -25,15 +25,15 @@ type TaskManager struct {
 	cleanupInterval time.Duration
 }
 
-// Run implements port.TaskManager.
-func (m *TaskManager) Run(ctx context.Context) error {
-	m.runningMutex.Lock()
-	m.running = true
-	m.runningCond.Broadcast()
-	m.runningMutex.Unlock()
+// Run implements port.TaskRunner.
+func (r *TaskRunner) Run(ctx context.Context) error {
+	r.runningMutex.Lock()
+	r.running = true
+	r.runningCond.Broadcast()
+	r.runningMutex.Unlock()
 
 	go func() {
-		ticker := time.NewTicker(m.cleanupInterval)
+		ticker := time.NewTicker(r.cleanupInterval)
 		for {
 			select {
 			case <-ctx.Done():
@@ -41,14 +41,14 @@ func (m *TaskManager) Run(ctx context.Context) error {
 			case <-ticker.C:
 				slog.DebugContext(ctx, "running task cleaner")
 
-				m.tasks.Range(func(id port.TaskID, state *port.TaskState) bool {
-					if state.FinishedAt.IsZero() || time.Now().After(state.FinishedAt.Add(m.cleanupDelay)) {
+				r.tasks.Range(func(id port.TaskID, state *port.TaskState) bool {
+					if state.FinishedAt.IsZero() || time.Now().After(state.FinishedAt.Add(r.cleanupDelay)) {
 						return true
 					}
 
 					slog.DebugContext(ctx, "deleting expired task", slog.String("taskID", string(id)))
 
-					m.tasks.Delete(id)
+					r.tasks.Delete(id)
 
 					return true
 				})
@@ -65,23 +65,23 @@ func (m *TaskManager) Run(ctx context.Context) error {
 	return nil
 }
 
-// List implements port.TaskManager.
-func (m *TaskManager) List(ctx context.Context) ([]port.TaskStateHeader, error) {
+// List implements port.TaskRunner.
+func (r *TaskRunner) List(ctx context.Context) ([]port.TaskStateHeader, error) {
 	headers := make([]port.TaskStateHeader, 0)
-	m.tasks.Range(func(id port.TaskID, state *port.TaskState) bool {
+	r.tasks.Range(func(id port.TaskID, state *port.TaskState) bool {
 		headers = append(headers, state.TaskStateHeader)
 		return true
 	})
 	return headers, nil
 }
 
-// Register implements port.TaskManager.
-func (m *TaskManager) Register(taskType port.TaskType, handler port.TaskHandler) {
-	m.handlers.Store(taskType, handler)
+// Register implements port.TaskRunner.
+func (r *TaskRunner) Register(taskType port.TaskType, handler port.TaskHandler) {
+	r.handlers.Store(taskType, handler)
 }
 
-// Schedule implements port.TaskManager.
-func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
+// Schedule implements port.TaskRunner.
+func (r *TaskRunner) Schedule(ctx context.Context, task port.Task) error {
 	taskID := task.ID()
 
 	ctx = log.WithAttrs(ctx,
@@ -89,7 +89,7 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 		slog.String("taskType", string(task.Type())),
 	)
 
-	m.updateState(taskID, func(s *port.TaskState) {
+	r.updateState(taskID, func(s *port.TaskState) {
 		s.ID = taskID
 		s.ScheduledAt = time.Now()
 		s.Status = port.TaskStatusPending
@@ -105,27 +105,27 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 
 				slog.ErrorContext(ctx, "recovered panic while running task", slog.Any("error", errors.WithStack(err)))
 
-				m.updateState(taskID, func(s *port.TaskState) {
+				r.updateState(taskID, func(s *port.TaskState) {
 					s.Error = errors.WithStack(err)
 					s.Status = port.TaskStatusFailed
 				})
 			}
 		}()
 
-		m.runningMutex.Lock()
-		if !m.running {
-			m.runningCond.Wait()
+		r.runningMutex.Lock()
+		if !r.running {
+			r.runningCond.Wait()
 		}
-		m.runningMutex.Unlock()
+		r.runningMutex.Unlock()
 
-		m.semaphore <- struct{}{}
+		r.semaphore <- struct{}{}
 		defer func() {
-			<-m.semaphore
+			<-r.semaphore
 		}()
 
-		handler, exists := m.handlers.Load(task.Type())
+		handler, exists := r.handlers.Load(task.Type())
 		if !exists {
-			m.updateState(taskID, func(s *port.TaskState) {
+			r.updateState(taskID, func(s *port.TaskState) {
 				s.Error = errors.Errorf("no handler registered for task type '%s'", task.Type())
 				s.Status = port.TaskStatusFailed
 			})
@@ -133,7 +133,7 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 			return
 		}
 
-		m.updateState(taskID, func(s *port.TaskState) {
+		r.updateState(taskID, func(s *port.TaskState) {
 			s.Status = port.TaskStatusRunning
 		})
 
@@ -142,7 +142,7 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 
 		go func() {
 			for e := range events {
-				m.updateState(taskID, func(s *port.TaskState) {
+				r.updateState(taskID, func(s *port.TaskState) {
 					if e.Progress != nil {
 						s.Progress = float32(max(min(*e.Progress, 1), 0))
 					}
@@ -161,7 +161,7 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 			err = errors.WithStack(err)
 			slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
 
-			m.updateState(taskID, func(s *port.TaskState) {
+			r.updateState(taskID, func(s *port.TaskState) {
 				s.Error = err
 				s.Status = port.TaskStatusFailed
 				s.FinishedAt = time.Now()
@@ -171,7 +171,7 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 
 		slog.DebugContext(ctx, "task finished", slog.Duration("duration", time.Now().Sub(start)))
 
-		m.updateState(taskID, func(s *port.TaskState) {
+		r.updateState(taskID, func(s *port.TaskState) {
 			s.Status = port.TaskStatusSucceeded
 			s.FinishedAt = time.Now()
 		})
@@ -179,8 +179,8 @@ func (m *TaskManager) Schedule(ctx context.Context, task port.Task) error {
 	return nil
 }
 
-func (m *TaskManager) updateState(taskID port.TaskID, fn func(s *port.TaskState)) {
-	state, _ := m.tasks.LoadOrStore(taskID, &port.TaskState{
+func (r *TaskRunner) updateState(taskID port.TaskID, fn func(s *port.TaskState)) {
+	state, _ := r.tasks.LoadOrStore(taskID, &port.TaskState{
 		TaskStateHeader: port.TaskStateHeader{
 			ID: taskID,
 		},
@@ -188,12 +188,12 @@ func (m *TaskManager) updateState(taskID port.TaskID, fn func(s *port.TaskState)
 
 	fn(state)
 
-	m.tasks.Store(taskID, state)
+	r.tasks.Store(taskID, state)
 }
 
-// State implements port.TaskManager.
-func (m *TaskManager) State(ctx context.Context, id port.TaskID) (*port.TaskState, error) {
-	state, exists := m.tasks.Load(id)
+// State implements port.TaskRunner.
+func (r *TaskRunner) State(ctx context.Context, id port.TaskID) (*port.TaskState, error) {
+	state, exists := r.tasks.Load(id)
 	if !exists {
 		return nil, errors.WithStack(port.ErrNotFound)
 	}
@@ -203,9 +203,9 @@ func (m *TaskManager) State(ctx context.Context, id port.TaskID) (*port.TaskStat
 	}(*state), nil
 }
 
-func NewTaskManager(parallelism int, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskManager {
+func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskRunner {
 	runningMutex := &sync.Mutex{}
-	return &TaskManager{
+	return &TaskRunner{
 		runningMutex:    runningMutex,
 		runningCond:     *sync.NewCond(runningMutex),
 		running:         false,
@@ -217,4 +217,4 @@ func NewTaskManager(parallelism int, cleanupDelay time.Duration, cleanupInterval
 	}
 }
 
-var _ port.TaskManager = &TaskManager{}
+var _ port.TaskRunner = &TaskRunner{}

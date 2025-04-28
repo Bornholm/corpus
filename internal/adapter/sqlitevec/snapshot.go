@@ -5,6 +5,8 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"io"
+	"log/slog"
+	"time"
 
 	"github.com/bornholm/corpus/internal/backup"
 	"github.com/bornholm/corpus/internal/core/model"
@@ -112,64 +114,128 @@ func (i *Index) RestoreSnapshot(ctx context.Context, r io.Reader) error {
 	}
 
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
-		if err := conn.Exec("DELETE FROM embeddings"); err != nil {
+		if err := conn.Exec("DELETE FROM embeddings;"); err != nil {
 			return errors.WithStack(err)
 		}
 
-		for {
-			var record SnapshottedRecord
-			if err := decoder.Decode(&record); err != nil {
-				if errors.Is(err, io.EOF) {
-					return nil
-				}
-
-				return errors.WithStack(err)
-			}
-
-			if err := i.restoreRecord(ctx, conn, record); err != nil {
-				return errors.WithStack(err)
-			}
-		}
+		return nil
 	}, sqlite3.LOCKED, sqlite3.BUSY)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	return nil
-}
+	batchSize := 1000
+	batch := make([]*SnapshottedRecord, 0, batchSize)
 
-func (i *Index) restoreRecord(ctx context.Context, conn *sqlite3.Conn, record SnapshottedRecord) error {
-	stmt, _, err := conn.Prepare("INSERT INTO embeddings ( source, section_id, embeddings ) VALUES (?, ?, ?) RETURNING id;")
-	if err != nil {
-		return errors.WithStack(err)
-	}
+	for {
+		var record SnapshottedRecord
+		if err := decoder.Decode(&record); err != nil {
+			if errors.Is(err, io.EOF) {
+				if len(batch) > 0 {
+					if err := i.restoreRecords(ctx, batch...); err != nil {
+						return errors.WithStack(err)
+					}
 
-	defer stmt.Close()
+					batch = nil
+				}
 
-	if err := stmt.BindText(1, record.Source); err != nil {
-		return errors.WithStack(err)
-	}
+				return nil
+			}
 
-	if err := stmt.BindText(2, record.SectionID); err != nil {
-		return errors.WithStack(err)
-	}
-
-	if err := stmt.BindBlob(3, record.Embeddings); err != nil {
-		return errors.WithStack(err)
-	}
-
-	stmt.Step()
-
-	if err := stmt.Err(); err != nil {
-		return errors.WithStack(err)
-	}
-
-	embeddingsID := stmt.ColumnInt(0)
-
-	for _, collectionID := range record.Collections {
-		if err := i.insertCollection(ctx, conn, embeddingsID, model.CollectionID(collectionID)); err != nil {
 			return errors.WithStack(err)
 		}
+
+		batch = append(batch, &record)
+
+		if len(batch) >= batchSize {
+			if err := i.restoreRecords(ctx, batch...); err != nil {
+				return errors.WithStack(err)
+			}
+
+			batch = nil
+		}
+
+	}
+}
+
+func (i *Index) restoreRecords(ctx context.Context, records ...*SnapshottedRecord) error {
+	start := time.Now()
+	defer func() {
+		slog.DebugContext(ctx, "restored record batch", slog.Any("batchSize", len(records)), slog.Duration("duration", time.Now().Sub(start)))
+	}()
+
+	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
+
+		restoreRecord := func(record *SnapshottedRecord) error {
+			deleteStmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE source = ? and section_id = ?;")
+			if err != nil {
+				return errors.WithStack(err)
+			}
+
+			defer deleteStmt.Close()
+
+			if err := deleteStmt.BindText(1, record.Source); err != nil {
+				return errors.WithStack(err)
+			}
+
+			if err := deleteStmt.BindText(2, record.SectionID); err != nil {
+				return errors.WithStack(err)
+			}
+
+			if err := deleteStmt.Exec(); err != nil {
+				return errors.WithStack(err)
+			}
+
+			if err := deleteStmt.Close(); err != nil {
+				return errors.WithStack(err)
+			}
+
+			insertStmt, _, err := conn.Prepare("INSERT INTO embeddings ( source, section_id, embeddings ) VALUES (?, ?, ?) RETURNING id;")
+			if err != nil {
+				return errors.WithStack(err)
+			}
+
+			defer insertStmt.Close()
+
+			if err := insertStmt.BindText(1, record.Source); err != nil {
+				return errors.WithStack(err)
+			}
+
+			if err := insertStmt.BindText(2, record.SectionID); err != nil {
+				return errors.WithStack(err)
+			}
+
+			if err := insertStmt.BindBlob(3, record.Embeddings); err != nil {
+				return errors.WithStack(err)
+			}
+
+			insertStmt.Step()
+
+			if err := insertStmt.Err(); err != nil {
+				return errors.WithStack(err)
+			}
+
+			embeddingsID := insertStmt.ColumnInt(0)
+
+			for _, collectionID := range record.Collections {
+				if err := i.insertCollection(ctx, conn, embeddingsID, model.CollectionID(collectionID)); err != nil {
+					return errors.WithStack(err)
+				}
+			}
+
+			return nil
+		}
+
+		for _, r := range records {
+			if err := restoreRecord(r); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return errors.WithStack(err)
 	}
 
 	return nil

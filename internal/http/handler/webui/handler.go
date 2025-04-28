@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
@@ -20,10 +21,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager, llm llm.Client) *Handler {
+func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner) *Handler {
 	mux := http.NewServeMux()
 
-	mount(mux, "/", ask.NewHandler(documentManager, llm))
+	mount(mux, "/", ask.NewHandler(documentManager, llm, taskRunner))
 	mount(mux, "/docs/", swagger.NewHandler())
 	mount(mux, "/assets/", common.NewHandler())
 

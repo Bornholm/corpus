@@ -140,7 +140,7 @@ func (d *dummyStore) QueryDocuments(ctx context.Context, opts port.QueryDocument
 }
 
 // SaveDocument implements port.Store.
-func (d *dummyStore) SaveDocument(ctx context.Context, doc model.Document) error {
+func (d *dummyStore) SaveDocuments(ctx context.Context, documents ...model.Document) error {
 	panic("unimplemented")
 }
 

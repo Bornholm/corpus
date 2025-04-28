@@ -19,6 +19,11 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		return nil, errors.Wrap(err, "could not configure api handler from config")
 	}
 
+	taskRunner, err := getTaskRunner(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create task runner from config")
+	}
+
 	documentManager, err := getDocumentManager(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create index from config")
@@ -38,7 +43,7 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 			return nil, errors.Wrap(err, "could not create llm client from config")
 		}
 
-		options = append(options, http.WithMount("/", webui.NewHandler(documentManager, llm)))
+		options = append(options, http.WithMount("/", webui.NewHandler(documentManager, llm, taskRunner)))
 	}
 
 	users := []http.User{}

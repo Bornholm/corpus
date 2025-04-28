@@ -16,7 +16,7 @@ type Collection struct {
 	Label       string
 	Description string
 
-	Documents []*Document `gorm:"many2many:documents_collections;"`
+	Documents []*Document `gorm:"many2many:documents_collections;constraint:OnDelete:CASCADE"`
 }
 
 type wrappedCollection struct {

@@ -12,7 +12,7 @@ type Config struct {
 	LLM           LLM           `envPrefix:"LLM_"`
 	WebUI         WebUI         `envPrefix:"WEBUI_"`
 	FileConverter FileConverter `envPrefix:"FILE_CONVERTER_"`
-	TaskManager   TaskManager   `envPrefix:"TASK_MANAGER_"`
+	TaskRunner    TaskRunner    `envPrefix:"TASK_RUNNER_"`
 }
 
 func Parse() (*Config, error) {

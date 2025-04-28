@@ -223,22 +223,41 @@ func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section mo
 }
 
 func (i *Index) insertCollection(ctx context.Context, conn *sqlite3.Conn, embeddingsID int, collectionID model.CollectionID) error {
-	stmt, _, err := conn.Prepare("INSERT INTO embeddings_collections ( embeddings_id, collection_id ) VALUES (?, ?);")
+	deleteStmt, _, err := conn.Prepare("DELETE FROM embeddings_collections WHERE embeddings_id = ? and collection_id = ?;")
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	defer stmt.Close()
+	defer deleteStmt.Close()
 
-	if err := stmt.BindInt(1, embeddingsID); err != nil {
+	if err := deleteStmt.BindInt(1, embeddingsID); err != nil {
 		return errors.WithStack(err)
 	}
 
-	if err := stmt.BindText(2, string(collectionID)); err != nil {
+	if err := deleteStmt.BindText(2, string(collectionID)); err != nil {
 		return errors.WithStack(err)
 	}
 
-	if err := stmt.Exec(); err != nil {
+	if err := deleteStmt.Exec(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	insertStmt, _, err := conn.Prepare("INSERT INTO embeddings_collections ( embeddings_id, collection_id ) VALUES (?, ?);")
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	defer insertStmt.Close()
+
+	if err := insertStmt.BindInt(1, embeddingsID); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := insertStmt.BindText(2, string(collectionID)); err != nil {
+		return errors.WithStack(err)
+	}
+
+	if err := insertStmt.Exec(); err != nil {
 		return errors.WithStack(err)
 	}
 

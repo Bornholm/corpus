@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/gob"
 	"io"
+	"log/slog"
 	"net/url"
 	"slices"
 
@@ -76,20 +77,38 @@ func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 func (s *Store) RestoreSnapshot(ctx context.Context, r io.Reader) error {
 	decoder := gob.NewDecoder(r)
 
+	slog.DebugContext(ctx, "restoring snapshotted documents")
+	defer slog.DebugContext(ctx, "snapshotted documents restored")
+
+	batchSize := 1000
+	batch := make([]model.Document, 0, batchSize)
+
 	for {
 		var doc SnapshottedDocument
 		if err := decoder.Decode(&doc); err != nil {
 			if errors.Is(err, io.EOF) {
+				if len(batch) > 0 {
+					if err := s.SaveDocuments(ctx, batch...); err != nil {
+						return errors.WithStack(err)
+					}
+				}
+
 				return nil
 			}
 
 			return errors.WithStack(err)
 		}
 
-		if err := s.SaveDocument(ctx, &snapshottedDocumentWrapper{doc}); err != nil {
-			return errors.WithStack(err)
+		batch = append(batch, &snapshottedDocumentWrapper{doc})
+		if len(batch) >= batchSize {
+			if err := s.SaveDocuments(ctx, batch...); err != nil {
+				return errors.WithStack(err)
+			}
+
+			batch = nil
 		}
 	}
+
 }
 
 var _ backup.Snapshotable = &Store{}

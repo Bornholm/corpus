@@ -2,7 +2,6 @@ package gorm
 
 import (
 	"context"
-	"database/sql"
 	"log/slog"
 	"net/url"
 	"slices"
@@ -226,55 +225,47 @@ func (s *Store) DeleteDocumentBySource(ctx context.Context, source *url.URL) err
 
 // QueryDocuments implements port.Store.
 func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.Document, int64, error) {
-	db, err := s.getDatabase(ctx)
-	if err != nil {
-		return nil, 0, errors.WithStack(err)
-	}
+	var (
+		documents []*Document
+		total     int64
+	)
 
-	tx := db.Begin()
-	defer func() {
-		if err := tx.Rollback().Error; err != nil && !errors.Is(err, sql.ErrTxDone) {
-			slog.ErrorContext(ctx, "could not rollback transaction", slog.Any("error", errors.WithStack(err)))
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		limit := 10
+		if opts.Limit != nil {
+			limit = *opts.Limit
 		}
-	}()
 
-	var documents []*Document
+		page := 0
+		if opts.Page != nil {
+			page = *opts.Page
+		}
 
-	limit := 10
-	if opts.Limit != nil {
-		limit = *opts.Limit
-	}
+		if err := db.Model(&Document{}).Count(&total).Error; err != nil {
+			return errors.WithStack(err)
+		}
 
-	page := 0
-	if opts.Page != nil {
-		page = *opts.Page
-	}
+		query := db.Limit(limit).Offset(page * limit)
 
-	var total int64
+		if !opts.HeaderOnly {
+			query = query.Preload(clause.Associations).Preload("Sections", preloadSections)
+		} else {
+			query = query.Select("ID", "CreatedAt", "UpdatedAt", "Source")
+		}
 
-	if err := db.Model(&Document{}).Count(&total).Error; err != nil {
-		return nil, 0, errors.WithStack(err)
-	}
+		if err := query.Find(&documents).Error; err != nil {
+			return errors.WithStack(err)
+		}
 
-	query := db.Limit(limit).Offset(page * limit)
-
-	if !opts.HeaderOnly {
-		query = query.Preload(clause.Associations).Preload("Sections", preloadSections)
-	} else {
-		query = query.Select("ID", "CreatedAt", "UpdatedAt", "Source")
-	}
-
-	if err := query.Find(&documents).Error; err != nil {
-		return nil, 0, errors.WithStack(err)
+		return nil
+	}, sqlite3.BUSY, sqlite3.LOCKED)
+	if err != nil {
+		return nil, total, errors.WithStack(err)
 	}
 
 	wrappedDocuments := make([]model.Document, 0, len(documents))
 	for _, d := range documents {
 		wrappedDocuments = append(wrappedDocuments, &wrappedDocument{d})
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		return nil, 0, errors.WithStack(err)
 	}
 
 	return wrappedDocuments, total, nil
@@ -284,32 +275,34 @@ func preloadSections(db *gorm.DB) *gorm.DB {
 	return db.Preload("Sections", preloadSections)
 }
 
-// SaveDocument implements port.Store.
-func (s *Store) SaveDocument(ctx context.Context, doc model.Document) error {
+// SaveDocuments implements port.Store.
+func (s *Store) SaveDocuments(ctx context.Context, documents ...model.Document) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		source := doc.Source()
-		if source == nil {
-			return errors.WithStack(ErrMissingSource)
-		}
+		for _, doc := range documents {
+			source := doc.Source()
+			if source == nil {
+				return errors.WithStack(ErrMissingSource)
+			}
 
-		var existing Document
-		if err := db.First(&existing, "source = ?", source.String()).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return errors.WithStack(err)
-		}
-
-		if existing.ID != "" {
-			if err := db.Select(clause.Associations).Delete(&existing).Error; err != nil {
+			var existing Document
+			if err := db.First(&existing, "source = ?", source.String()).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(err)
 			}
-		}
 
-		document, err := fromDocument(doc)
-		if err != nil {
-			return errors.WithStack(err)
-		}
+			if existing.ID != "" {
+				if err := db.Delete(&existing).Error; err != nil {
+					return errors.WithStack(err)
+				}
+			}
 
-		if res := db.Create(document); res.Error != nil {
-			return errors.WithStack(res.Error)
+			document, err := fromDocument(doc)
+			if err != nil {
+				return errors.WithStack(err)
+			}
+
+			if res := db.Create(document); res.Error != nil {
+				return errors.WithStack(res.Error)
+			}
 		}
 
 		return nil

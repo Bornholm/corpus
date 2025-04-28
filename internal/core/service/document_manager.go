@@ -8,14 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sync"
 
-	"github.com/bornholm/corpus/internal/backup"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/markdown"
 	"github.com/bornholm/corpus/internal/metrics"
+	"github.com/bornholm/corpus/internal/util"
 	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
@@ -48,82 +47,13 @@ func NewDocumentManagerOptions(funcs ...DocumentManagerOptionFunc) *DocumentMana
 }
 
 type DocumentManager struct {
+	port.Store
+
 	maxWordPerSection int
 	fileConverter     port.FileConverter
-	port.Store
-	port.TaskManager
-	index port.Index
-	llm   llm.Client
-
-	tempDir           string
-	createTempDirErr  error
-	createTempDirOnce sync.Once
-}
-
-func (m *DocumentManager) Backup(ctx context.Context) (io.ReadCloser, error) {
-	snapshotable := m.getCompositeSnapshotable()
-
-	reader, err := snapshotable.GenerateSnapshot(ctx)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	return reader, nil
-}
-
-func (m *DocumentManager) RestoreBackup(ctx context.Context, r io.Reader) error {
-	snapshotable := m.getCompositeSnapshotable()
-
-	if err := snapshotable.RestoreSnapshot(ctx, r); err != nil {
-		return errors.WithStack(err)
-	}
-
-	restorable := m.getRestorables()
-
-	page := 0
-	limit := 100
-	for {
-		documents, _, err := m.Store.QueryDocuments(ctx, port.QueryDocumentsOptions{Page: &page, Limit: &limit})
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
-		if len(documents) == 0 {
-			return nil
-		}
-
-		for _, r := range restorable {
-			if err := r.RestoreDocuments(ctx, documents); err != nil {
-				return errors.WithStack(err)
-			}
-		}
-
-		page++
-	}
-}
-
-func (m *DocumentManager) getCompositeSnapshotable() *backup.Composite {
-	snapshotables := make([]backup.IdentifiedSnapshotable, 0)
-
-	if snapshotableIndex, ok := m.index.(backup.Snapshotable); ok {
-		snapshotables = append(snapshotables, backup.WithSnapshotID("index-v1", snapshotableIndex))
-	}
-
-	if snapshotableStore, ok := m.Store.(backup.Snapshotable); ok {
-		snapshotables = append(snapshotables, backup.WithSnapshotID("store-v1", snapshotableStore))
-	}
-
-	return backup.ComposeSnapshots(snapshotBoundary, snapshotables...)
-}
-
-func (m *DocumentManager) getRestorables() []Restorable {
-	restorables := make([]Restorable, 0)
-
-	if restorableIndex, ok := m.index.(Restorable); ok {
-		restorables = append(restorables, restorableIndex)
-	}
-
-	return restorables
+	index             port.Index
+	llm               llm.Client
+	taskRunner        port.TaskRunner
 }
 
 type DocumentManagerSearchOptions struct {
@@ -341,7 +271,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 
 	opts := NewDocumentManagerIndexFileOptions(funcs...)
 
-	tempDir, err := m.getDocumentTempDir()
+	tempDir, err := util.TempDir()
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
@@ -369,28 +299,11 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 
 	taskCtx := log.WithAttrs(context.Background(), slog.String("filename", filename), slog.String("filepath", path))
 
-	if err := m.TaskManager.Schedule(taskCtx, indexFileTask); err != nil {
+	if err := m.taskRunner.Schedule(taskCtx, indexFileTask); err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	return taskID, nil
-}
-
-func (m *DocumentManager) getDocumentTempDir() (string, error) {
-	m.createTempDirOnce.Do(func() {
-		tmp, err := os.MkdirTemp("", "corpus-*")
-		if err != nil {
-			m.createTempDirErr = errors.WithStack(err)
-			return
-		}
-
-		m.tempDir = tmp
-	})
-	if m.createTempDirErr != nil {
-		return "", errors.WithStack(m.createTempDirErr)
-	}
-
-	return m.tempDir, nil
 }
 
 var ErrNotSupported = errors.New("not supported")
@@ -504,7 +417,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 			func(ctx context.Context) error {
 				events <- port.NewTaskEvent(port.WithTaskMessage("saving document"))
 
-				if err := m.SaveDocument(ctx, document); err != nil {
+				if err := m.SaveDocuments(ctx, document); err != nil {
 					return errors.WithStack(err)
 				}
 
@@ -559,7 +472,7 @@ func (m *DocumentManager) CleanupIndex(ctx context.Context) (port.TaskID, error)
 		id: taskID,
 	}
 
-	if err := m.TaskManager.Schedule(ctx, cleanupIndexTask); err != nil {
+	if err := m.taskRunner.Schedule(ctx, cleanupIndexTask); err != nil {
 		return "", errors.WithStack(err)
 	}
 
@@ -604,20 +517,20 @@ func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.
 	return nil
 }
 
-func NewDocumentManager(store port.Store, index port.Index, taskManager port.TaskManager, llm llm.Client, funcs ...DocumentManagerOptionFunc) *DocumentManager {
+func NewDocumentManager(store port.Store, index port.Index, taskRunner port.TaskRunner, llm llm.Client, funcs ...DocumentManagerOptionFunc) *DocumentManager {
 	opts := NewDocumentManagerOptions(funcs...)
 
 	documentManager := &DocumentManager{
 		maxWordPerSection: opts.MaxWordPerSection,
 		Store:             store,
-		TaskManager:       taskManager,
+		taskRunner:        taskRunner,
 		index:             index,
 		fileConverter:     opts.FileConverter,
 		llm:               llm,
 	}
 
-	taskManager.Register(indexFileTaskType, port.TaskHandlerFunc(documentManager.handleIndexFileTask))
-	taskManager.Register(cleanupIndexTaskType, port.TaskHandlerFunc(documentManager.handleCleanupIndexTask))
+	taskRunner.Register(indexFileTaskType, port.TaskHandlerFunc(documentManager.handleIndexFileTask))
+	taskRunner.Register(cleanupIndexTaskType, port.TaskHandlerFunc(documentManager.handleCleanupIndexTask))
 
 	return documentManager
 }

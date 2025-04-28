@@ -15,14 +15,14 @@ type Section struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Document   *Document
-	DocumentID string `gorm:"primaryKey;autoIncrement:false"`
+	Document   *Document `gorm:"constraint:OnDelete:CASCADE"`
+	DocumentID string    `gorm:"primaryKey;autoIncrement:false"`
 
 	Parent           *Section
 	ParentID         *string
 	ParentDocumentID *string
 
-	Sections []*Section `gorm:"foreignKey:ParentID,ParentDocumentID"`
+	Sections []*Section `gorm:"foreignKey:ParentID,ParentDocumentID;constraint:OnDelete:CASCADE"`
 
 	Branch *Branch
 	Level  uint

@@ -11,11 +11,11 @@ import (
 )
 
 func TestTaskManager(t *testing.T) {
-	tm := NewTaskManager(10, 24*time.Hour, time.Minute)
+	tr := NewTaskRunner(10, 24*time.Hour, time.Minute)
 
 	var executed atomic.Int64
 
-	tm.Register("dummy", port.TaskHandlerFunc(func(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
+	tr.Register("dummy", port.TaskHandlerFunc(func(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
 		t.Logf("[%s] start", task.ID())
 		events <- port.NewTaskEvent(port.WithTaskProgress(0.1))
 		events <- port.NewTaskEvent(port.WithTaskProgress(0.5))
@@ -35,10 +35,10 @@ func TestTaskManager(t *testing.T) {
 			id: port.NewTaskID(),
 		}
 		t.Logf("Scheduling task %s", task.ID())
-		tm.Schedule(ctx, task)
+		tr.Schedule(ctx, task)
 	}
 
-	if err := tm.Run(ctx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+	if err := tr.Run(ctx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		t.Errorf("%+v", errors.WithStack(err))
 	}
 
@@ -48,7 +48,7 @@ func TestTaskManager(t *testing.T) {
 		t.Logf("executed: expected %d, got %d", e, g)
 	}
 
-	taskHeaders, err := tm.List(ctx)
+	taskHeaders, err := tr.List(ctx)
 	if err != nil {
 		t.Fatalf("%+v", errors.WithStack(err))
 	}
@@ -58,7 +58,7 @@ func TestTaskManager(t *testing.T) {
 	}
 
 	for _, header := range taskHeaders {
-		state, err := tm.State(ctx, header.ID)
+		state, err := tr.State(ctx, header.ID)
 		if err != nil {
 			t.Fatalf("%+v", errors.WithStack(err))
 		}

@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	setup.TaskManager.Register("memory", func(u *url.URL) (port.TaskManager, error) {
+	setup.TaskRunner.Register("memory", func(u *url.URL) (port.TaskRunner, error) {
 		parallelism := 100
 		if rawValue := u.Query().Get("parallelism"); rawValue != "" {
 			v, err := strconv.ParseInt(rawValue, 10, 32)
@@ -39,6 +39,6 @@ func init() {
 			cleanupInterval = v
 		}
 
-		return NewTaskManager(parallelism, cleanupDelay, cleanupInterval), nil
+		return NewTaskRunner(parallelism, cleanupDelay, cleanupInterval), nil
 	})
 }

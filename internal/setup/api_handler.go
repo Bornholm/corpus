@@ -14,7 +14,17 @@ func getAPIHandlerFromConfig(ctx context.Context, conf *config.Config) (*api.Han
 		return nil, errors.WithStack(err)
 	}
 
-	handler := api.NewHandler(documentManager)
+	backupManager, err := getBackupManager(ctx, conf)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	taskRunner, err := getTaskRunner(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create task runner from config")
+	}
+
+	handler := api.NewHandler(documentManager, backupManager, taskRunner)
 
 	return handler, nil
 }

@@ -12,21 +12,21 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var TaskManager = NewRegistry[port.TaskManager]()
+var TaskRunner = NewRegistry[port.TaskRunner]()
 
-var getTaskManager = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.TaskManager, error) {
-	taskManager, err := TaskManager.From(conf.TaskManager.URI)
+var getTaskRunner = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.TaskRunner, error) {
+	taskRunner, err := TaskRunner.From(conf.TaskRunner.URI)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not retrieve file converter for uri '%s'", conf.TaskManager.URI)
+		return nil, errors.Wrapf(err, "could not retrieve task runner for uri '%s'", conf.TaskRunner.URI)
 	}
 
 	go func() {
-		taskManagerCtx := context.Background()
+		taskRunnerCtx := context.Background()
 		backoff := time.Second
 		for {
 			start := time.Now()
-			if err := taskManager.Run(taskManagerCtx); err != nil {
-				slog.ErrorContext(taskManagerCtx, "error while running task manager", slog.Any("error", errors.WithStack(err)))
+			if err := taskRunner.Run(taskRunnerCtx); err != nil {
+				slog.ErrorContext(taskRunnerCtx, "error while running task runner", slog.Any("error", errors.WithStack(err)))
 			}
 			time.Sleep(backoff)
 			if time.Now().Sub(start) > backoff/2 {
@@ -42,7 +42,7 @@ var getTaskManager = createFromConfigOnce(func(ctx context.Context, conf *config
 		ticker := time.NewTicker(30 * time.Second)
 		ctx := context.Background()
 		for {
-			tasks, err := taskManager.List(ctx)
+			tasks, err := taskRunner.List(ctx)
 			if err != nil {
 				slog.ErrorContext(ctx, "could not list tasks", slog.Any("error", errors.WithStack(err)))
 				continue
@@ -68,5 +68,5 @@ var getTaskManager = createFromConfigOnce(func(ctx context.Context, conf *config
 		}
 	}()
 
-	return taskManager, nil
+	return taskRunner, nil
 })
