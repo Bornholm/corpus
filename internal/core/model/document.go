@@ -20,6 +20,7 @@ func NewDocumentID() DocumentID {
 type Document interface {
 	ID() DocumentID
 	Source() *url.URL
+	ETag() string
 	Collections() []Collection
 	Sections() []Section
 	Content() ([]byte, error)

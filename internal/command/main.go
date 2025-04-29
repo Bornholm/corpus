@@ -6,8 +6,8 @@ import (
 	"os"
 	"sort"
 
-	"github.com/Bornholm/amatl/pkg/log"
 	"github.com/bornholm/corpus/internal/build"
+	"github.com/bornholm/corpus/internal/log"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
@@ -43,7 +43,7 @@ func Main(name string, usage string, commands ...*cli.Command) {
 
 			logger := slog.New(log.ContextHandler{
 				Handler: slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-					Level:     slogLevel,
+					Level:     slog.Level(slogLevel),
 					AddSource: true,
 				}),
 			})

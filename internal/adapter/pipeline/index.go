@@ -196,6 +196,8 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 				defer opts.OnProgress(1)
 			}
 
+			slog.DebugContext(indexCtx, "indexing document")
+
 			if err := index.Index().Index(indexCtx, document, indexOptions...); err != nil {
 				err = errors.WithStack(err)
 				slog.ErrorContext(indexCtx, "could not index document", slog.Any("error", err))

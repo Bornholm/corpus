@@ -28,9 +28,10 @@ type Store interface {
 }
 
 type QueryDocumentsOptions struct {
-	Page       *int
-	Limit      *int
-	HeaderOnly bool
+	Page           *int
+	Limit          *int
+	HeaderOnly     bool
+	MatchingSource *url.URL
 }
 
 type QueryCollectionsOptions struct {

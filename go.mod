@@ -7,7 +7,7 @@ require (
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.0.0-00010101000000-000000000000
 	github.com/blevesearch/bleve/v2 v2.5.0
-	github.com/bornholm/genai v0.0.0-20250422143458-87ccc7b15d17
+	github.com/bornholm/genai v0.0.0-20250425135303-28535c8c5653
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/docker v28.1.1+incompatible

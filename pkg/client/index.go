@@ -16,6 +16,7 @@ import (
 
 type IndexOptions struct {
 	Collections []string
+	ETag        string
 	Source      *url.URL
 }
 
@@ -33,6 +34,12 @@ func WithIndexSource(source *url.URL) IndexOptionFunc {
 	}
 }
 
+func WithIndexETag(etag string) IndexOptionFunc {
+	return func(opts *IndexOptions) {
+		opts.ETag = etag
+	}
+}
+
 func NewIndexOptions(funcs ...IndexOptionFunc) *IndexOptions {
 	opts := &IndexOptions{
 		Collections: make([]string, 0),
@@ -45,7 +52,7 @@ func NewIndexOptions(funcs ...IndexOptionFunc) *IndexOptions {
 	return opts
 }
 
-func (c *Client) Index(ctx context.Context, filename string, r io.Reader, funcs ...IndexOptionFunc) (*api.Task, error) {
+func (c *Client) Index(ctx context.Context, filename string, r io.Reader, funcs ...IndexOptionFunc) (*Task, error) {
 	opts := NewIndexOptions(funcs...)
 
 	var body bytes.Buffer
@@ -72,6 +79,12 @@ func (c *Client) Index(ctx context.Context, filename string, r io.Reader, funcs 
 		}
 	}
 
+	if opts.ETag != "" {
+		if err := form.WriteField("etag", opts.ETag); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+
 	if err := form.Close(); err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -81,14 +94,14 @@ func (c *Client) Index(ctx context.Context, filename string, r io.Reader, funcs 
 	header := http.Header{}
 	header.Set("Content-Type", form.FormDataContentType())
 
-	if err := c.jsonRequest("POST", "/index", header, &body, &taskResponse); err != nil {
+	if err := c.jsonRequest(ctx, "POST", "/index", header, &body, &taskResponse); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	return taskResponse.Task, nil
 }
 
-func (c *Client) IndexFile(ctx context.Context, path string, funcs ...IndexOptionFunc) (*api.Task, error) {
+func (c *Client) IndexFile(ctx context.Context, path string, funcs ...IndexOptionFunc) (*Task, error) {
 	filename := filepath.Base(path)
 
 	file, err := os.Open(path)

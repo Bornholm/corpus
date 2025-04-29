@@ -10,6 +10,7 @@ import (
 
 type Document struct {
 	ID          string `gorm:"primaryKey;autoIncrement:false"`
+	ETag        string `gorm:"index"`
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Source      string        `gorm:"unique;not null;index"`
@@ -20,6 +21,11 @@ type Document struct {
 
 type wrappedDocument struct {
 	d *Document
+}
+
+// ETag implements model.Document.
+func (w *wrappedDocument) ETag() string {
+	return w.d.ETag
 }
 
 // Chunk implements model.Document.
@@ -80,6 +86,7 @@ func fromDocument(d model.Document) (*Document, error) {
 
 	document := &Document{
 		ID:          string(d.ID()),
+		ETag:        d.ETag(),
 		Source:      d.Source().String(),
 		Collections: make([]*Collection, 0, len(d.Collections())),
 		Sections:    make([]*Section, 0, len(d.Sections())),

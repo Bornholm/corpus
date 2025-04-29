@@ -26,6 +26,7 @@ const (
 
 type TaskStateHeader struct {
 	ID          TaskID
+	Type        TaskType
 	ScheduledAt time.Time
 	Status      TaskStatus
 }

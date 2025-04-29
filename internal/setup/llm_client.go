@@ -2,7 +2,6 @@ package setup
 
 import (
 	"context"
-	"time"
 
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/metrics"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/bornholm/genai/llm/provider"
 	_ "github.com/bornholm/genai/llm/provider/openai"
+	"github.com/bornholm/genai/llm/ratelimit"
 )
 
 var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (llm.Client, error) {
@@ -36,7 +36,7 @@ var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf
 	}
 
 	if conf.LLM.Provider.RateLimit != 0 {
-		client = NewRateLimitedClient(client, conf.LLM.Provider.RateLimit)
+		client = ratelimit.NewClient(client, conf.LLM.Provider.RateLimit, 1)
 	}
 
 	return NewInstrumentedClient(client, conf.LLM.Provider.ChatCompletionModel, conf.LLM.Provider.EmbeddingsModel), nil
@@ -145,12 +145,3 @@ func (r *RateLimitedClient) Embeddings(ctx context.Context, input string, funcs 
 	}
 	return r.client.Embeddings(ctx, input, funcs...)
 }
-
-func NewRateLimitedClient(client llm.Client, minDelay time.Duration) *RateLimitedClient {
-	return &RateLimitedClient{
-		limiter: rate.NewLimiter(rate.Every(minDelay), 1),
-		client:  client,
-	}
-}
-
-var _ llm.Client = &RateLimitedClient{}

@@ -2,8 +2,10 @@ package watch
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -77,7 +79,7 @@ func Command() *cli.Command {
 					return errors.WithStack(err)
 				}
 
-				collections, err := getIndexCollections(dsn)
+				collections, err := getCorpusCollections(dsn)
 				if err != nil {
 					return errors.Wrapf(err, "could not retrieve collections from dsn '%s'", dsn)
 				}
@@ -112,12 +114,12 @@ func Command() *cli.Command {
 	}
 }
 
-func getIndexCollections(dsn *url.URL) ([]string, error) {
+func getCorpusCollections(dsn *url.URL) ([]string, error) {
 	query := dsn.Query()
 
 	collections := make([]string, 0)
 
-	if rawCollections := query.Get("watchCollections"); rawCollections != "" {
+	if rawCollections := query.Get("corpusCollections"); rawCollections != "" {
 		colls := strings.Split(rawCollections, ",")
 		collections = append(collections, colls...)
 	}
@@ -228,23 +230,45 @@ func (i *filesystemIndexer) Handle(ctx context.Context, w *watcher.Watcher, even
 
 	switch event.Op {
 	case watcher.Create:
-		if err := i.indexFile(ctx, event.Path); err != nil {
+		if err := i.indexFile(ctx, event.Path, event.FileInfo); err != nil {
 			slog.ErrorContext(ctx, "could not index file", slog.Any("error", errors.WithStack(err)), slog.String("path", event.Path))
 			return nil
 		}
 
 	case watcher.Remove:
+		// TODO
 
 	case watcher.Write:
+		// TODO
 
 	case watcher.Rename:
+		// TODO
 
 	}
 
 	return nil
 }
 
-func (i *filesystemIndexer) indexFile(ctx context.Context, path string) error {
+func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
+	ctx = log.WithAttrs(ctx, slog.String("file", path))
+
+	source := &url.URL{
+		Scheme: "file",
+		Path:   filepath.Clean(strings.ReplaceAll(path, " ", "_")),
+	}
+
+	etag := fmt.Sprintf("modtime-%d", fileInfo.ModTime().Unix())
+
+	documents, _, err := i.client.QueryDocuments(ctx, client.WithQueryDocumentsSource(source))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	if len(documents) > 0 && documents[0].ETag == etag {
+		slog.InfoContext(ctx, "document already indexed, skipping", slog.String("etag", etag))
+		return nil
+	}
+
 	file, err := i.fs.Open(path)
 	if err != nil {
 		return errors.WithStack(err)
@@ -252,28 +276,24 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string) error {
 
 	defer file.Close()
 
-	source := &url.URL{
-		Scheme: "file",
-		Path:   filepath.Clean(strings.ReplaceAll(path, " ", "_")),
-	}
-
-	ctx = log.WithAttrs(ctx, slog.String("file", path))
-
-	slog.InfoContext(ctx, "indexing new file")
+	slog.InfoContext(ctx, "indexing new document")
 
 	task, err := i.client.Index(
 		ctx,
 		filepath.Base(path), file,
 		client.WithIndexSource(source),
 		client.WithIndexCollections(i.collections...),
+		client.WithIndexETag(etag),
 	)
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
+	ctx = log.WithAttrs(ctx, slog.String("taskID", string(task.ID)))
+
 	slog.InfoContext(ctx, "waiting for indexation to complete")
 
-	task, err = i.client.WaitFor(task.ID)
+	task, err = i.client.WaitFor(ctx, task.ID)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -282,7 +302,7 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string) error {
 		return errors.Errorf("indexation failed: %s (%s)", task.Error, task.Message)
 	}
 
-	slog.InfoContext(ctx, "indexation suceeded")
+	slog.InfoContext(ctx, "indexation succeeded")
 
 	return nil
 }

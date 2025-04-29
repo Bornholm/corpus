@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
 
 	"github.com/bornholm/corpus/internal/core/model"
@@ -25,6 +26,7 @@ type ListDocumentsResponse struct {
 type DocumentHeader struct {
 	ID     string `json:"id"`
 	Source string `json:"source"`
+	ETag   string `json:"etag,omitempty"`
 }
 
 func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
@@ -34,10 +36,23 @@ func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	documents, total, err := h.documentManager.Store.QueryDocuments(ctx, port.QueryDocumentsOptions{
+	opts := port.QueryDocumentsOptions{
 		Page:  &page,
 		Limit: &limit,
-	})
+	}
+
+	if rawSource := query.Get("source"); rawSource != "" {
+		source, err := url.Parse(rawSource)
+		if err != nil {
+			slog.ErrorContext(ctx, "invalid source parameter", slog.Any("error", errors.WithStack(err)))
+			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+			return
+		}
+
+		opts.MatchingSource = source
+	}
+
+	documents, total, err := h.documentManager.Store.QueryDocuments(ctx, opts)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not query documents", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -54,6 +69,7 @@ func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 	for _, d := range documents {
 		res.Documents = append(res.Documents, DocumentHeader{
 			ID:     string(d.ID()),
+			ETag:   d.ETag(),
 			Source: d.Source().String(),
 		})
 	}

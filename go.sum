@@ -75,8 +75,8 @@ github.com/blevesearch/zapx/v15 v15.4.1 h1:B5IoTMUCEzFdc9FSQbhVOxAY+BO17c05866fN
 github.com/blevesearch/zapx/v15 v15.4.1/go.mod h1:b/MreHjYeQoLjyY2+UaM0hGZZUajEbE0xhnr1A2/Q6Y=
 github.com/blevesearch/zapx/v16 v16.2.3 h1:7Y0r+a3diEvlazsncexq1qoFOcBd64xwMS7aDm4lo1s=
 github.com/blevesearch/zapx/v16 v16.2.3/go.mod h1:wVJ+GtURAaRG9KQAMNYyklq0egV+XJlGcXNCE0OFjjA=
-github.com/bornholm/genai v0.0.0-20250422143458-87ccc7b15d17 h1:EgWnDP3HGjuEfQpjUuuJa5qFdMasFc8IROZFu6+y5aQ=
-github.com/bornholm/genai v0.0.0-20250422143458-87ccc7b15d17/go.mod h1:VsO1SyN+OWYGkzyaogVO8p336eW0mSEyb1fIAv34hro=
+github.com/bornholm/genai v0.0.0-20250425135303-28535c8c5653 h1:+Eb2xeKlXBhrq7DtR8a7Jfx/iHzHv/zwZz1RNposDhY=
+github.com/bornholm/genai v0.0.0-20250425135303-28535c8c5653/go.mod h1:X3RZWZ1b0fbuHSH7w28y2aeaIjCXGR1RQYyrNa0p5pw=
 github.com/caarlos0/env/v11 v11.3.1 h1:cArPWC15hWmEt+gWk7YBi7lEXTXCvpaSdCiZE2X5mCA=
 github.com/caarlos0/env/v11 v11.3.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=

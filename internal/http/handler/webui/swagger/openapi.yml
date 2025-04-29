@@ -23,13 +23,16 @@ paths:
                   default: ""
                 collection:
                   type: string
-                  description: The name of a collection to assign this file to
+                  description: The name of a collection to assign the document to (will be created automatically)
+                etag:
+                  type: string
+                  description: An ETag value to associate to the current document version
                   allowEmptyValue: true
                 file:
                   type: string
                   description: The file to index
                   format: binary
-              required: ["file", "source"]
+              required: ["file", "source", "collection"]
       responses:
         "200":
           description: Successful operation
@@ -189,6 +192,12 @@ paths:
             type: number
             min: 1
           description: Maximum number of results to return
+        - in: query
+          name: source
+          schema:
+            type: string
+            allowEmptyValue: true
+          description: Search for document with the given source URL
       responses:
         "200":
           description: Successful operation
@@ -281,7 +290,7 @@ paths:
         "403":
           description: Action forbidden to your level of authentication
         "404":
-          description: The document could not be found
+          description: The document or section could not be found
         "500":
           description: An unknown error occured
   /documents/{documentId}/sections/{sectionId}/content:
@@ -307,7 +316,7 @@ paths:
         "403":
           description: Action forbidden to your level of authentication
         "404":
-          description: The document could not be found
+          description: The document or section could not be found
         "500":
           description: An unknown error occured
 components:

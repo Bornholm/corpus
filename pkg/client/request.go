@@ -2,20 +2,32 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/pkg/errors"
 )
 
-func (c *Client) request(method string, path string, header http.Header, body io.Reader, result io.Writer) error {
-	url := c.baseURL.JoinPath("/api/v1", path)
+func (c *Client) request(ctx context.Context, method string, path string, header http.Header, body io.Reader, result io.Writer) error {
+	url, err := url.Parse(path)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	url.Scheme = c.baseURL.Scheme
+	url.Host = c.baseURL.Host
+	url.User = c.baseURL.User
+	url.Path = c.baseURL.JoinPath("/api/v1", url.Path).Path
 
 	req, err := http.NewRequest(method, url.String(), body)
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	req = req.WithContext(ctx)
 
 	req.Header = header
 
@@ -37,10 +49,10 @@ func (c *Client) request(method string, path string, header http.Header, body io
 	return nil
 }
 
-func (c *Client) jsonRequest(method string, path string, header http.Header, body io.Reader, result any) error {
+func (c *Client) jsonRequest(ctx context.Context, method string, path string, header http.Header, body io.Reader, result any) error {
 	var buff bytes.Buffer
 
-	if err := c.request(method, path, header, body, &buff); err != nil {
+	if err := c.request(ctx, method, path, header, body, &buff); err != nil {
 		return errors.WithStack(err)
 	}
 

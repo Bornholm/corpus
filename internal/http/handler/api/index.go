@@ -36,8 +36,7 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 
 	options := make([]service.DocumentManagerIndexFileOptionFunc, 0)
 
-	rawSource := r.FormValue("source")
-	if rawSource != "" {
+	if rawSource := r.FormValue("source"); rawSource != "" {
 		source, err := url.Parse(rawSource)
 		if err != nil {
 			slog.ErrorContext(ctx, "could not parse source url", slog.Any("error", errors.WithStack(err)))
@@ -46,6 +45,10 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 		}
 
 		options = append(options, service.WithDocumentManagerIndexFileSource(source))
+	}
+
+	if etag := r.FormValue("etag"); etag != "" {
+		options = append(options, service.WithDocumentManagerIndexFileETag(etag))
 	}
 
 	if collections, exists := r.Form["collection"]; exists {

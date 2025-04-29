@@ -239,6 +239,7 @@ func (m *DocumentManager) SupportedExtensions() []string {
 }
 
 type DocumentManagerIndexFileOptions struct {
+	ETag   string
 	Source *url.URL
 	// Names of the collection to associate with the document
 	Collections []string
@@ -255,6 +256,12 @@ func WithDocumentManagerIndexFileCollections(collections ...string) DocumentMana
 func WithDocumentManagerIndexFileSource(source *url.URL) DocumentManagerIndexFileOptionFunc {
 	return func(opts *DocumentManagerIndexFileOptions) {
 		opts.Source = source
+	}
+}
+
+func WithDocumentManagerIndexFileETag(etag string) DocumentManagerIndexFileOptionFunc {
+	return func(opts *DocumentManagerIndexFileOptions) {
+		opts.ETag = etag
 	}
 }
 
@@ -381,12 +388,18 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.Wrap(err, "could not parse document")
 				}
 
+				events <- port.NewTaskEvent(port.WithTaskMessage("document parsed"))
+
 				if indexFileTask.opts.Source != nil {
 					doc.SetSource(indexFileTask.opts.Source)
 				}
 
 				if doc.Source() == nil {
 					return errors.New("document source missing")
+				}
+
+				if indexFileTask.opts.ETag != "" {
+					doc.SetETag(indexFileTask.opts.ETag)
 				}
 
 				for _, name := range indexFileTask.opts.Collections {
@@ -421,7 +434,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.WithStack(err)
 				}
 
-				events <- port.NewTaskEvent(port.WithTaskProgress(0.2))
+				events <- port.NewTaskEvent(port.WithTaskProgress(0.2), port.WithTaskMessage("document saved"))
 
 				return nil
 			},
@@ -444,6 +457,8 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 				if err := m.index.Index(ctx, document, port.WithIndexOnProgress(onProgress)); err != nil {
 					return errors.WithStack(err)
 				}
+
+				events <- port.NewTaskEvent(port.WithTaskMessage("document indexed"))
 
 				return nil
 			},

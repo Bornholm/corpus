@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -33,7 +34,7 @@ func NewWaitForOptions(funcs ...WaitForOptionFunc) *WaitForOptions {
 	return opts
 }
 
-func (c *Client) WaitFor(taskID port.TaskID, funcs ...WaitForOptionFunc) (*api.Task, error) {
+func (c *Client) WaitFor(ctx context.Context, taskID port.TaskID, funcs ...WaitForOptionFunc) (*Task, error) {
 	opts := NewWaitForOptions(funcs...)
 
 	ticker := time.NewTicker(opts.PollInterval)
@@ -42,13 +43,18 @@ func (c *Client) WaitFor(taskID port.TaskID, funcs ...WaitForOptionFunc) (*api.T
 	endpoint := fmt.Sprintf("/tasks/%s", taskID)
 
 	for {
-		var res api.ShowTaskResponse
-		if err := c.jsonRequest("GET", endpoint, nil, nil, &res); err != nil {
-			return nil, errors.WithStack(err)
-		}
+		select {
+		case <-ctx.Done():
+			return nil, errors.WithStack(ctx.Err())
+		default:
+			var res api.ShowTaskResponse
+			if err := c.jsonRequest(ctx, "GET", endpoint, nil, nil, &res); err != nil {
+				return nil, errors.WithStack(err)
+			}
 
-		if !res.Task.FinishedAt.IsZero() {
-			return res.Task, nil
+			if res.Task.FinishedAt != nil && !res.Task.FinishedAt.IsZero() {
+				return res.Task, nil
+			}
 		}
 
 		<-ticker.C

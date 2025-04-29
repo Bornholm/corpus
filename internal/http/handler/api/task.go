@@ -20,6 +20,7 @@ type TaskStateHeader struct {
 	ID          port.TaskID     `json:"id"`
 	ScheduledAt time.Time       `json:"scheduledAt"`
 	Status      port.TaskStatus `json:"status"`
+	Type        port.TaskType   `json:"type"`
 }
 
 func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
@@ -38,7 +39,7 @@ func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
 
 	tasks := slices.Collect(func(yield func(TaskStateHeader) bool) {
 		for _, h := range headers {
-			if !yield(TaskStateHeader{ID: h.ID, ScheduledAt: h.ScheduledAt, Status: h.Status}) {
+			if !yield(TaskStateHeader{ID: h.ID, Type: h.Type, ScheduledAt: h.ScheduledAt, Status: h.Status}) {
 				return
 			}
 		}
@@ -68,9 +69,10 @@ type ShowTaskResponse struct {
 type Task struct {
 	ID          port.TaskID     `json:"id"`
 	Status      port.TaskStatus `json:"status"`
+	Type        port.TaskType   `json:"type"`
 	Progress    float32         `json:"progress"`
 	ScheduledAt time.Time       `json:"scheduledAt"`
-	FinishedAt  time.Time       `json:"finishedAt"`
+	FinishedAt  *time.Time      `json:"finishedAt,omitempty"`
 	Error       string          `json:"error,omitempty"`
 	Message     string          `json:"message"`
 }
@@ -96,11 +98,15 @@ func (h *Handler) showTask(w http.ResponseWriter, r *http.Request) {
 		Task: &Task{
 			ID:          taskID,
 			Status:      taskState.Status,
+			Type:        taskState.Type,
 			Progress:    taskState.Progress,
 			ScheduledAt: taskState.ScheduledAt,
-			FinishedAt:  taskState.FinishedAt,
 			Message:     taskState.Message,
 		},
+	}
+
+	if !taskState.FinishedAt.IsZero() {
+		res.Task.FinishedAt = &taskState.FinishedAt
 	}
 
 	if userFacingErr, ok := taskState.Error.(common.UserFacingError); ok {

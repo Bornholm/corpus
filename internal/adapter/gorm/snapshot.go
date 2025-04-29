@@ -55,6 +55,7 @@ func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 				err = encoder.Encode(SnapshottedDocument{
 					ID:          string(d.ID()),
 					Source:      d.Source().String(),
+					ETag:        d.ETag(),
 					Content:     content,
 					Collections: toSnapshottedCollections(d.Collections()),
 					Sections:    toSnapshottedSections(d.Sections()),
@@ -116,6 +117,7 @@ var _ backup.Snapshotable = &Store{}
 type SnapshottedDocument struct {
 	ID          string
 	Source      string
+	ETag        string
 	Content     []byte
 	Collections []SnapshottedCollection
 	Sections    []SnapshottedSection
@@ -123,6 +125,11 @@ type SnapshottedDocument struct {
 
 type snapshottedDocumentWrapper struct {
 	snapshot SnapshottedDocument
+}
+
+// ETag implements model.Document.
+func (w *snapshottedDocumentWrapper) ETag() string {
+	return w.snapshot.ETag
 }
 
 // Chunk implements model.Document.

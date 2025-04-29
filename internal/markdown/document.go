@@ -10,9 +10,19 @@ import (
 type Document struct {
 	data        []byte
 	id          model.DocumentID
+	etag        string
 	source      *url.URL
 	collections []model.Collection
 	sections    []*Section
+}
+
+// ETag implements model.Document.
+func (d *Document) ETag() string {
+	return d.etag
+}
+
+func (d *Document) SetETag(etag string) {
+	d.etag = etag
 }
 
 // Chunk implements model.Document.
@@ -58,10 +68,6 @@ func (c *Collection) ID() model.CollectionID {
 
 var _ model.Collection = &Collection{}
 
-func (d *Document) SetSource(source *url.URL) {
-	d.source = source
-}
-
 func (d *Document) AddCollection(coll model.Collection) {
 	d.collections = append(d.collections, coll)
 }
@@ -88,6 +94,10 @@ func (d *Document) Sections() []model.Section {
 // Source implements model.Document.
 func (d *Document) Source() *url.URL {
 	return d.source
+}
+
+func (d *Document) SetSource(source *url.URL) {
+	d.source = source
 }
 
 var _ model.Document = &Document{}

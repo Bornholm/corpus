@@ -17,7 +17,7 @@ type TaskRunner struct {
 	runningCond  sync.Cond
 	running      bool
 
-	tasks     syncx.Map[port.TaskID, *port.TaskState]
+	tasks     syncx.Map[port.TaskID, port.TaskState]
 	handlers  syncx.Map[port.TaskType, port.TaskHandler]
 	semaphore chan struct{}
 
@@ -41,7 +41,7 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 			case <-ticker.C:
 				slog.DebugContext(ctx, "running task cleaner")
 
-				r.tasks.Range(func(id port.TaskID, state *port.TaskState) bool {
+				r.tasks.Range(func(id port.TaskID, state port.TaskState) bool {
 					if state.FinishedAt.IsZero() || time.Now().After(state.FinishedAt.Add(r.cleanupDelay)) {
 						return true
 					}
@@ -68,7 +68,7 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 // List implements port.TaskRunner.
 func (r *TaskRunner) List(ctx context.Context) ([]port.TaskStateHeader, error) {
 	headers := make([]port.TaskStateHeader, 0)
-	r.tasks.Range(func(id port.TaskID, state *port.TaskState) bool {
+	r.tasks.Range(func(id port.TaskID, state port.TaskState) bool {
 		headers = append(headers, state.TaskStateHeader)
 		return true
 	})
@@ -93,6 +93,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task port.Task) error {
 		s.ID = taskID
 		s.ScheduledAt = time.Now()
 		s.Status = port.TaskStatusPending
+		s.Type = task.Type()
 	})
 
 	go func() {
@@ -174,19 +175,20 @@ func (r *TaskRunner) Schedule(ctx context.Context, task port.Task) error {
 		r.updateState(taskID, func(s *port.TaskState) {
 			s.Status = port.TaskStatusSucceeded
 			s.FinishedAt = time.Now()
+			s.Progress = 1
 		})
 	}()
 	return nil
 }
 
 func (r *TaskRunner) updateState(taskID port.TaskID, fn func(s *port.TaskState)) {
-	state, _ := r.tasks.LoadOrStore(taskID, &port.TaskState{
+	state, _ := r.tasks.LoadOrStore(taskID, port.TaskState{
 		TaskStateHeader: port.TaskStateHeader{
 			ID: taskID,
 		},
 	})
 
-	fn(state)
+	fn(&state)
 
 	r.tasks.Store(taskID, state)
 }
@@ -198,9 +200,7 @@ func (r *TaskRunner) State(ctx context.Context, id port.TaskID) (*port.TaskState
 		return nil, errors.WithStack(port.ErrNotFound)
 	}
 
-	return func(s port.TaskState) *port.TaskState {
-		return &s
-	}(*state), nil
+	return &state, nil
 }
 
 func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskRunner {
@@ -210,7 +210,7 @@ func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval 
 		runningCond:     *sync.NewCond(runningMutex),
 		running:         false,
 		semaphore:       make(chan struct{}, parallelism),
-		tasks:           syncx.Map[port.TaskID, *port.TaskState]{},
+		tasks:           syncx.Map[port.TaskID, port.TaskState]{},
 		handlers:        syncx.Map[port.TaskType, port.TaskHandler]{},
 		cleanupDelay:    cleanupDelay,
 		cleanupInterval: cleanupInterval,

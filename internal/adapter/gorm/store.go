@@ -55,7 +55,7 @@ func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model
 				return errors.WithStack(port.ErrNotFound)
 			}
 
-			return errors.WithStack(port.ErrNotFound)
+			return errors.WithStack(err)
 		}
 
 		return nil
@@ -93,21 +93,26 @@ func (s *Store) GetCollectionStats(ctx context.Context, id model.CollectionID) (
 
 // CreateCollection implements port.Store.
 func (s *Store) CreateCollection(ctx context.Context, name string) (model.Collection, error) {
-	db, err := s.getDatabase(ctx)
+	var collection model.Collection
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var coll Collection
+
+		err := db.Where("name = ?", name).
+			Attrs(&Collection{ID: string(model.NewCollectionID()), Name: name}).
+			FirstOrCreate(&coll).Error
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		collection = &wrappedCollection{&coll}
+
+		return nil
+	}, sqlite3.BUSY, sqlite3.LOCKED)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	collection := &Collection{
-		ID:   string(model.NewCollectionID()),
-		Name: name,
-	}
-
-	if err := db.Create(collection).Error; err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	return &wrappedCollection{collection}, nil
+	return collection, nil
 }
 
 // UpdateCollection implements port.Store.
@@ -182,7 +187,7 @@ func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.S
 				return errors.WithStack(port.ErrNotFound)
 			}
 
-			return errors.WithStack(port.ErrNotFound)
+			return errors.WithStack(err)
 		}
 
 		return nil
@@ -250,7 +255,11 @@ func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOpti
 		if !opts.HeaderOnly {
 			query = query.Preload(clause.Associations).Preload("Sections", preloadSections)
 		} else {
-			query = query.Select("ID", "CreatedAt", "UpdatedAt", "Source")
+			query = query.Select("ID", "CreatedAt", "UpdatedAt", "Source", "ETag")
+		}
+
+		if opts.MatchingSource != nil {
+			query = query.Where("source = ?", opts.MatchingSource.String())
 		}
 
 		if err := query.Find(&documents).Error; err != nil {
