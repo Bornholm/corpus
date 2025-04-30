@@ -2,6 +2,7 @@ package setup
 
 import (
 	"context"
+	"log/slog"
 
 	gormAdapter "github.com/bornholm/corpus/internal/adapter/gorm"
 	"github.com/bornholm/corpus/internal/config"
@@ -11,14 +12,33 @@ import (
 	_ "github.com/asg017/sqlite-vec-go-bindings/ncruces"
 	"github.com/ncruces/go-sqlite3/gormlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var getStoreFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.Store, error) {
 	dialector := gormlite.Open(conf.Storage.Database.DSN)
 
-	db, err := gorm.Open(dialector, &gorm.Config{})
+	var logLevel logger.LogLevel
+	switch slog.Level(conf.Logger.Level) {
+	case slog.LevelError:
+		logLevel = logger.Error
+	case slog.LevelWarn:
+		logLevel = logger.Warn
+	case slog.LevelInfo:
+		logLevel = logger.Info
+	default:
+		logLevel = logger.Error
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
+		Logger: logger.Default.LogMode(logLevel),
+	})
 	if err != nil {
 		return nil, errors.WithStack(err)
+	}
+
+	if slog.Level(conf.Logger.Level) == slog.LevelDebug {
+		db = db.Debug()
 	}
 
 	internalDB, err := db.DB()

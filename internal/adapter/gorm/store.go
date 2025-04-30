@@ -50,7 +50,7 @@ func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model
 	var document Document
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations).Preload("Sections").First(&document, "id = ?", id).Error; err != nil {
+		if err := db.Preload(clause.Associations).Preload("Sections", "parent_id is null").First(&document, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -182,7 +182,7 @@ func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.S
 	var section Section
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations).First(&section, "id = ?", id).Error; err != nil {
+		if err := db.Model(&section).Preload(clause.Associations).First(&section, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -320,7 +320,7 @@ func (s *Store) SaveDocuments(ctx context.Context, documents ...model.Document) 
 						return errors.WithStack(err)
 					}
 
-					if err := db.Model(&Section{}).Where("id = ?", ss.ID).Update("parent_id", s.ID).Error; err != nil {
+					if err := db.Model(&Section{}).Where("id = ?", ss.ID).Updates(map[string]any{"parent_id": s.ID, "parent_document_id": s.DocumentID}).Error; err != nil {
 						return errors.WithStack(err)
 					}
 				}
