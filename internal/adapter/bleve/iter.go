@@ -19,10 +19,14 @@ func (i *Index) All(ctx context.Context, yield func(model.SectionID) bool) error
 		return errors.WithStack(err)
 	}
 
+	defer reader.Close()
+
 	ids, err := reader.DocIDReaderAll()
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	defer ids.Close()
 
 	for {
 		internalID, err := ids.Next()

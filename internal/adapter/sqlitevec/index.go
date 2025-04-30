@@ -46,10 +46,6 @@ func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
 			return errors.WithStack(err)
 		}
 
-		if err := stmt.Err(); err != nil {
-			return errors.WithStack(err)
-		}
-
 		return nil
 	}, sqlite3.BUSY, sqlite3.LOCKED)
 	if err != nil {
@@ -74,10 +70,6 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 		}
 
 		if err := stmt.Exec(); err != nil {
-			return errors.WithStack(err)
-		}
-
-		if err := stmt.Err(); err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -271,11 +263,6 @@ func (i *Index) insertCollection(ctx context.Context, conn *sqlite3.Conn, embedd
 func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
 	var searchResults []*port.IndexSearchResult
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
-		conn, err := i.getConn(ctx)
-		if err != nil {
-			return errors.WithStack(err)
-		}
-
 		res, err := i.llm.Embeddings(ctx, query)
 		if err != nil {
 			return errors.WithStack(err)
@@ -431,6 +418,8 @@ func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn
 
 	for {
 		if err := execWithSavepoint(); err != nil {
+			slog.DebugContext(ctx, "transaction failed", slog.Any("error", errors.WithStack(err)))
+
 			if retries >= maxRetries {
 				return errors.WithStack(err)
 			}
@@ -441,7 +430,7 @@ func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn
 					return errors.WithStack(err)
 				}
 
-				slog.DebugContext(ctx, "transaction failed, will retry", slog.Int("retries", retries), slog.Duration("backoff", backoff), slog.Any("error", errors.WithStack(err)))
+				slog.DebugContext(ctx, "will retry transaction", slog.Int("retries", retries), slog.Duration("backoff", backoff))
 
 				retries++
 				time.Sleep(backoff)

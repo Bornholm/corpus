@@ -49,7 +49,11 @@ func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
 			}()
 			defer wg.Done()
 
-			if err := index.Index().DeleteByID(ctx, id); err != nil {
+			internalIndex := index.Index()
+
+			slog.DebugContext(ctx, "deleting indexed section", slog.String("indexType", fmt.Sprintf("%T", internalIndex)))
+
+			if err := internalIndex.DeleteByID(ctx, id); err != nil {
 				errs <- errors.WithStack(err)
 				return
 			}

@@ -514,12 +514,16 @@ func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.
 			return true
 		}
 
-		slog.InfoContext(ctx, "deleting obsolete section from index", slog.String("sectionID", string(id)))
+		deleteCtx := log.WithAttrs(ctx, slog.String("sectionID", string(id)))
 
-		if err := m.index.DeleteByID(ctx, id); err != nil {
-			slog.ErrorContext(ctx, "could not delete obsolete section", slog.Any("error", errors.WithStack(err)))
+		slog.InfoContext(deleteCtx, "deleting obsolete section from index")
+
+		if err := m.index.DeleteByID(deleteCtx, id); err != nil {
+			slog.ErrorContext(deleteCtx, "could not delete obsolete section", slog.Any("error", errors.WithStack(err)))
 			return true
 		}
+
+		slog.InfoContext(deleteCtx, "obsolete section deleted")
 
 		return true
 	})

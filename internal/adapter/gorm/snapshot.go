@@ -33,8 +33,9 @@ func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 		limit := 100
 		for {
 			documents, _, err := s.QueryDocuments(ctx, port.QueryDocumentsOptions{
-				Page:  &page,
-				Limit: &limit,
+				Page:       &page,
+				Limit:      &limit,
+				HeaderOnly: true,
 			})
 			if err != nil {
 				w.CloseWithError(errors.WithStack(err))
@@ -46,6 +47,12 @@ func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 			}
 
 			for _, d := range documents {
+				d, err := s.GetDocumentByID(ctx, d.ID())
+				if err != nil {
+					w.CloseWithError(errors.WithStack(err))
+					return
+				}
+
 				content, err := d.Content()
 				if err != nil {
 					w.CloseWithError(errors.WithStack(err))
@@ -81,7 +88,7 @@ func (s *Store) RestoreSnapshot(ctx context.Context, r io.Reader) error {
 	slog.DebugContext(ctx, "restoring snapshotted documents")
 	defer slog.DebugContext(ctx, "snapshotted documents restored")
 
-	batchSize := 1000
+	batchSize := 100
 	batch := make([]model.Document, 0, batchSize)
 
 	for {

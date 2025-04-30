@@ -31,7 +31,7 @@ func (s *Store) SectionExists(ctx context.Context, id model.SectionID) (bool, er
 				return errors.WithStack(port.ErrNotFound)
 			}
 
-			return errors.WithStack(port.ErrNotFound)
+			return errors.WithStack(err)
 		}
 
 		exists = count > 0
@@ -282,8 +282,8 @@ func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOpti
 
 // SaveDocuments implements port.Store.
 func (s *Store) SaveDocuments(ctx context.Context, documents ...model.Document) error {
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		for _, doc := range documents {
+	for _, doc := range documents {
+		err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 			source := doc.Source()
 			if source == nil {
 				return errors.WithStack(ErrMissingSource)
@@ -311,8 +311,14 @@ func (s *Store) SaveDocuments(ctx context.Context, documents ...model.Document) 
 
 			var createSection func(s *Section) error
 			createSection = func(s *Section) error {
-				if res := db.Omit("Sections", "Parent", "Document").Create(s); res.Error != nil {
-					return errors.WithStack(res.Error)
+				err := db.
+					Clauses(clause.OnConflict{
+						Columns:   []clause.Column{{Name: "id"}, {Name: "document_id"}},
+						UpdateAll: true,
+					}).
+					Omit("Sections", "Parent", "Document").Create(s).Error
+				if err != nil {
+					return errors.WithStack(err)
 				}
 
 				for _, ss := range s.Sections {
@@ -320,7 +326,15 @@ func (s *Store) SaveDocuments(ctx context.Context, documents ...model.Document) 
 						return errors.WithStack(err)
 					}
 
-					if err := db.Model(&Section{}).Where("id = ?", ss.ID).Updates(map[string]any{"parent_id": s.ID, "parent_document_id": s.DocumentID}).Error; err != nil {
+					err := db.Model(&Section{}).
+						Where("id = ?", ss.ID).
+						Updates(map[string]any{
+							"parent_id":          s.ID,
+							"document_id":        s.DocumentID,
+							"parent_document_id": s.DocumentID,
+						}).
+						Error
+					if err != nil {
 						return errors.WithStack(err)
 					}
 				}
@@ -334,23 +348,11 @@ func (s *Store) SaveDocuments(ctx context.Context, documents ...model.Document) 
 				}
 			}
 
-			appended := slices.Collect(func(yield func(any) bool) {
-				for _, s := range document.Sections {
-					if !yield(s) {
-						return
-					}
-				}
-			})
-
-			if err := db.Model(document).Association("Sections").Append(appended...); err != nil {
-				return errors.WithStack(err)
-			}
+			return nil
+		}, sqlite3.LOCKED, sqlite3.BUSY)
+		if err != nil {
+			return errors.WithStack(err)
 		}
-
-		return nil
-	}, sqlite3.LOCKED, sqlite3.BUSY)
-	if err != nil {
-		return errors.WithStack(err)
 	}
 
 	return nil
