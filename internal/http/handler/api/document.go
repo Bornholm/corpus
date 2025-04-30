@@ -37,8 +37,9 @@ func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	opts := port.QueryDocumentsOptions{
-		Page:  &page,
-		Limit: &limit,
+		Page:       &page,
+		Limit:      &limit,
+		HeaderOnly: true,
 	}
 
 	if rawSource := query.Get("source"); rawSource != "" {

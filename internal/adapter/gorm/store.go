@@ -50,7 +50,7 @@ func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model
 	var document Document
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations).Preload("Sections", preloadSections).First(&document, "id = ?", id).Error; err != nil {
+		if err := db.Preload(clause.Associations).Preload("Sections").First(&document, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -182,7 +182,7 @@ func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.S
 	var section Section
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations, preloadSections).First(&section, "id = ?", id).Error; err != nil {
+		if err := db.Preload(clause.Associations).First(&section, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -215,7 +215,7 @@ func (s *Store) DeleteDocumentBySource(ctx context.Context, source *url.URL) err
 			return errors.WithStack(err)
 		}
 
-		if err := db.Select(clause.Associations).Preload("Sections", preloadSections).Delete(&doc).Error; err != nil {
+		if err := db.Select(clause.Associations).Delete(&doc).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -253,9 +253,9 @@ func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOpti
 		query := db.Limit(limit).Offset(page * limit)
 
 		if !opts.HeaderOnly {
-			query = query.Preload(clause.Associations).Preload("Sections", preloadSections)
+			query = query.Preload(clause.Associations).Preload("Sections")
 		} else {
-			query = query.Select("ID", "CreatedAt", "UpdatedAt", "Source", "ETag")
+			query = query.Omit(clause.Associations).Select("ID", "CreatedAt", "UpdatedAt", "Source", "ETag")
 		}
 
 		if opts.MatchingSource != nil {
@@ -278,10 +278,6 @@ func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOpti
 	}
 
 	return wrappedDocuments, total, nil
-}
-
-func preloadSections(db *gorm.DB) *gorm.DB {
-	return db.Preload("Sections", preloadSections)
 }
 
 // SaveDocuments implements port.Store.
@@ -309,8 +305,45 @@ func (s *Store) SaveDocuments(ctx context.Context, documents ...model.Document) 
 				return errors.WithStack(err)
 			}
 
-			if res := db.Create(document); res.Error != nil {
+			if res := db.Omit("Sections").Create(document); res.Error != nil {
 				return errors.WithStack(res.Error)
+			}
+
+			var createSection func(s *Section) error
+			createSection = func(s *Section) error {
+				if res := db.Omit("Sections", "Parent", "Document").Create(s); res.Error != nil {
+					return errors.WithStack(res.Error)
+				}
+
+				for _, ss := range s.Sections {
+					if err := createSection(ss); err != nil {
+						return errors.WithStack(err)
+					}
+
+					if err := db.Model(&Section{}).Where("id = ?", ss.ID).Update("parent_id", s.ID).Error; err != nil {
+						return errors.WithStack(err)
+					}
+				}
+
+				return nil
+			}
+
+			for _, s := range document.Sections {
+				if err := createSection(s); err != nil {
+					return errors.WithStack(err)
+				}
+			}
+
+			appended := slices.Collect(func(yield func(any) bool) {
+				for _, s := range document.Sections {
+					if !yield(s) {
+						return
+					}
+				}
+			})
+
+			if err := db.Model(document).Association("Sections").Append(appended...); err != nil {
+				return errors.WithStack(err)
 			}
 		}
 
