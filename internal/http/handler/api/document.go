@@ -322,3 +322,18 @@ func (h *Handler) handleGetSectionContent(w http.ResponseWriter, r *http.Request
 		return
 	}
 }
+
+func (h *Handler) handleDeleteDocument(w http.ResponseWriter, r *http.Request) {
+	documentID := model.DocumentID(r.PathValue("documentID"))
+
+	ctx := r.Context()
+
+	err := h.documentManager.Store.DeleteDocumentByID(ctx, documentID)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not delete document", slog.Any("error", errors.WithStack(err)))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}

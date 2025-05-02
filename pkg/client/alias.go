@@ -1,6 +1,8 @@
 package client
 
-import "github.com/bornholm/corpus/internal/http/handler/api"
+import (
+	"github.com/bornholm/corpus/internal/http/handler/api"
+)
 
 type Task = api.Task
 type Document = api.Document

@@ -20,6 +20,31 @@ type Store struct {
 	getDatabase func(ctx context.Context) (*gorm.DB, error)
 }
 
+// DeleteDocumentByID implements port.Store.
+func (s *Store) DeleteDocumentByID(ctx context.Context, id model.DocumentID) error {
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var doc Document
+		if err := db.First(&doc, "id = ?", id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil
+			}
+
+			return errors.WithStack(err)
+		}
+
+		if err := db.Select(clause.Associations).Delete(&doc).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // SectionExists implements port.Store.
 func (s *Store) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
 	var exists bool

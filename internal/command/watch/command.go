@@ -19,6 +19,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"github.com/urfave/cli/v2/altsrc"
 
+	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
 	"github.com/bornholm/corpus/internal/command/common"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/filesystem"
@@ -30,6 +31,7 @@ import (
 
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/ftp"
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/local"
+	_ "github.com/bornholm/corpus/internal/filesystem/backend/minio"
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/sftp"
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/smb"
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/webdav"
@@ -182,10 +184,11 @@ func scrubbedURL(u *url.URL) string {
 }
 
 type filesystemIndexer struct {
-	client      *client.Client
-	collections []string
-	backend     filesystem.Backend
-	fs          afero.Fs
+	client              *client.Client
+	collections         []string
+	backend             filesystem.Backend
+	fs                  afero.Fs
+	indexFileDebouncers syncx.Map[string, func(fn func())]
 }
 
 func (i *filesystemIndexer) Watch(ctx context.Context, funcs ...filesystem.WatchOptionFunc) error {
@@ -197,6 +200,8 @@ func (i *filesystemIndexer) Watch(ctx context.Context, funcs ...filesystem.Watch
 	))
 
 	err := i.backend.Mount(ctx, func(ctx context.Context, fs afero.Fs) error {
+		slog.InfoContext(ctx, "filesystem mounted")
+
 		defer func() {
 			i.fs = nil
 		}()
@@ -228,6 +233,8 @@ func (i *filesystemIndexer) Handle(ctx context.Context, w *watcher.Watcher, even
 		return nil
 	}
 
+	ctx = log.WithAttrs(ctx, slog.String("file", event.Path), slog.String("oldPath", event.OldPath))
+
 	switch event.Op {
 	case watcher.Create:
 		if err := i.indexFile(ctx, event.Path, event.FileInfo); err != nil {
@@ -236,36 +243,53 @@ func (i *filesystemIndexer) Handle(ctx context.Context, w *watcher.Watcher, even
 		}
 
 	case watcher.Remove:
-		// TODO
+		if err := i.removeFile(ctx, event.Path, event.FileInfo); err != nil {
+			slog.ErrorContext(ctx, "could not remove file", slog.Any("error", errors.WithStack(err)), slog.String("path", event.Path))
+			return nil
+		}
 
 	case watcher.Write:
-		// TODO
+		i.indexFileDebounced(ctx, event.Path, event.FileInfo)
 
 	case watcher.Rename:
-		// TODO
+		if err := i.removeFile(ctx, event.OldPath, event.FileInfo); err != nil {
+			slog.ErrorContext(ctx, "could not remove file", slog.Any("error", errors.WithStack(err)), slog.String("path", event.Path))
+			return nil
+		}
+		if err := i.indexFile(ctx, event.Path, event.FileInfo); err != nil {
+			slog.ErrorContext(ctx, "could not index file", slog.Any("error", errors.WithStack(err)), slog.String("path", event.Path))
+			return nil
+		}
 
 	}
 
 	return nil
 }
 
+func (i *filesystemIndexer) indexFileDebounced(ctx context.Context, path string, fileInfo os.FileInfo) {
+	debounce, _ := i.indexFileDebouncers.LoadOrStore(path, debounced(time.Minute))
+
+	debounce(func() {
+		if err := i.indexFile(ctx, path, fileInfo); err != nil {
+			slog.ErrorContext(ctx, "could not index file", slog.Any("error", errors.WithStack(err)), slog.String("path", path))
+		}
+
+		i.indexFileDebouncers.Delete(path)
+	})
+}
+
 func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
-	ctx = log.WithAttrs(ctx, slog.String("file", path))
-
-	source := &url.URL{
-		Scheme: "file",
-		Path:   filepath.Clean(strings.ReplaceAll(path, " ", "_")),
-	}
-
-	etag := fmt.Sprintf("modtime-%d", fileInfo.ModTime().Unix())
+	source := i.getSource(path)
 
 	documents, _, err := i.client.QueryDocuments(ctx, client.WithQueryDocumentsSource(source))
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
+	etag := i.getETag(fileInfo)
+
 	if len(documents) > 0 && documents[0].ETag == etag {
-		slog.InfoContext(ctx, "document already indexed, skipping", slog.String("etag", etag))
+		slog.InfoContext(ctx, "document already indexed, skipping", slog.String("etag", etag), slog.String("source", source.String()))
 		return nil
 	}
 
@@ -307,4 +331,69 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo
 	return nil
 }
 
+func (i *filesystemIndexer) removeFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
+	source := i.getSource(path)
+
+	ctx = log.WithAttrs(ctx, slog.String("source", source.String()))
+
+	documents, _, err := i.client.QueryDocuments(ctx, client.WithQueryDocumentsSource(source))
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	if len(documents) == 0 {
+		slog.InfoContext(ctx, "document not found, skipping")
+		return nil
+	}
+
+	for _, d := range documents {
+		slog.InfoContext(ctx, "deleting document", slog.String("documentID", d.ID))
+
+		if err := i.client.DeleteDocument(ctx, d.ID); err != nil {
+			slog.ErrorContext(ctx, "could not delete document", slog.Any("error", errors.WithStack(err)))
+		}
+	}
+
+	return nil
+}
+
+func (i *filesystemIndexer) getSource(path string) *url.URL {
+	source := &url.URL{
+		Scheme: "file",
+		Path:   filepath.Clean(strings.ReplaceAll(path, " ", "_")),
+	}
+
+	return source
+}
+
+func (i *filesystemIndexer) getETag(fileInfo os.FileInfo) string {
+	return fmt.Sprintf("modtime-%d", fileInfo.ModTime().Unix())
+}
+
 var _ filesystem.WatchHandler = &filesystemIndexer{}
+
+type debouncer struct {
+	mutex sync.Mutex
+	timer *time.Timer
+	delay time.Duration
+}
+
+func debounced(delay time.Duration) func(fn func()) {
+	d := &debouncer{
+		delay: delay,
+	}
+
+	return func(fn func()) {
+		d.schedule(fn)
+	}
+}
+
+func (d *debouncer) schedule(f func()) {
+	d.mutex.Lock()
+	defer d.mutex.Unlock()
+
+	if d.timer != nil {
+		d.timer.Stop()
+	}
+	d.timer = time.AfterFunc(d.delay, f)
+}

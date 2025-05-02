@@ -19,6 +19,7 @@ type Store interface {
 	GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error)
 	SaveDocuments(ctx context.Context, documents ...model.Document) error
 	DeleteDocumentBySource(ctx context.Context, source *url.URL) error
+	DeleteDocumentByID(ctx context.Context, id model.DocumentID) error
 	QueryDocuments(ctx context.Context, opts QueryDocumentsOptions) ([]model.Document, int64, error)
 	GetCollectionByName(ctx context.Context, name string) (model.Collection, error)
 	QueryCollections(ctx context.Context, opts QueryCollectionsOptions) ([]model.Collection, error)

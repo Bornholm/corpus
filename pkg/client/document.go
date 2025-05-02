@@ -91,3 +91,17 @@ func (c *Client) QueryDocuments(ctx context.Context, funcs ...QueryDocumentsOpti
 
 	return res.Documents, res.Total, nil
 }
+
+func (c *Client) DeleteDocument(ctx context.Context, id string) error {
+	endpoint := &url.URL{
+		Path: "/documents",
+	}
+
+	endpoint = endpoint.JoinPath(id)
+
+	if err := c.request(ctx, "DELETE", endpoint.String(), nil, nil, nil); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}

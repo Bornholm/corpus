@@ -39,7 +39,7 @@ paths:
         "400":
           description: Request invalid or malformed
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "500":
           description: An unknown error occured
   /search:
@@ -74,7 +74,7 @@ paths:
         "400":
           description: Request invalid or malformed
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "500":
           description: An unknown error occured
   /ask:
@@ -104,7 +104,7 @@ paths:
         "400":
           description: Request invalid or malformed
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "500":
           description: An unknown error occured
   /tasks:
@@ -115,7 +115,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "500":
           description: An unknown error occured
   /tasks/{taskId}:
@@ -133,7 +133,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "404":
           description: The task could not be found
         "500":
@@ -146,7 +146,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "404":
           description: The task could not be found
         "500":
@@ -172,7 +172,7 @@ paths:
         "400":
           description: Request invalid or malformed
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "500":
           description: An unknown error occured
   /documents:
@@ -204,10 +204,27 @@ paths:
         "400":
           description: Request invalid or malformed
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "500":
           description: An unknown error occured
   /documents/{documentId}:
+    delete:
+      summary: Delete document
+      operationId: delete-document
+      parameters:
+        - in: path
+          name: documentId
+          schema:
+            type: string
+          description: The document identifier
+          required: true
+      responses:
+        "204":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authorization
+        "500":
+          description: An unknown error occured
     get:
       summary: Get document
       operationId: get-document
@@ -222,7 +239,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "404":
           description: The document could not be found
         "500":
@@ -242,7 +259,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "404":
           description: The document could not be found
         "500":
@@ -262,7 +279,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "404":
           description: The document could not be found
         "500":
@@ -288,7 +305,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "404":
           description: The document or section could not be found
         "500":
@@ -314,7 +331,7 @@ paths:
         "200":
           description: Successful operation
         "403":
-          description: Action forbidden to your level of authentication
+          description: Action forbidden to your level of authorization
         "404":
           description: The document or section could not be found
         "500":

@@ -42,6 +42,7 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *service
 
 	h.mux.Handle("GET /documents", assertAuthenticated(http.HandlerFunc(h.handleListDocuments)))
 	h.mux.Handle("GET /documents/{documentID}", assertAuthenticated(http.HandlerFunc(h.handleGetDocument)))
+	h.mux.Handle("DELETE /documents/{documentID}", assertWriter(http.HandlerFunc(h.handleDeleteDocument)))
 	h.mux.Handle("GET /documents/{documentID}/content", assertAuthenticated(http.HandlerFunc(h.handleGetDocumentContent)))
 	h.mux.Handle("POST /documents/{documentID}/reindex", assertWriter(http.HandlerFunc(h.handleReindexDocument)))
 	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}", assertAuthenticated(http.HandlerFunc(h.handleGetDocumentSection)))
