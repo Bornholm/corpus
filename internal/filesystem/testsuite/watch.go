@@ -67,9 +67,11 @@ func TestWatch(t *testing.T, dsn string) {
 				case "WRITE":
 					atomic.AddInt64(&pendingEvents, -1)
 
+					time.Sleep(2 * time.Second)
+
 					file, err := fs.Open(event.Path)
 					if err != nil {
-						t.Errorf("%+v", errors.WithStack(err))
+						return errors.WithStack(err)
 					}
 
 					defer func() {
@@ -80,7 +82,7 @@ func TestWatch(t *testing.T, dsn string) {
 
 					data, err := io.ReadAll(file)
 					if err != nil {
-						t.Errorf("%+v", errors.WithStack(err))
+						return errors.WithStack(err)
 					}
 
 					if e, g := "foo", string(data); e != g {
