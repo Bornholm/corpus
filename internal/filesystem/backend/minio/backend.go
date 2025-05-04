@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/bornholm/corpus/internal/filesystem"
-	miniofs "github.com/cpyun/afero-minio"
 	"github.com/minio/minio-go/v7"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -20,9 +19,13 @@ type Backend struct {
 
 // Mount implements fs.Backend.
 func (b *Backend) Mount(ctx context.Context, fn func(ctx context.Context, fs afero.Fs) error) error {
-	fs := miniofs.NewFs(ctx, b.client, b.bucket)
+	var fs afero.Fs = NewFs(ctx, b.client, b.bucket)
 
-	if err := fn(ctx, afero.NewBasePathFs(fs, b.basePath)); err != nil {
+	if b.basePath != "" {
+		fs = afero.NewBasePathFs(fs, b.basePath)
+	}
+
+	if err := fn(ctx, fs); err != nil {
 		return errors.WithStack(err)
 	}
 

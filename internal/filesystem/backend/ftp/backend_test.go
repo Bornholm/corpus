@@ -47,15 +47,14 @@ func TestWatch(t *testing.T) {
 		ContainerRequest: req,
 		Started:          true,
 	})
-	if err != nil {
-		t.Fatalf("%+v", errors.WithStack(err))
-	}
-
 	defer func() {
 		if err := container.Terminate(ctx); err != nil {
 			t.Fatalf("%+v", errors.WithStack(err))
 		}
 	}()
+	if err != nil {
+		t.Fatalf("%+v", errors.WithStack(err))
+	}
 
 	port, err := container.MappedPort(ctx, "21")
 	if err != nil {
