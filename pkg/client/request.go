@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 
@@ -21,6 +22,17 @@ func (c *Client) request(ctx context.Context, method string, path string, header
 	url.Host = c.baseURL.Host
 	url.User = c.baseURL.User
 	url.Path = c.baseURL.JoinPath("/api/v1", url.Path).Path
+
+	slogAttrs := []any{
+		slog.String("method", method),
+		slog.String("path", url.Path),
+		slog.String("host", url.Host),
+	}
+	if url.User != nil {
+		slogAttrs = append(slogAttrs, slog.String("username", url.User.Username()))
+	}
+
+	slog.DebugContext(ctx, "new client request", slogAttrs...)
 
 	req, err := http.NewRequest(method, url.String(), body)
 	if err != nil {
