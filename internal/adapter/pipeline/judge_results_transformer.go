@@ -8,6 +8,8 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/log"
+	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
 )
@@ -48,6 +50,13 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
+
+	seed, err := text.IntHash(systemPrompt + query)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	ctx = log.WithAttrs(ctx, slog.Int("seed", seed))
 
 	completion, err := t.llm.ChatCompletion(ctx,
 		llm.WithJSONResponse(

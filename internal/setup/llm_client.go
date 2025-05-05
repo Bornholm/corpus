@@ -8,10 +8,11 @@ import (
 	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
-	"golang.org/x/time/rate"
 
 	"github.com/bornholm/genai/llm/provider"
+	_ "github.com/bornholm/genai/llm/provider/mistral"
 	_ "github.com/bornholm/genai/llm/provider/openai"
+	_ "github.com/bornholm/genai/llm/provider/openrouter"
 	"github.com/bornholm/genai/llm/ratelimit"
 )
 
@@ -46,16 +47,6 @@ type InstrumentedClient struct {
 	client              llm.Client
 	chatCompletionModel string
 	embeddingsModel     string
-}
-
-// ExtractText implements llm.Client.
-func (c *InstrumentedClient) ExtractText(ctx context.Context, funcs ...llm.ExtractTextOptionFunc) (llm.ExtractTextResponse, error) {
-	res, err := c.client.ExtractText(ctx, funcs...)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	return res, nil
 }
 
 // ChatCompletion implements llm.Client.
@@ -116,32 +107,3 @@ func NewInstrumentedClient(client llm.Client, chatCompletionModel string, embedd
 }
 
 var _ llm.Client = &InstrumentedClient{}
-
-type RateLimitedClient struct {
-	limiter *rate.Limiter
-	client  llm.Client
-}
-
-// ExtractText implements llm.Client.
-func (r *RateLimitedClient) ExtractText(ctx context.Context, funcs ...llm.ExtractTextOptionFunc) (llm.ExtractTextResponse, error) {
-	if err := r.limiter.Wait(ctx); err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return r.client.ExtractText(ctx, funcs...)
-}
-
-// ChatCompletion implements llm.Client.
-func (r *RateLimitedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (llm.ChatCompletionResponse, error) {
-	if err := r.limiter.Wait(ctx); err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return r.client.ChatCompletion(ctx, funcs...)
-}
-
-// Embeddings implements llm.Client.
-func (r *RateLimitedClient) Embeddings(ctx context.Context, input string, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
-	if err := r.limiter.Wait(ctx); err != nil {
-		return nil, errors.WithStack(err)
-	}
-	return r.client.Embeddings(ctx, input, funcs...)
-}

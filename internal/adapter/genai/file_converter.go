@@ -5,18 +5,18 @@ import (
 	"io"
 
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/genai/llm"
+	"github.com/bornholm/genai/extract"
 	"github.com/pkg/errors"
 )
 
 type FileConverter struct {
-	client     llm.ExtractTextClient
+	extract    extract.TextClient
 	extensions []string
 }
 
 // Convert implements port.FileConverter.
 func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reader) (io.ReadCloser, error) {
-	res, err := f.client.ExtractText(ctx, llm.WithReader(r), llm.WithFilename(filename))
+	res, err := f.extract.Text(ctx, extract.WithReader(r), extract.WithFilename(filename))
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -29,8 +29,8 @@ func (f *FileConverter) SupportedExtensions() []string {
 	return f.extensions
 }
 
-func NewFileConverter(client llm.ExtractTextClient, extensions ...string) *FileConverter {
-	return &FileConverter{client: client, extensions: extensions}
+func NewFileConverter(extract extract.TextClient, extensions ...string) *FileConverter {
+	return &FileConverter{extract: extract, extensions: extensions}
 }
 
 var _ port.FileConverter = &FileConverter{}

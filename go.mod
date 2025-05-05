@@ -7,9 +7,8 @@ require (
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.0.0-00010101000000-000000000000
 	github.com/blevesearch/bleve/v2 v2.5.0
-	github.com/bornholm/genai v0.0.0-20250425135303-28535c8c5653
+	github.com/bornholm/genai v0.0.0-20250505131458-498dcbb6cb8a
 	github.com/caarlos0/env/v11 v11.3.1
-	github.com/cpyun/afero-minio v0.0.0-20250415072100-a6d7bfd5c650
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/docker v28.1.1+incompatible
 	github.com/docker/go-units v0.5.0
@@ -39,7 +38,6 @@ require (
 	github.com/yuin/goldmark-meta v1.1.0
 	gitlab.com/wpetit/goweb v0.0.0-20240226160244-6b2826c79f88
 	golang.org/x/crypto v0.37.0
-	golang.org/x/time v0.11.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.25.12
 )
@@ -103,6 +101,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
+	github.com/revrost/go-openrouter v0.0.0-20250414052218-c9123df8a97e // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -118,6 +117,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.60.0 // indirect
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
+	golang.org/x/time v0.11.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 )
 
@@ -174,3 +174,5 @@ require (
 )
 
 replace github.com/asg017/sqlite-vec-go-bindings => github.com/Bornholm/sqlite-vec-go-bindings v0.0.0-20250407170538-55971919e573
+
+// replace github.com/bornholm/genai => ../genai

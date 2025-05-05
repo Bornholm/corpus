@@ -7,13 +7,13 @@ type Storage struct {
 }
 
 type Database struct {
-	DSN string `env:"DSN" envDefault:"data.sqlite"`
+	DSN string `env:"DSN,expand" envDefault:"data.sqlite"`
 }
 
 type SQLiteVecIndex struct {
-	DSN string `env:"DSN" envDefault:"index.sqlite"`
+	DSN string `env:"DSN,expand" envDefault:"index.sqlite"`
 }
 
 type BleveIndex struct {
-	DSN string `env:"DSN" envDefault:"index.bleve"`
+	DSN string `env:"DSN,expand" envDefault:"index.bleve"`
 }

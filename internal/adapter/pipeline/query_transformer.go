@@ -2,13 +2,13 @@ package pipeline
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/binary"
 	"log/slog"
 	"strings"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/log"
+	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
 )
@@ -55,19 +55,19 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string)
 		return "", errors.WithStack(err)
 	}
 
-	// seed, err := computeSeed(query)
-	// if err != nil {
-	// 	return "", errors.WithStack(err)
-	// }
+	seed, err := text.IntHash(query)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
 
-	// slog.DebugContext(ctx, "using seed", slog.Int("seed", seed))
+	ctx = log.WithAttrs(ctx, slog.Int("seed", seed))
 
 	completion, err := t.llm.ChatCompletion(ctx,
 		llm.WithMessages(
 			llm.NewMessage(llm.RoleUser, prompt),
 		),
 		llm.WithTemperature(0.2),
-		//llm.WithSeed(seed),
+		llm.WithSeed(seed),
 	)
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -94,10 +94,3 @@ func NewHyDEQueryTransformer(client llm.Client, store port.Store) *HyDEQueryTran
 }
 
 var _ QueryTransformer = &HyDEQueryTransformer{}
-
-func computeSeed(query string) (int, error) {
-	query = strings.ToLower(strings.TrimSpace(query))
-	sum := md5.Sum([]byte(query))
-	seed := binary.BigEndian.Uint32(sum[:])
-	return int(seed), nil
-}

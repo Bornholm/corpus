@@ -14,6 +14,7 @@ import (
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/markdown"
 	"github.com/bornholm/corpus/internal/metrics"
+	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/corpus/internal/util"
 	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/bornholm/genai/llm"
@@ -220,12 +221,20 @@ func (m *DocumentManager) generateResponse(ctx context.Context, systemPromptTemp
 		return "", contents, errors.WithStack(err)
 	}
 
+	seed, err := text.IntHash(systemPrompt + query)
+	if err != nil {
+		return "", contents, errors.WithStack(err)
+	}
+
+	ctx = log.WithAttrs(ctx, slog.Int("seed", seed))
+
 	res, err := m.llm.ChatCompletion(
 		ctx,
 		llm.WithMessages(
 			llm.NewMessage(llm.RoleSystem, systemPrompt),
 			llm.NewMessage(llm.RoleUser, query),
 		),
+		llm.WithSeed(seed),
 	)
 	if err != nil {
 		return "", contents, errors.WithStack(err)

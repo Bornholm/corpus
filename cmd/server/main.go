@@ -16,7 +16,9 @@ import (
 	_ "github.com/bornholm/corpus/internal/adapter/memory"
 	_ "github.com/bornholm/corpus/internal/adapter/pandoc"
 
-	_ "github.com/bornholm/genai/llm/provider/marker"
+	// GenAI text extractors
+	_ "github.com/bornholm/genai/extract/provider/marker"
+	_ "github.com/bornholm/genai/extract/provider/mistral"
 )
 
 func main() {

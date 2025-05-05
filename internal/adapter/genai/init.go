@@ -7,63 +7,40 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/setup"
-	"github.com/bornholm/genai/llm/provider"
+	"github.com/bornholm/genai/extract/provider"
+	"github.com/bornholm/genai/extract/provider/marker"
+	"github.com/bornholm/genai/extract/provider/mistral"
 	"github.com/pkg/errors"
 )
 
 const (
-	ParamScheme     = "_scheme"
-	ParamAPIKey     = "_api_key"
-	ParamProvider   = "_provider"
-	ParamModel      = "_model"
-	ParamExtensions = "_extensions"
+	ParamExtensions = "extensions"
 )
 
 func init() {
-	setup.FileConverter.Register("genai", func(u *url.URL) (port.FileConverter, error) {
-		opts := provider.ClientOptions{}
+	setup.FileConverter.Register(string(marker.Name), createFileConverter)
+	setup.FileConverter.Register(string(mistral.Name), createFileConverter)
+}
 
-		query := u.Query()
+func createFileConverter(u *url.URL) (port.FileConverter, error) {
+	dsn := u.JoinPath()
 
-		u.Scheme = "http"
-		if query.Get(ParamScheme) != "" {
-			u.Scheme = query.Get(ParamScheme)
-			query.Del(ParamScheme)
-		}
+	query := dsn.Query()
 
-		if query.Get(ParamAPIKey) != "" {
-			opts.APIKey = query.Get(ParamAPIKey)
-			query.Del(ParamAPIKey)
-		}
+	extensions := make([]string, 0)
+	if rawExtensions := query.Get(ParamExtensions); rawExtensions != "" {
+		extensions = strings.Split(rawExtensions, ",")
+		query.Del(ParamExtensions)
+		dsn.RawQuery = query.Encode()
+	}
 
-		if query.Get(ParamProvider) != "" {
-			opts.Provider = provider.Name(query.Get(ParamProvider))
-			query.Del(ParamProvider)
-		}
+	client, err := provider.Create(
+		context.Background(),
+		provider.WithTextClientDSN(u.String()),
+	)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
 
-		if query.Get(ParamModel) != "" {
-			opts.Model = query.Get(ParamModel)
-			query.Del(ParamModel)
-		}
-
-		extensions := make([]string, 0)
-		if query.Get(ParamExtensions) != "" {
-			extensions = strings.Split(query.Get(ParamExtensions), ",")
-			query.Del(ParamExtensions)
-		}
-
-		u.RawQuery = query.Encode()
-
-		opts.BaseURL = u.String()
-
-		client, err := provider.Create(
-			context.Background(),
-			provider.WithExtractTextOptions(opts),
-		)
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		return NewFileConverter(client, extensions...), nil
-	})
+	return NewFileConverter(client, extensions...), nil
 }

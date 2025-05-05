@@ -1,7 +1,7 @@
 package config
 
 type HTTP struct {
-	BaseURL string `env:"BASE_URL" envDefault:"/"`
+	BaseURL string `env:"BASE_URL,expand" envDefault:"/"`
 	Address string `env:"ADDRESS,expand" envDefault:":3002"`
 	Auth    Auth   `envPrefix:"AUTH_"`
 }

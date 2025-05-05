@@ -1,5 +1,5 @@
 package config
 
 type Logger struct {
-	Level int `env:"LEVEL" envDefault:"0"`
+	Level int `env:"LEVEL,expand" envDefault:"0"`
 }

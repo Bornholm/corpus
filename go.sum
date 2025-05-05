@@ -30,6 +30,8 @@ github.com/a-h/templ v0.3.833 h1:L/KOk/0VvVTBegtE0fp2RJQiBm7/52Zxv5fqlEHiQUU=
 github.com/a-h/templ v0.3.833/go.mod h1:cAu4AiZhtJfBjMY0HASlyzvkrtjnHWPeEsyGK2YYmfk=
 github.com/abadojack/whatlanggo v1.0.1 h1:19N6YogDnf71CTHm3Mp2qhYfkRdyvbgwWdd2EPxJRG4=
 github.com/abadojack/whatlanggo v1.0.1/go.mod h1:66WiQbSbJBIlOZMsvbKe5m6pzQovxCH9B/K8tQB2uoc=
+github.com/agnivade/levenshtein v1.2.1 h1:EHBY3UOn1gwdy/VbFwgo4cxecRznFk7fKWN1KOX7eoM=
+github.com/agnivade/levenshtein v1.2.1/go.mod h1:QVVI16kDrtSuwcpd0p1+xMC6Z/VfhtCyDIjcwga4/DU=
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 h1:bvNMNQO63//z+xNgfBlViaCIJKLlCJ6/fmUseuG0wVQ=
 github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883/go.mod h1:rCTlJbsFo29Kk6CurOXKm700vrz8f0KW0JNfpkRJY/8=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
@@ -75,8 +77,8 @@ github.com/blevesearch/zapx/v15 v15.4.1 h1:B5IoTMUCEzFdc9FSQbhVOxAY+BO17c05866fN
 github.com/blevesearch/zapx/v15 v15.4.1/go.mod h1:b/MreHjYeQoLjyY2+UaM0hGZZUajEbE0xhnr1A2/Q6Y=
 github.com/blevesearch/zapx/v16 v16.2.3 h1:7Y0r+a3diEvlazsncexq1qoFOcBd64xwMS7aDm4lo1s=
 github.com/blevesearch/zapx/v16 v16.2.3/go.mod h1:wVJ+GtURAaRG9KQAMNYyklq0egV+XJlGcXNCE0OFjjA=
-github.com/bornholm/genai v0.0.0-20250425135303-28535c8c5653 h1:+Eb2xeKlXBhrq7DtR8a7Jfx/iHzHv/zwZz1RNposDhY=
-github.com/bornholm/genai v0.0.0-20250425135303-28535c8c5653/go.mod h1:X3RZWZ1b0fbuHSH7w28y2aeaIjCXGR1RQYyrNa0p5pw=
+github.com/bornholm/genai v0.0.0-20250505131458-498dcbb6cb8a h1:N/6WozHuqCTuIQKpw0vbP/U42z0Fh6Xr9X+F+JmUJNs=
+github.com/bornholm/genai v0.0.0-20250505131458-498dcbb6cb8a/go.mod h1:r1x2kTL5Z+UdHjO7ogbEuU3xTaxMFzXS+VLVma1WiNE=
 github.com/caarlos0/env/v11 v11.3.1 h1:cArPWC15hWmEt+gWk7YBi7lEXTXCvpaSdCiZE2X5mCA=
 github.com/caarlos0/env/v11 v11.3.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
@@ -93,8 +95,6 @@ github.com/cpuguy83/dockercfg v0.3.2 h1:DlJTyZGBDlXqUZ2Dk2Q3xHs/FtnooJJVaad2S9GK
 github.com/cpuguy83/dockercfg v0.3.2/go.mod h1:sugsbF4//dDlL/i+S+rtpIWp+5h0BHJHfjj5/jFyUJc=
 github.com/cpuguy83/go-md2man/v2 v2.0.5 h1:ZtcqGrnekaHpVLArFSe4HK5DoKx1T0rq2DwVB0alcyc=
 github.com/cpuguy83/go-md2man/v2 v2.0.5/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
-github.com/cpyun/afero-minio v0.0.0-20250415072100-a6d7bfd5c650 h1:Gme7D/BSflqQ8p/8B6XYx4kd8lg2Z0upbqSf7zdvRZ4=
-github.com/cpyun/afero-minio v0.0.0-20250415072100-a6d7bfd5c650/go.mod h1:AbAcBVY92gxGFLxtJGCr5sNXNPG5jTSRU1KDNvrjCSg=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
@@ -268,6 +268,8 @@ github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0leargg
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
 github.com/redmatter/go-globre/v2 v2.0.0 h1:8A/hUpOSHaf7GXIJMzneL9G1kJuxjUVDO8rWsrJeg1c=
 github.com/redmatter/go-globre/v2 v2.0.0/go.mod h1:7+CyYNhJEwWoQietUHx7LjllEU+b1p91mVUgkeFZP44=
+github.com/revrost/go-openrouter v0.0.0-20250414052218-c9123df8a97e h1:sh6V3xdRzQDyqHI+3tolFjQKj0wlqybS6q8cHnKqLaA=
+github.com/revrost/go-openrouter v0.0.0-20250414052218-c9123df8a97e/go.mod h1:HRfNDVNl2YQCfH9k4d2LGRZQWs9Da5K6ByWfDqwQAkY=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=
