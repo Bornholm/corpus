@@ -10,6 +10,14 @@ A "good enough" and easy to deploy [RAG](https://en.wikipedia.org/wiki/Retrieval
 >
 > Corpus is currently under active development and should be considered a work in progress. The API is in a preliminary stage and may not be stable. Please be aware that changes, including modifications, updates, or deprecations, can occur at any time without prior notice.
 
+## Features
+
+- Markdown-based chunking
+- Use full-text and vector-based indexes (via [Bleve](https://github.com/blevesearch/bleve) and [SQLite Vec](https://github.com/asg017/sqlite-vec-go-bindings))
+- Web interface and REST API
+- Backup and restore via the REST API
+- CLI with abstract filesystem watching and auto-indexing (local, S3, FTP, SFTP, WebDAV, SMB...)
+
 ## Getting started
 
 ### With Docker
@@ -29,7 +37,7 @@ docker run \
   -e CORPUS_LLM_PROVIDER_EMBEDDINGS_MODEL="<LLM_SERVICE_EMBEDDINGS_MODEL>" \
   -e CORPUS_HTTP_AUTH_WRITER_USERNAME="writer" \
   -e CORPUS_HTTP_AUTH_WRITER_PASSWORD="corpus" \
-  ghcr.io/bornholm/corpus:latest
+  ghcr.io/bornholm/corpus-server:latest
 ```
 
 Then open http://localhost:3002 in your browser, credentials are `writer` / `corpus`.
