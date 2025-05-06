@@ -86,6 +86,11 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not retrieve collections from dsn '%s'", dsn)
 				}
 
+				source, err := getCorpusSource(dsn)
+				if err != nil {
+					return errors.Wrapf(err, "could not retrieve source from dsn '%s'", dsn)
+				}
+
 				watchOptions, err := getWatchOptions(dsn)
 				if err != nil {
 					return errors.Wrapf(err, "could not retrieve watch options from dsn '%s'", dsn)
@@ -101,6 +106,7 @@ func Command() *cli.Command {
 						collections: collections,
 						client:      client,
 						backend:     b,
+						source:      source,
 					}
 
 					if err := indexer.Watch(watchCtx, watchOptions...); err != nil {
@@ -127,6 +133,21 @@ func getCorpusCollections(dsn *url.URL) ([]string, error) {
 	}
 
 	return collections, nil
+}
+
+func getCorpusSource(dsn *url.URL) (*url.URL, error) {
+	query := dsn.Query()
+
+	if rawSource := query.Get("corpusSource"); rawSource != "" {
+		source, err := url.Parse(rawSource)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		return source, nil
+	}
+
+	return nil, nil
 }
 
 func getWatchOptions(dsn *url.URL) ([]filesystem.WatchOptionFunc, error) {
@@ -189,6 +210,7 @@ type filesystemIndexer struct {
 	backend             filesystem.Backend
 	fs                  afero.Fs
 	indexFileDebouncers syncx.Map[string, func(fn func())]
+	source              *url.URL
 }
 
 func (i *filesystemIndexer) Watch(ctx context.Context, funcs ...filesystem.WatchOptionFunc) error {
@@ -279,7 +301,10 @@ func (i *filesystemIndexer) indexFileDebounced(ctx context.Context, path string,
 }
 
 func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
-	source := i.getSource(path)
+	source, err := i.getSource(path)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
 	documents, _, err := i.client.QueryDocuments(ctx, client.WithQueryDocumentsSource(source))
 	if err != nil {
@@ -332,7 +357,10 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo
 }
 
 func (i *filesystemIndexer) removeFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
-	source := i.getSource(path)
+	source, err := i.getSource(path)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
 	ctx = log.WithAttrs(ctx, slog.String("source", source.String()))
 
@@ -357,13 +385,24 @@ func (i *filesystemIndexer) removeFile(ctx context.Context, path string, fileInf
 	return nil
 }
 
-func (i *filesystemIndexer) getSource(path string) *url.URL {
-	source := &url.URL{
-		Scheme: "file",
-		Path:   filepath.Clean(strings.ReplaceAll(path, " ", "_")),
+func (i *filesystemIndexer) getSource(path string) (*url.URL, error) {
+	cleanedPath := filepath.Clean(strings.ReplaceAll(path, " ", "_"))
+
+	if i.source != nil {
+		source, err := url.Parse(fmt.Sprintf(i.source.String(), cleanedPath))
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		return source, nil
 	}
 
-	return source
+	source := &url.URL{
+		Scheme: "file",
+		Path:   cleanedPath,
+	}
+
+	return source, nil
 }
 
 func (i *filesystemIndexer) getETag(fileInfo os.FileInfo) string {
