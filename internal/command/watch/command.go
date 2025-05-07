@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -81,6 +82,11 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not retrieve source from dsn '%s'", dsn)
 				}
 
+				eTagType, err := getCorpusETagType(dsn)
+				if err != nil {
+					return errors.Wrapf(err, "could not retrieve etag type from dsn '%s'", dsn)
+				}
+
 				watchOptions, err := getWatchOptions(dsn)
 				if err != nil {
 					return errors.Wrapf(err, "could not retrieve watch options from dsn '%s'", dsn)
@@ -91,7 +97,7 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", dsn)
 				}
 
-				go func(b filesystem.Backend, dsn *url.URL, collections []string, source *url.URL, watchOptions []filesystem.WatchOptionFunc) {
+				go func(b filesystem.Backend, dsn *url.URL, collections []string, source *url.URL, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType) {
 					defer wg.Done()
 					defer sharedCancel()
 
@@ -102,12 +108,13 @@ func Command() *cli.Command {
 						client:      client,
 						backend:     b,
 						source:      source,
+						eTagType:    eTagType,
 					}
 
 					if err := indexer.Watch(watchCtx, watchOptions...); err != nil {
 						slog.ErrorContext(watchCtx, "could not watch filesystem", slog.Any("error", errors.WithStack(err)))
 					}
-				}(b, dsn, collections, source, watchOptions)
+				}(b, dsn, collections, source, watchOptions, eTagType)
 			}
 
 			wg.Wait()
@@ -157,6 +164,42 @@ func getCorpusSource(dsn *url.URL) (*url.URL, error) {
 	}
 
 	return nil, nil
+}
+
+const (
+	paramCorpusETag = "corpusEtag"
+)
+
+type ETagType string
+
+const (
+	ETagTypeModTime ETagType = "modtime"
+	ETagTypeSize    ETagType = "size"
+)
+
+var availableETagTypes = []ETagType{
+	ETagTypeModTime,
+	ETagTypeSize,
+}
+
+func getCorpusETagType(dsn *url.URL) (ETagType, error) {
+	query := dsn.Query()
+
+	if rawETagType := query.Get(paramCorpusETag); rawETagType != "" {
+
+		eTagType := ETagType(rawETagType)
+
+		if !slices.Contains(availableETagTypes, eTagType) {
+			return "", errors.Errorf("could not parse parameter '%s', unexpected value '%s'", paramCorpusETag, rawETagType)
+		}
+
+		query.Del(paramCorpusETag)
+		dsn.RawQuery = query.Encode()
+
+		return eTagType, nil
+	}
+
+	return ETagTypeModTime, nil
 }
 
 const (
@@ -237,6 +280,7 @@ type filesystemIndexer struct {
 	fs                  afero.Fs
 	indexFileDebouncers syncx.Map[string, func(fn func())]
 	source              *url.URL
+	eTagType            ETagType
 }
 
 func (i *filesystemIndexer) Watch(ctx context.Context, funcs ...filesystem.WatchOptionFunc) error {
@@ -337,7 +381,10 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo
 		return errors.WithStack(err)
 	}
 
-	etag := i.getETag(fileInfo)
+	etag, err := i.getETag(fileInfo)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 
 	if len(documents) > 0 && documents[0].ETag == etag {
 		slog.InfoContext(ctx, "document already indexed, skipping", slog.String("etag", etag), slog.String("source", source.String()))
@@ -439,8 +486,15 @@ func (i *filesystemIndexer) getSource(path string) (*url.URL, error) {
 	return source, nil
 }
 
-func (i *filesystemIndexer) getETag(fileInfo os.FileInfo) string {
-	return fmt.Sprintf("modtime-%d", fileInfo.ModTime().Unix())
+func (i *filesystemIndexer) getETag(fileInfo os.FileInfo) (string, error) {
+	switch i.eTagType {
+	case ETagTypeModTime:
+		return fmt.Sprintf("modtime-%d", fileInfo.ModTime().Unix()), nil
+	case ETagTypeSize:
+		return fmt.Sprintf("size-%d", fileInfo.Size()), nil
+	default:
+		return "", errors.Errorf("unexpected etag type '%s'", i.eTagType)
+	}
 }
 
 var _ filesystem.WatchHandler = &filesystemIndexer{}
