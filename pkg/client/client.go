@@ -8,6 +8,7 @@ import (
 type Client struct {
 	baseURL    *url.URL
 	httpClient *http.Client
+	semaphore  chan struct{}
 }
 
 func New(funcs ...OptionFunc) *Client {
@@ -15,5 +16,6 @@ func New(funcs ...OptionFunc) *Client {
 	return &Client{
 		baseURL:    opts.BaseURL,
 		httpClient: opts.HTTPClient,
+		semaphore:  make(chan struct{}, opts.Parallelism),
 	}
 }

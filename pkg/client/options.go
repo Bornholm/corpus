@@ -6,8 +6,9 @@ import (
 )
 
 type Options struct {
-	BaseURL    *url.URL
-	HTTPClient *http.Client
+	BaseURL     *url.URL
+	HTTPClient  *http.Client
+	Parallelism int
 }
 
 type OptionFunc func(opts *Options)
@@ -24,6 +25,12 @@ func WithHTTPClient(httpClient *http.Client) OptionFunc {
 	}
 }
 
+func WithParallelism(parallelism int) OptionFunc {
+	return func(opts *Options) {
+		opts.Parallelism = parallelism
+	}
+}
+
 func NewOptions(funcs ...OptionFunc) *Options {
 	opts := &Options{
 		BaseURL: &url.URL{
@@ -33,6 +40,7 @@ func NewOptions(funcs ...OptionFunc) *Options {
 		HTTPClient: &http.Client{
 			Timeout: 0,
 		},
+		Parallelism: 5,
 	}
 	for _, fn := range funcs {
 		fn(opts)
