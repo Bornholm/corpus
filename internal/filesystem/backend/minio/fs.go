@@ -57,11 +57,12 @@ func (f *Fs) MkdirAll(path string, perm os.FileMode) error {
 	ctx, cancel := context.WithCancel(f.ctx)
 	defer cancel()
 
-	if !strings.HasSuffix(path, separator) {
-		path += separator
+	prefix := path
+	if !strings.HasSuffix(prefix, separator) {
+		prefix += separator
 	}
 
-	if _, err := f.client.PutObject(ctx, f.bucket, path, nil, 0, minio.PutObjectOptions{}); err != nil {
+	if _, err := f.client.PutObject(ctx, f.bucket, prefix, nil, 0, minio.PutObjectOptions{}); err != nil {
 		return nil
 	}
 

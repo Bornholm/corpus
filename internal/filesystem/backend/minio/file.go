@@ -69,7 +69,7 @@ func (f *File) close() error {
 
 // Name implements afero.File.
 func (f *File) Name() string {
-	return f.name
+	return filepath.Base(f.name)
 }
 
 // Read implements afero.File.

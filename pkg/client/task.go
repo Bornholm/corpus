@@ -24,7 +24,7 @@ func WithWaitForPollInterval(interval time.Duration) WaitForOptionFunc {
 
 func NewWaitForOptions(funcs ...WaitForOptionFunc) *WaitForOptions {
 	opts := &WaitForOptions{
-		PollInterval: time.Second * 2,
+		PollInterval: time.Second * 10,
 	}
 
 	for _, fn := range funcs {

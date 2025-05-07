@@ -30,6 +30,7 @@ import (
 	// Filesystem backends
 
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/ftp"
+	_ "github.com/bornholm/corpus/internal/filesystem/backend/git"
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/local"
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/minio"
 	_ "github.com/bornholm/corpus/internal/filesystem/backend/sftp"
@@ -57,26 +58,15 @@ func Command() *cli.Command {
 				return errors.Wrap(err, "could not retrieve corpus client")
 			}
 
-			backends := make([]filesystem.Backend, 0, len(filesystems))
-
-			for _, f := range filesystems {
-				b, err := backend.New(f)
-				if err != nil {
-					return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", f)
-				}
-
-				backends = append(backends, b)
-			}
-
 			sharedCtx, sharedCancel := context.WithCancel(ctx.Context)
 			defer sharedCancel()
 
 			var wg sync.WaitGroup
 
-			wg.Add(len(backends))
+			wg.Add(len(filesystems))
 
-			for i, b := range backends {
-				dsn, err := url.Parse(filesystems[i])
+			for _, f := range filesystems {
+				dsn, err := url.Parse(f)
 				if err != nil {
 					return errors.WithStack(err)
 				}
@@ -96,7 +86,12 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not retrieve watch options from dsn '%s'", dsn)
 				}
 
-				go func(b filesystem.Backend, dsn *url.URL, collections []string) {
+				b, err := backend.New(dsn.String())
+				if err != nil {
+					return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", dsn)
+				}
+
+				go func(b filesystem.Backend, dsn *url.URL, collections []string, source *url.URL, watchOptions []filesystem.WatchOptionFunc) {
 					defer wg.Done()
 					defer sharedCancel()
 
@@ -112,7 +107,7 @@ func Command() *cli.Command {
 					if err := indexer.Watch(watchCtx, watchOptions...); err != nil {
 						slog.ErrorContext(watchCtx, "could not watch filesystem", slog.Any("error", errors.WithStack(err)))
 					}
-				}(b, dsn, collections)
+				}(b, dsn, collections, source, watchOptions)
 			}
 
 			wg.Wait()
@@ -122,27 +117,41 @@ func Command() *cli.Command {
 	}
 }
 
+const (
+	paramCorpusCollections = "corpusCollections"
+)
+
 func getCorpusCollections(dsn *url.URL) ([]string, error) {
 	query := dsn.Query()
 
 	collections := make([]string, 0)
 
-	if rawCollections := query.Get("corpusCollections"); rawCollections != "" {
+	if rawCollections := query.Get(paramCorpusCollections); rawCollections != "" {
 		colls := strings.Split(rawCollections, ",")
 		collections = append(collections, colls...)
+		query.Del(paramCorpusCollections)
 	}
+
+	dsn.RawQuery = query.Encode()
 
 	return collections, nil
 }
 
+const (
+	paramCorpusSource = "corpusSource"
+)
+
 func getCorpusSource(dsn *url.URL) (*url.URL, error) {
 	query := dsn.Query()
 
-	if rawSource := query.Get("corpusSource"); rawSource != "" {
+	if rawSource := query.Get(paramCorpusSource); rawSource != "" {
 		source, err := url.Parse(rawSource)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
+
+		query.Del(paramCorpusSource)
+		dsn.RawQuery = query.Encode()
 
 		return source, nil
 	}
@@ -150,12 +159,19 @@ func getCorpusSource(dsn *url.URL) (*url.URL, error) {
 	return nil, nil
 }
 
+const (
+	paramWatchRecursive = "watchRecursive"
+	paramWatchInterval  = "watchInterval"
+	paramWatchDirectory = "watchDirectory"
+	paramWatchFilter    = "watchFilter"
+)
+
 func getWatchOptions(dsn *url.URL) ([]filesystem.WatchOptionFunc, error) {
 	options := make([]filesystem.WatchOptionFunc, 0)
 
 	query := dsn.Query()
 
-	recursive := query.Get("watchRecursive")
+	recursive := query.Get(paramWatchRecursive)
 	switch recursive {
 	case "false":
 		options = append(options, filesystem.WithRecursive(false))
@@ -165,20 +181,26 @@ func getWatchOptions(dsn *url.URL) ([]filesystem.WatchOptionFunc, error) {
 		options = append(options, filesystem.WithRecursive(true))
 	}
 
-	if rawInterval := query.Get("watchInterval"); rawInterval != "" {
+	query.Del(paramWatchRecursive)
+
+	if rawInterval := query.Get(paramWatchInterval); rawInterval != "" {
 		interval, err := time.ParseDuration(rawInterval)
 		if err != nil {
-			return nil, errors.Wrap(err, "could not parse 'watchInterval' parameter")
+			return nil, errors.Wrapf(err, "could not parse '%s' parameter", paramWatchInterval)
 		}
 
 		options = append(options, filesystem.WithInterval(interval))
 	}
 
-	if directory := query.Get("watchDirectory"); directory != "" {
+	query.Del(paramWatchInterval)
+
+	if directory := query.Get(paramWatchDirectory); directory != "" {
 		options = append(options, filesystem.WithDirectory(directory))
 	}
 
-	if rawFilter := query.Get("watchFilter"); rawFilter != "" {
+	query.Del(paramWatchDirectory)
+
+	if rawFilter := query.Get(paramWatchFilter); rawFilter != "" {
 		pathRegExp := globre.RegexFromGlob(
 			rawFilter,
 			globre.ExtendedSyntaxEnabled(true),
@@ -188,11 +210,15 @@ func getWatchOptions(dsn *url.URL) ([]filesystem.WatchOptionFunc, error) {
 
 		filter, err := regexp.Compile(pathRegExp)
 		if err != nil {
-			return nil, errors.Wrap(err, "could not parse 'watchFilter' parameter")
+			return nil, errors.Wrapf(err, "could not parse '%s' parameter", paramWatchFilter)
 		}
 
 		options = append(options, filesystem.WithFilter(filter))
 	}
+
+	query.Del(paramWatchFilter)
+
+	dsn.RawQuery = query.Encode()
 
 	return options, nil
 }
@@ -385,11 +411,18 @@ func (i *filesystemIndexer) removeFile(ctx context.Context, path string, fileInf
 	return nil
 }
 
+const pathMarker = "__PATH__"
+const escapedPathMarker = "__ESCAPED_PATH__"
+
 func (i *filesystemIndexer) getSource(path string) (*url.URL, error) {
-	cleanedPath := filepath.Clean(strings.ReplaceAll(path, " ", "_"))
+	cleanedPath := filepath.Clean(path)
+	escapedPath := url.QueryEscape(filepath.Clean(path))
+
+	rawSource := strings.ReplaceAll(i.source.String(), pathMarker, cleanedPath)
+	rawSource = strings.ReplaceAll(rawSource, escapedPathMarker, escapedPath)
 
 	if i.source != nil {
-		source, err := url.Parse(fmt.Sprintf(i.source.String(), cleanedPath))
+		source, err := url.Parse(rawSource)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}

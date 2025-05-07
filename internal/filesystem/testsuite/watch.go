@@ -132,7 +132,7 @@ func TestWatch(t *testing.T, dsn string) {
 
 		t.Logf("creating watched dir")
 
-		if err := fs.MkdirAll("watched", 0755); err != nil {
+		if err := fs.MkdirAll("watched/subfolder", 0755); err != nil {
 			return errors.WithStack(err)
 		}
 
