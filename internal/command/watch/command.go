@@ -416,12 +416,13 @@ const escapedPathMarker = "__ESCAPED_PATH__"
 
 func (i *filesystemIndexer) getSource(path string) (*url.URL, error) {
 	cleanedPath := filepath.Clean(path)
-	escapedPath := url.QueryEscape(filepath.Clean(path))
-
-	rawSource := strings.ReplaceAll(i.source.String(), pathMarker, cleanedPath)
-	rawSource = strings.ReplaceAll(rawSource, escapedPathMarker, escapedPath)
 
 	if i.source != nil {
+		escapedPath := url.QueryEscape(filepath.Clean(path))
+
+		rawSource := strings.ReplaceAll(i.source.String(), pathMarker, cleanedPath)
+		rawSource = strings.ReplaceAll(rawSource, escapedPathMarker, escapedPath)
+
 		source, err := url.Parse(rawSource)
 		if err != nil {
 			return nil, errors.WithStack(err)
