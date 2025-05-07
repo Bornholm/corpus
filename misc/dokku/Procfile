@@ -1,2 +1,2 @@
 web: /usr/local/bin/corpus-server
-watch: /usr/local/bin/corpus-client watch -c /data/watch.yml
+watch: /usr/local/bin/corpus-client -c /data/watch.yml watch
