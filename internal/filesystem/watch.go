@@ -116,7 +116,7 @@ func Watch(ctx context.Context, fs afero.Fs, handler WatchHandler, funcs ...Watc
 					return
 				}
 
-				slog.DebugContext(ctx, "new event", slog.Any("event", event))
+				slog.DebugContext(ctx, "new event", slog.Any("event", event), slog.Time("modTime", event.ModTime()))
 
 				if _, exists := eventSet[event.Op.String()]; !exists {
 					slog.DebugContext(ctx, "ignoring event", slog.Any("event", event))
