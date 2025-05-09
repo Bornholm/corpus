@@ -3,8 +3,6 @@ package mcp
 import (
 	"context"
 	"net/http"
-
-	"github.com/davecgh/go-spew/spew"
 )
 
 type contextKey string
@@ -15,8 +13,6 @@ const (
 
 func (h *Handler) updateSessionContext(ctx context.Context, r *http.Request) context.Context {
 	sessionData := h.getSession(r)
-	spew.Dump(sessionData)
-
 	ctx = context.WithValue(ctx, contextKeySessionData, sessionData)
 	return ctx
 }
