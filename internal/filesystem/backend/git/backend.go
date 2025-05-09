@@ -87,12 +87,7 @@ func (b *Backend) Mount(ctx context.Context, fn func(ctx context.Context, fs afe
 
 				slog.DebugContext(ctx, "refreshing repository")
 
-				err = worktree.PullContext(ctx, &git.PullOptions{
-					Force:         true,
-					Progress:      os.Stderr,
-					ReferenceName: ref,
-				})
-				if err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
+				if err := refresh(repo, ref); err != nil && !errors.Is(err, git.NoErrAlreadyUpToDate) {
 					slog.ErrorContext(ctx, "could not pull from remote repository", slog.Any("error", errors.WithStack(err)))
 				}
 
@@ -150,3 +145,41 @@ func New(repoURL string, branch string, pullInterval time.Duration) *Backend {
 }
 
 var _ filesystem.Backend = &Backend{}
+
+func refresh(repo *git.Repository, ref plumbing.ReferenceName) error {
+	err := repo.Fetch(&git.FetchOptions{
+		Force: true,
+	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	remoteRefName := plumbing.NewRemoteReferenceName("origin", ref.Short())
+	remoteRef, err := repo.Reference(remoteRefName, true)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	targetHash := remoteRef.Hash()
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	err = wt.Reset(&git.ResetOptions{
+		Mode:   git.HardReset,
+		Commit: targetHash,
+	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	err = wt.Clean(&git.CleanOptions{
+		Dir: true,
+	})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}

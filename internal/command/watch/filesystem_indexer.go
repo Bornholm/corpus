@@ -81,6 +81,11 @@ func (i *filesystemIndexer) Handle(ctx context.Context, w *watcher.Watcher, even
 		return nil
 	}
 
+	i.semaphore <- struct{}{}
+	defer func() {
+		<-i.semaphore
+	}()
+
 	ctx = log.WithAttrs(ctx, slog.String("file", event.Path), slog.String("oldPath", event.OldPath))
 
 	switch event.Op {
@@ -127,11 +132,6 @@ func (i *filesystemIndexer) indexFileDebounced(ctx context.Context, path string,
 }
 
 func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
-	i.semaphore <- struct{}{}
-	defer func() {
-		<-i.semaphore
-	}()
-
 	source, err := i.getSource(path)
 	if err != nil {
 		return errors.WithStack(err)
@@ -191,11 +191,6 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo
 }
 
 func (i *filesystemIndexer) removeFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
-	i.semaphore <- struct{}{}
-	defer func() {
-		<-i.semaphore
-	}()
-
 	source, err := i.getSource(path)
 	if err != nil {
 		return errors.WithStack(err)

@@ -237,7 +237,7 @@ func triggerCreateEventForPreExistingFiles(ctx context.Context, afs afero.Fs, w 
 			return nil
 		}
 
-		slog.InfoContext(ctx, "triggering create event for pre-existing file", slog.String("path", path))
+		slog.DebugContext(ctx, "triggering create event for pre-existing file", slog.String("path", path))
 
 		w.Event <- watcher.Event{Op: watcher.Create, Path: path, FileInfo: stat}
 
