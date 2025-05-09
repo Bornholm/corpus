@@ -2,34 +2,14 @@ package mcp
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
-	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/pkg/errors"
 )
 
 func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	arguments := request.Params.Arguments
-	question, ok := arguments["question"].(string)
-	if !ok {
-		return nil, fmt.Errorf("invalid question argument")
-	}
-
-	options := make([]service.DocumentManagerSearchOptionFunc, 0)
-
-	rawCollection, exists := arguments["collection"]
-	if exists {
-		collection, ok := rawCollection.(string)
-		if !ok {
-			return nil, fmt.Errorf("invalid collection argument")
-		}
-
-		options = append(options, service.WithDocumentManagerSearchCollections(collection))
-	}
-
-	results, err := h.documentManager.Search(ctx, question, options...)
+	query, results, err := h.doSearch(ctx, request)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -39,7 +19,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 	if len(results) == 0 {
 		content = append(content, mcp.TextContent{
 			Type: "text",
-			Text: "No result available matching the given question.",
+			Text: "No result available matching the given query.",
 		})
 
 		return &mcp.CallToolResult{
@@ -47,7 +27,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 		}, nil
 	}
 
-	response, sections, err := h.documentManager.Ask(ctx, question, results)
+	response, sections, err := h.documentManager.Ask(ctx, query, results)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

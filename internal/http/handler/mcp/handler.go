@@ -1,19 +1,24 @@
 package mcp
 
 import (
+	"crypto/rand"
 	"net/http"
 
 	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/authz"
+	"github.com/gorilla/sessions"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/pkg/errors"
 )
 
 type Handler struct {
 	documentManager *service.DocumentManager
 	basePath        string
 	handler         http.Handler
+	sessions        sessions.Store
+	mcp             *server.MCPServer
 }
 
 // ServeHTTP implements http.Handler.
@@ -25,9 +30,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func NewHandler(baseURL string, basePath string, documentManager *service.DocumentManager) *Handler {
+	signingKey, err := getCookieSigningKey()
+	if err != nil {
+		panic(errors.Wrap(err, "could not generate cookie signing key"))
+	}
+
 	h := &Handler{
 		documentManager: documentManager,
 		basePath:        basePath,
+		sessions:        sessions.NewCookieStore(signingKey),
 	}
 
 	mcpServer := server.NewMCPServer("corpus", build.ShortVersion,
@@ -36,12 +47,12 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 
 	mcpServer.AddTool(mcp.NewTool("ask",
 		mcp.WithDescription("Ask a question and retrieve a response generated from the available informations in the knowledge base"),
-		mcp.WithString("question",
-			mcp.Description("The question to submit to the knowledge base"),
+		mcp.WithString("query",
+			mcp.Description("The query to submit to the knowledge base"),
 			mcp.Required(),
 		),
 		mcp.WithString("collection",
-			mcp.Description("The collection ID to restrict the question to"),
+			mcp.Description("The collection ID to restrict the query to"),
 		),
 	), h.handleAsk)
 
@@ -60,17 +71,30 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 		mcp.WithDescription("List the collection of documents available in the knowledge base"),
 	), h.handleListCollections)
 
+	h.mcp = mcpServer
+
 	sseServer := server.NewSSEServer(
 		mcpServer,
 		server.WithBaseURL(baseURL),
 		server.WithBasePath(basePath),
+		server.WithSSEContextFunc(h.updateSessionContext),
 	)
 
 	assertAuthenticated := authz.Middleware(authz.IsAuthenticated)
 
-	h.handler = assertAuthenticated(sseServer)
+	h.handler = assertAuthenticated(h.withParams(sseServer))
 
 	return h
+}
+
+func getCookieSigningKey() ([]byte, error) {
+	key := make([]byte, 32)
+
+	if _, err := rand.Read(key); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return key, nil
 }
 
 var _ http.Handler = &Handler{}

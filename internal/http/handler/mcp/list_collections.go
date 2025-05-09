@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/bornholm/corpus/internal/core/port"
@@ -10,6 +11,8 @@ import (
 )
 
 func (h *Handler) handleListCollections(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	sessionData := contextSessionData(ctx)
+
 	collections, err := h.documentManager.Store.QueryCollections(ctx, port.QueryCollectionsOptions{})
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -20,8 +23,12 @@ func (h *Handler) handleListCollections(ctx context.Context, request mcp.CallToo
 	var sb strings.Builder
 
 	for _, c := range collections {
+		if len(sessionData.Collections) > 0 && !slices.Contains(sessionData.Collections, c.Name()) {
+			continue
+		}
+
 		sb.Reset()
-		sb.WriteString("# ")
+		sb.WriteString("# Collection ")
 		sb.WriteString(c.Label())
 		sb.WriteString("\n\n")
 
