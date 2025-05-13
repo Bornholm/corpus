@@ -14,6 +14,7 @@ import (
 	_ "github.com/bornholm/genai/llm/provider/openai"
 	_ "github.com/bornholm/genai/llm/provider/openrouter"
 	"github.com/bornholm/genai/llm/ratelimit"
+	"github.com/bornholm/genai/llm/retry"
 )
 
 var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (llm.Client, error) {
@@ -37,7 +38,11 @@ var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf
 	}
 
 	if conf.LLM.Provider.RateLimit != 0 {
-		client = ratelimit.NewClient(client, conf.LLM.Provider.RateLimit, 1)
+		client = ratelimit.Wrap(client, conf.LLM.Provider.RateLimit, 1)
+	}
+
+	if conf.LLM.Provider.MaxRetries != 0 {
+		client = retry.Wrap(client, conf.LLM.Provider.BaseBackoff, conf.LLM.Provider.MaxRetries)
 	}
 
 	return NewInstrumentedClient(client, conf.LLM.Provider.ChatCompletionModel, conf.LLM.Provider.EmbeddingsModel), nil

@@ -14,6 +14,8 @@ type LLMProvider struct {
 	ChatCompletionModel string        `env:"CHAT_COMPLETION_MODEL,expand" envDefault:"gpt-4o-mini"`
 	EmbeddingsModel     string        `env:"EMBEDDINGS_MODEL,expand" envDefault:"text-embedding-3-large"`
 	RateLimit           time.Duration `env:"RATE_LIMIT,expand" envDefault:"1500ms"`
+	MaxRetries          int           `env:"MAX_RETRIES,expand" envDefault:"3"`
+	BaseBackoff         time.Duration `env:"BASE_BACKOFF" envDefault:"1s"`
 }
 
 type LLMIndex struct {

@@ -88,6 +88,8 @@ github.com/bornholm/genai v0.0.0-20250505131458-498dcbb6cb8a h1:N/6WozHuqCTuIQKp
 github.com/bornholm/genai v0.0.0-20250505131458-498dcbb6cb8a/go.mod h1:r1x2kTL5Z+UdHjO7ogbEuU3xTaxMFzXS+VLVma1WiNE=
 github.com/bornholm/genai v0.0.0-20250509140727-d815e8473198 h1:OesO2eAUT5OG/kvLe2ArVOtI/Rr79EzpWKBz33XEals=
 github.com/bornholm/genai v0.0.0-20250509140727-d815e8473198/go.mod h1:r1x2kTL5Z+UdHjO7ogbEuU3xTaxMFzXS+VLVma1WiNE=
+github.com/bornholm/genai v0.0.0-20250513083916-6d33bd990086 h1:Q4Jsvtnopy+xxTTRwkB+7Ow/5jJCMcLthxuoe+YZi4w=
+github.com/bornholm/genai v0.0.0-20250513083916-6d33bd990086/go.mod h1:qCIGcHCefLRrSPlrF1WH1HIqiY2cM74xVwk1omEa2gI=
 github.com/caarlos0/env/v11 v11.3.1 h1:cArPWC15hWmEt+gWk7YBi7lEXTXCvpaSdCiZE2X5mCA=
 github.com/caarlos0/env/v11 v11.3.1/go.mod h1:qupehSf/Y0TUTsxKywqRt/vJjN5nz6vauiYEUUr8P4U=
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
