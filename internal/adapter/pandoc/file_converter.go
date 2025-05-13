@@ -56,7 +56,7 @@ func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reade
 
 // SupportedExtensions implements port.FileConverter.
 func (f *FileConverter) SupportedExtensions() []string {
-	return []string{".docx", ".doc", ".rtf", ".odt", ".md", ".rst", ".epub", ".html", ".tex"}
+	return []string{".docx", ".rtf", ".odt", ".md", ".rst", ".epub", ".html", ".tex"}
 }
 
 func NewFileConverter() *FileConverter {
