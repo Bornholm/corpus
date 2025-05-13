@@ -1,13 +1,11 @@
 package api
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 
 	"github.com/bornholm/corpus/internal/core/service"
-	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/pkg/errors"
 )
 
@@ -64,8 +62,5 @@ func (h *Handler) handleIndexDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baseURL := httpCtx.BaseURL(ctx)
-	taskURL := baseURL.JoinPath(fmt.Sprintf("/api/v1/tasks/%s", taskID))
-
-	http.Redirect(w, r, taskURL.String(), http.StatusSeeOther)
+	h.writeTask(ctx, w, taskID)
 }

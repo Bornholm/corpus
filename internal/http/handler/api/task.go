@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -79,9 +80,10 @@ type Task struct {
 
 func (h *Handler) showTask(w http.ResponseWriter, r *http.Request) {
 	taskID := port.TaskID(r.PathValue("taskID"))
+	h.writeTask(r.Context(), w, taskID)
+}
 
-	ctx := r.Context()
-
+func (h *Handler) writeTask(ctx context.Context, w http.ResponseWriter, taskID port.TaskID) {
 	taskState, err := h.taskRunner.State(ctx, taskID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {

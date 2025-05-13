@@ -83,8 +83,5 @@ func (h *Handler) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baseURL := httpCtx.BaseURL(ctx)
-	taskURL := baseURL.JoinPath(fmt.Sprintf("/api/v1/tasks/%s", taskID))
-
-	http.Redirect(w, r, taskURL.String(), http.StatusSeeOther)
+	h.writeTask(ctx, w, taskID)
 }
