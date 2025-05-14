@@ -13,7 +13,7 @@ import (
 )
 
 func (h *Handler) handleSearch(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	_, results, err := h.doSearch(ctx, request)
+	query, results, err := h.doSearch(ctx, request)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -31,11 +31,24 @@ func (h *Handler) handleSearch(ctx context.Context, request mcp.CallToolRequest)
 		}, nil
 	}
 
+	response, sections, err := h.documentManager.Ask(ctx, query, results)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	var sb strings.Builder
+
+	sb.WriteString("# Response \n\n")
+	sb.WriteString(response)
+
+	content = append(content, mcp.TextContent{
+		Type: "text",
+		Text: sb.String(),
+	})
 
 	for _, r := range results {
 		sb.Reset()
-		sb.WriteString("# Result\n\n")
+		sb.WriteString("# Source\n\n")
 		sb.WriteString("**URL** ")
 		sb.WriteString(r.Source.String())
 		sb.WriteString("\n\n")
@@ -43,21 +56,16 @@ func (h *Handler) handleSearch(ctx context.Context, request mcp.CallToolRequest)
 		sb.WriteString("## Excerpts\n\n")
 
 		for i, sectionID := range r.Sections {
+			content, exists := sections[sectionID]
+			if !exists {
+				continue
+			}
+
 			if i > 0 {
 				sb.WriteString("\n\n[...]\n\n")
 			}
 
-			section, err := h.documentManager.GetSectionByID(ctx, sectionID)
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-
-			content, err := section.Content()
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
-
-			sb.Write(content)
+			sb.WriteString(content)
 		}
 
 		content = append(content, mcp.TextContent{
