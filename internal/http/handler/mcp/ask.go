@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (h *Handler) handleSearch(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	query, results, err := h.doSearch(ctx, request)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -23,7 +23,7 @@ func (h *Handler) handleSearch(ctx context.Context, request mcp.CallToolRequest)
 	if len(results) == 0 {
 		content = append(content, mcp.TextContent{
 			Type: "text",
-			Text: "No result available matching the given query.",
+			Text: "No information available matching the given question.",
 		})
 
 		return &mcp.CallToolResult{
@@ -81,9 +81,9 @@ func (h *Handler) handleSearch(ctx context.Context, request mcp.CallToolRequest)
 
 func (h *Handler) doSearch(ctx context.Context, request mcp.CallToolRequest) (string, []*port.IndexSearchResult, error) {
 	arguments := request.Params.Arguments
-	query, ok := arguments["query"].(string)
+	question, ok := arguments["question"].(string)
 	if !ok {
-		return "", nil, fmt.Errorf("invalid query argument")
+		return "", nil, fmt.Errorf("invalid question argument")
 	}
 
 	options := make([]service.DocumentManagerSearchOptionFunc, 0)
@@ -108,7 +108,7 @@ func (h *Handler) doSearch(ctx context.Context, request mcp.CallToolRequest) (st
 		options = append(options, service.WithDocumentManagerSearchCollections(sessionData.Collections...))
 	}
 
-	results, err := h.documentManager.Search(ctx, query, options...)
+	results, err := h.documentManager.Search(ctx, question, options...)
 	if err != nil {
 		return "", nil, errors.WithStack(err)
 	}

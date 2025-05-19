@@ -50,7 +50,7 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 		server.WithToolFilter(h.filterTools),
 	)
 
-	mcpServer.AddTool(getSearchTool(defaultSearchDescription), h.handleSearch)
+	mcpServer.AddTool(getAskTool(defaultAskDescription), h.handleAsk)
 
 	mcpServer.AddTool(getListCollectionsTool(), h.handleListCollections)
 
@@ -70,17 +70,17 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 	return h
 }
 
-const defaultSearchDescription string = "Search for informations in the knowledge base"
+const defaultAskDescription string = "Ask a question to the knowledge base"
 
-func getSearchTool(description string) mcp.Tool {
-	return mcp.NewTool("search",
+func getAskTool(description string) mcp.Tool {
+	return mcp.NewTool("ask",
 		mcp.WithDescription(description),
-		mcp.WithString("query",
-			mcp.Description("The query to submit to the knowledge base"),
+		mcp.WithString("question",
+			mcp.Description("A question to submit to the knowledge base"),
 			mcp.Required(),
 		),
 		mcp.WithString("collection",
-			mcp.Description("The collection ID to restrict the query to"),
+			mcp.Description("Restrict the search area to this collection"),
 		),
 	)
 }
@@ -92,20 +92,20 @@ func getListCollectionsTool() mcp.Tool {
 }
 
 func (h *Handler) filterTools(ctx context.Context, tools []mcp.Tool) []mcp.Tool {
-	searchDescription, err := h.getSearchDescription(ctx)
+	askDescription, err := h.getAskDescription(ctx)
 	if err != nil {
 		panic(errors.WithStack(err))
 	}
 
 	tools = []mcp.Tool{
-		getSearchTool(searchDescription),
+		getAskTool(askDescription),
 		getListCollectionsTool(),
 	}
 
 	return tools
 }
 
-func (h *Handler) getSearchDescription(ctx context.Context) (string, error) {
+func (h *Handler) getAskDescription(ctx context.Context) (string, error) {
 	collections, err := h.documentManager.Store.QueryCollections(ctx, port.QueryCollectionsOptions{})
 	if err != nil {
 		return "", errors.WithStack(err)
@@ -133,7 +133,7 @@ func (h *Handler) getSearchDescription(ctx context.Context) (string, error) {
 	%s
 
 	%s
-	`, defaultSearchDescription, sb.String()), nil
+	`, defaultAskDescription, sb.String()), nil
 }
 
 func getCookieSigningKey() ([]byte, error) {
