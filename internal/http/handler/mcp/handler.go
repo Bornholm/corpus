@@ -52,8 +52,6 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 
 	mcpServer.AddTool(getAskTool(defaultAskDescription), h.handleAsk)
 
-	mcpServer.AddTool(getListCollectionsTool(), h.handleListCollections)
-
 	h.mcp = mcpServer
 
 	sseServer := server.NewSSEServer(
@@ -79,15 +77,6 @@ func getAskTool(description string) mcp.Tool {
 			mcp.Description("A question to submit to the knowledge base"),
 			mcp.Required(),
 		),
-		mcp.WithString("collection",
-			mcp.Description("Restrict the search area to this collection"),
-		),
-	)
-}
-
-func getListCollectionsTool() mcp.Tool {
-	return mcp.NewTool("list_collections",
-		mcp.WithDescription("List the collections of documents available in the knowledge base"),
 	)
 }
 
@@ -99,7 +88,6 @@ func (h *Handler) filterTools(ctx context.Context, tools []mcp.Tool) []mcp.Tool 
 
 	tools = []mcp.Tool{
 		getAskTool(askDescription),
-		getListCollectionsTool(),
 	}
 
 	return tools

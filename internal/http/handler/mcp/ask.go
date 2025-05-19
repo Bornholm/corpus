@@ -3,7 +3,6 @@ package mcp
 import (
 	"context"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/bornholm/corpus/internal/core/port"
@@ -89,22 +88,7 @@ func (h *Handler) doSearch(ctx context.Context, request mcp.CallToolRequest) (st
 	options := make([]service.DocumentManagerSearchOptionFunc, 0)
 
 	sessionData := contextSessionData(ctx)
-
-	rawCollection, exists := arguments["collection"]
-	if exists {
-		collection, ok := rawCollection.(string)
-		if !ok {
-			return "", nil, fmt.Errorf("invalid collection argument")
-		}
-
-		options = append(options, service.WithDocumentManagerSearchCollections(collection))
-
-		if len(sessionData.Collections) == 0 || slices.Contains(sessionData.Collections, collection) {
-			options = append(options, service.WithDocumentManagerSearchCollections(collection))
-		} else {
-			options = append(options, service.WithDocumentManagerSearchCollections(sessionData.Collections...))
-		}
-	} else if len(sessionData.Collections) > 0 {
+	if len(sessionData.Collections) > 0 {
 		options = append(options, service.WithDocumentManagerSearchCollections(sessionData.Collections...))
 	}
 
