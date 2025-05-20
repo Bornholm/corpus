@@ -27,6 +27,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 
 		return &mcp.CallToolResult{
 			Content: content,
+			IsError: true,
 		}, nil
 	}
 

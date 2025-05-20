@@ -25,7 +25,7 @@ type Index struct {
 }
 
 // DeleteByID implements port.Index.
-func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
+func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
 	count := len(i.indexes)
 	errs := make(chan error, count)
 	defer close(errs)
@@ -53,7 +53,7 @@ func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
 
 			slog.DebugContext(ctx, "deleting indexed section", slog.String("indexType", fmt.Sprintf("%T", internalIndex)))
 
-			if err := internalIndex.DeleteByID(ctx, id); err != nil {
+			if err := internalIndex.DeleteByID(ctx, ids...); err != nil {
 				errs <- errors.WithStack(err)
 				return
 			}

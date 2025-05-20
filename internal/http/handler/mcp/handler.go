@@ -68,13 +68,13 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 	return h
 }
 
-const defaultAskDescription string = "Ask a question to the knowledge base"
+const defaultAskDescription string = "Ask a properly formulated question to the knowledge base."
 
 func getAskTool(description string) mcp.Tool {
 	return mcp.NewTool("ask",
 		mcp.WithDescription(description),
 		mcp.WithString("question",
-			mcp.Description("A question to submit to the knowledge base"),
+			mcp.Description(`A properly formulated question to submit to the knowledge base.`),
 			mcp.Required(),
 		),
 	)

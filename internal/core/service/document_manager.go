@@ -511,6 +511,20 @@ func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.
 	slog.DebugContext(ctx, "checking obsolete sections")
 
 	count := 0
+	batchSize := 5000
+	toDelete := make([]model.SectionID, 0, batchSize)
+
+	deleteCurrentBatch := func() {
+		slog.InfoContext(ctx, "deleting obsolete sections from index")
+
+		if err := m.index.DeleteByID(ctx, toDelete...); err != nil {
+			slog.ErrorContext(ctx, "could not delete obsolete sections", slog.Any("error", errors.WithStack(err)))
+		}
+
+		slog.InfoContext(ctx, "obsolete sections deleted")
+
+		toDelete = make([]model.SectionID, 0, batchSize)
+	}
 	err := m.index.All(ctx, func(id model.SectionID) bool {
 		count++
 		exists, err := m.Store.SectionExists(ctx, id)
@@ -523,21 +537,20 @@ func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.
 			return true
 		}
 
-		deleteCtx := log.WithAttrs(ctx, slog.String("sectionID", string(id)))
+		toDelete = append(toDelete, id)
 
-		slog.InfoContext(deleteCtx, "deleting obsolete section from index")
-
-		if err := m.index.DeleteByID(deleteCtx, id); err != nil {
-			slog.ErrorContext(deleteCtx, "could not delete obsolete section", slog.Any("error", errors.WithStack(err)))
-			return true
+		if len(toDelete) >= batchSize {
+			deleteCurrentBatch()
 		}
-
-		slog.InfoContext(deleteCtx, "obsolete section deleted")
 
 		return true
 	})
 	if err != nil {
 		return errors.WithStack(err)
+	}
+
+	if len(toDelete) > 0 {
+		deleteCurrentBatch()
 	}
 
 	slog.DebugContext(ctx, "all sections checked", slog.Int64("total", int64(count)))

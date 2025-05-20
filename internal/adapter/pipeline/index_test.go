@@ -48,7 +48,7 @@ func (m *mockIndex) All(ctx context.Context, yield func(model.SectionID) bool) e
 }
 
 // DeleteByID implements port.Index.
-func (m *mockIndex) DeleteByID(ctx context.Context, id model.SectionID) error {
+func (m *mockIndex) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
 	panic("unimplemented")
 }
 

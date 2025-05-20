@@ -29,16 +29,21 @@ type Index struct {
 }
 
 // DeleteByID implements port.Index.
-func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
+func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
-		stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE section_id = ?;")
+		stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE section_id IN ( SELECT value FROM json_each(?) );")
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
 		defer stmt.Close()
 
-		if err := stmt.BindText(1, string(id)); err != nil {
+		jsonIDs, err := json.Marshal(ids)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := stmt.BindBlob(1, jsonIDs); err != nil {
 			return errors.WithStack(err)
 		}
 

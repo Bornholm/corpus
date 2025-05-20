@@ -19,8 +19,13 @@ type Index struct {
 }
 
 // DeleteByID implements port.Index.
-func (i *Index) DeleteByID(ctx context.Context, id model.SectionID) error {
-	if err := i.index.Delete(string(id)); err != nil {
+func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
+	batch := i.index.NewBatch()
+	for _, id := range ids {
+		batch.Delete(string(id))
+	}
+
+	if err := i.index.Batch(batch); err != nil {
 		return errors.WithStack(err)
 	}
 
