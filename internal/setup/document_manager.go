@@ -46,13 +46,13 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 
 	// Cleanup index every hour
 	go func() {
-		ticker := time.NewTicker(time.Hour)
+		ticker := time.NewTicker(24 * time.Hour)
 		ctx := context.Background()
 		for {
+			<-ticker.C
 			if _, err := documentManager.CleanupIndex(ctx); err != nil {
 				slog.ErrorContext(ctx, "could not start index cleanup", slog.Any("error", errors.WithStack(err)))
 			}
-			<-ticker.C
 		}
 	}()
 
