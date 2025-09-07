@@ -3,10 +3,9 @@ package component
 import "github.com/bornholm/corpus/internal/build"
 
 type PageOptions struct {
-	Title             string
-	IncludeFooter     bool
-	IncludeAuthBanner bool
-	Head              func() templ.Component
+	Title         string
+	IncludeFooter bool
+	Head          func() templ.Component
 }
 
 type PageOptionFunc func(opts *PageOptions)
@@ -23,12 +22,6 @@ func WithHead(fn func() templ.Component) PageOptionFunc {
 	}
 }
 
-func WithAuthBanner(includeAuthBanner bool) PageOptionFunc {
-	return func(opts *PageOptions) {
-		opts.IncludeAuthBanner = includeAuthBanner
-	}
-}
-
 func WithFooter(includeFooter bool) PageOptionFunc {
 	return func(opts *PageOptions) {
 		opts.IncludeFooter = includeFooter
@@ -37,10 +30,9 @@ func WithFooter(includeFooter bool) PageOptionFunc {
 
 func NewPageOptions(funcs ...PageOptionFunc) *PageOptions {
 	opts := &PageOptions{
-		Title:             "",
-		Head:              nil,
-		IncludeFooter:     true,
-		IncludeAuthBanner: true,
+		Title:         "",
+		Head:          nil,
+		IncludeFooter: true,
 	}
 	for _, fn := range funcs {
 		fn(opts)
@@ -74,30 +66,6 @@ templ Page(funcs ...PageOptionFunc) {
 		</head>
 		<body hx-boost="true" class="is-fullheight">
 			<div id="main" class="is-fullheight">
-				if opts.IncludeAuthBanner {
-					<div class="container">
-						{{ user := User(ctx) }}
-						<div class="has-text-right is-size-6 mt-3" style="padding:0 3rem">
-							if user != nil {
-								<p>Bonjour <b>{ user.Username() }</b> | <a hx-boost="false" href={ BaseURL(ctx, WithPath("/logout")) } hx-on:click="logout.call(this, event)">[Se déconnecter]</a></p>
-								<script type="text/javascript">
-								function logout(evt) {
-									evt.preventDefault();
-									window.location = `${window.location.protocol}//${window.location.host}/logout`;
-								}
-								</script>
-							} else {
-								<p><a hx-boost="false" href={ BaseURL(ctx, WithPath("/login")) } hx-on:click="login.call(this, event)">[Se connecter]</a></p>
-								<script type="text/javascript">
-								function login(evt) {
-									evt.preventDefault();
-									window.location = `${window.location.protocol}//${window.location.host}/login`;
-								}
-								</script>
-							}
-						</div>
-					</div>
-				}
 				{ children... }
 				if opts.IncludeFooter {
 					<footer class="footer">

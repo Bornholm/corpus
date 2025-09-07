@@ -25,12 +25,8 @@ func (s *Server) Run(ctx context.Context) error {
 		mount(mux, mountpoint, handler)
 	}
 
-	mux.Handle("GET /login", s.basicAuth(http.HandlerFunc(s.login)))
-	mux.HandleFunc("GET /logout", s.logout)
-
 	handler := sloghttp.Recovery(mux)
 	handler = sloghttp.New(slog.Default())(handler)
-	handler = s.basicAuth(handler)
 
 	handler = func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

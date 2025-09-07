@@ -12,6 +12,7 @@ A "good enough" and easy to deploy [RAG](https://en.wikipedia.org/wiki/Retrieval
 
 ## Features
 
+- OIDC authentication with email-based role mapping and access whitelist
 - Markdown-based chunking
 - Use full-text and vector-based indexes (via [Bleve](https://github.com/blevesearch/bleve) and [SQLite Vec](https://github.com/asg017/sqlite-vec-go-bindings))
 - Web interface and REST API
@@ -35,12 +36,13 @@ docker run \
   -e CORPUS_LLM_PROVIDER_BASE_URL="<LLM_SERVICE_BASE_URL>" \
   -e CORPUS_LLM_PROVIDER_CHAT_COMPLETION_MODEL="<LLM_SERVICE_CHAT_COMPLETION_MODEL>" \
   -e CORPUS_LLM_PROVIDER_EMBEDDINGS_MODEL="<LLM_SERVICE_EMBEDDINGS_MODEL>" \
-  -e CORPUS_HTTP_AUTH_WRITER_USERNAME="writer" \
-  -e CORPUS_HTTP_AUTH_WRITER_PASSWORD="corpus" \
+  -e CORPUS_HTTP_AUTHN_PROVIDERS_GITHUB_KEY="<github_oauth2_app_key>"
+  -e CORPUS_HTTP_AUTHN_PROVIDERS_GITHUB_SECRET="<github_oauth2_app_secret>" \
+  -e CORPUS_HTTP_AUTHN_PROVIDERS_GITHUB_SCOPES=openid,user \
   ghcr.io/bornholm/corpus-server:latest
 ```
 
-Then open http://localhost:3002 in your browser, credentials are `writer` / `corpus`.
+Then open http://localhost:3002 in your browser.
 
 **Examples**
 

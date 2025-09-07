@@ -4,21 +4,10 @@ import (
 	"net/http"
 )
 
-type Auth struct {
-	Users []User
-}
-
-type User struct {
-	Username string
-	Password string
-	Roles    []string
-}
 type Options struct {
-	Address        string
-	BaseURL        string
-	Auth           Auth
-	AllowAnonymous bool
-	Mounts         map[string]http.Handler
+	Address string
+	BaseURL string
+	Mounts  map[string]http.Handler
 }
 
 type OptionFunc func(opts *Options)
@@ -50,17 +39,5 @@ func WithBaseURL(baseURL string) OptionFunc {
 func WithAddress(addr string) OptionFunc {
 	return func(opts *Options) {
 		opts.Address = addr
-	}
-}
-
-func WithAllowAnonymous(allowed bool) OptionFunc {
-	return func(opts *Options) {
-		opts.AllowAnonymous = allowed
-	}
-}
-
-func WithAuth(users ...User) OptionFunc {
-	return func(opts *Options) {
-		opts.Auth.Users = users
 	}
 }

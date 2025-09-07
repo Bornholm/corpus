@@ -24,6 +24,8 @@ type AskPageVModel struct {
 	Response        string
 	Duration        time.Duration
 	UploadFileModal *UploadFileModalVModel
+
+	Navbar *NavbarVModel
 }
 
 const defaultMaxCollections = 3
@@ -34,11 +36,12 @@ templ AskPage(vmodel AskPageVModel) {
 			@UploadFileModal(*vmodel.UploadFileModal)
 		}
 		<div class="container">
-			<section class="section pt-0">
+			if vmodel.Navbar != nil {
+				@Navbar(*vmodel.Navbar)
+			}
+			<section class="section pt-3">
 				<div class="level">
-					<div class="level-left">
-						<h1 class="title is-size-1 level-item"><a href={ common.BaseURL(ctx) }><img style="height:1.5em;vertical-align:middle" src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }/><span class="ml-2 has-text-grey-dark" style="vertical-align:middle">Corpus</span></a></h1>
-					</div>
+					<div class="level-left"></div>
 					<div class="level-right">
 						if common.AssertUser(ctx, authz.Has(authz.RoleWriter)) {
 							<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
@@ -55,9 +58,9 @@ templ AskPage(vmodel AskPageVModel) {
 								</div>
 							</div>
 						</div>
-						<div class="column">
+						<div class="column is-3">
 							<label class="label">Collections</label>
-							<div class="tags are-large">
+							<div class="tags are-large" style="overflow-x:auto">
 								for i, c := range vmodel.Collections {
 									{{ selected := slices.Contains(vmodel.SelectedCollectionNames, c.Name()) }}
 									{{ stats := vmodel.CollectionStats[c.ID()] }}

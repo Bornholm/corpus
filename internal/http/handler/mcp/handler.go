@@ -61,7 +61,7 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 		server.WithHTTPContextFunc(h.updateSessionContext),
 	)
 
-	assertAuthenticated := authz.Middleware(authz.IsAuthenticated)
+	assertAuthenticated := authz.Middleware(nil, authz.IsAuthenticated)
 
 	h.handler = assertAuthenticated(h.withParams(sseServer))
 

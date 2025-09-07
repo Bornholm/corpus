@@ -28,8 +28,8 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *service
 		mux:             &http.ServeMux{},
 	}
 
-	assertAuthenticated := authz.Middleware(authz.IsAuthenticated)
-	assertWriter := authz.Middleware(authz.Has(authz.RoleWriter))
+	assertAuthenticated := authz.Middleware(nil, authz.IsAuthenticated)
+	assertWriter := authz.Middleware(nil, authz.Has(authz.RoleWriter))
 
 	h.mux.Handle("GET /search", assertAuthenticated(http.HandlerFunc(h.handleSearch)))
 	h.mux.Handle("GET /ask", assertAuthenticated(http.HandlerFunc(h.handleAsk)))

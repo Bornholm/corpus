@@ -48,6 +48,9 @@ func clone[T any](v *T) *T {
 
 func AssertUser(ctx context.Context, funcs ...authz.AssertFunc) bool {
 	user := httpCtx.User(ctx)
+	if user == nil {
+		return false
+	}
 
 	allowed, err := authz.Assert(ctx, user, funcs...)
 	if err != nil {

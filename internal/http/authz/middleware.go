@@ -17,9 +17,9 @@ func IsAuthenticated(ctx context.Context, user model.User) (bool, error) {
 	return user != nil, nil
 }
 
-func Is(username, provider string) AssertFunc {
+func Is(provider, subject string) AssertFunc {
 	return func(ctx context.Context, user model.User) (bool, error) {
-		return user != nil && user.Provider() == provider && user.Username() == username, nil
+		return user != nil && user.Provider() == provider && user.Subject() == subject, nil
 	}
 }
 
@@ -61,7 +61,7 @@ func Assert(ctx context.Context, user model.User, funcs ...AssertFunc) (bool, er
 	return true, nil
 }
 
-func Middleware(funcs ...AssertFunc) func(h http.Handler) http.Handler {
+func Middleware(forbidden http.Handler, funcs ...AssertFunc) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -75,7 +75,11 @@ func Middleware(funcs ...AssertFunc) func(h http.Handler) http.Handler {
 			}
 
 			if !allowed {
-				http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+				if forbidden == nil {
+					http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+				} else {
+					forbidden.ServeHTTP(w, r)
+				}
 				return
 			}
 

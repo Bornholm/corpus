@@ -11,6 +11,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
+	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/pkg/errors"
@@ -91,6 +92,7 @@ func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVMode
 		h.fillAskPageVModelFileUploadModal,
 		h.fillAskPageVModelSelectedCollectionIDs,
 		h.fillAskPageVModelCollections,
+		h.fillAskPageVModelNavbar,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -184,6 +186,19 @@ func (h *Handler) fillAskPageVModelSelectedCollectionIDs(ctx context.Context, vm
 	}
 
 	vmodel.SelectedCollectionNames = collections
+
+	return nil
+}
+
+func (h *Handler) fillAskPageVModelNavbar(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
+	user := httpCtx.User(ctx)
+	if user == nil {
+		return errors.New("could not retrieve user from context")
+	}
+
+	vmodel.Navbar = &component.NavbarVModel{
+		User: user,
+	}
 
 	return nil
 }

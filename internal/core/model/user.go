@@ -1,42 +1,46 @@
 package model
 
 type User interface {
-	Username() string
+	Subject() string
+	DisplayName() string
 	Provider() string
 	Roles() []string
 }
 
-type ReadOnlyUser struct {
-	username string
-	provider string
-	roles    []string
+type BaseUser struct {
+	displayName string
+	subject     string
+	provider    string
+	roles       []string
 }
 
-// Roles implements User.
-func (u *ReadOnlyUser) Roles() []string {
-	return u.roles
+// DisplayName implements User.
+func (u *BaseUser) DisplayName() string {
+	return u.displayName
 }
 
 // Provider implements User.
-func (u *ReadOnlyUser) Provider() string {
+func (u *BaseUser) Provider() string {
 	return u.provider
 }
 
-// Username implements User.
-func (u *ReadOnlyUser) Username() string {
-	return u.username
+// Roles implements User.
+func (u *BaseUser) Roles() []string {
+	return u.roles
 }
 
-func NewReadOnlyUser(username string, provider string, roles ...string) *ReadOnlyUser {
-	return &ReadOnlyUser{
-		username: username,
-		provider: provider,
-		roles:    roles,
+// Subject implements User.
+func (u *BaseUser) Subject() string {
+	return u.subject
+}
+
+var _ User = &BaseUser{}
+
+func NewUser(provider, subject, displayName string, roles ...string) *BaseUser {
+	return &BaseUser{
+		displayName: displayName,
+		subject:     subject,
+		provider:    provider,
+		roles:       roles,
 	}
-}
-
-var _ User = &ReadOnlyUser{}
-
-func UserString(u User) string {
-	return u.Username() + "@" + u.Provider()
 }

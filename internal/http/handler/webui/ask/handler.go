@@ -29,12 +29,13 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRu
 		llm:             llm,
 	}
 
-	assertWriter := authz.Middleware(authz.Has(authz.RoleWriter))
+	assertReader := authz.Middleware(http.HandlerFunc(h.getForbiddenPage), authz.OneOf(authz.Has(authz.RoleReader), authz.Has(authz.RoleWriter)))
+	assertWriter := authz.Middleware(http.HandlerFunc(h.getForbiddenPage), authz.Has(authz.RoleWriter))
 
-	h.mux.HandleFunc("GET /", h.getAskPage)
-	h.mux.HandleFunc("POST /", h.handleAsk)
+	h.mux.Handle("GET /", assertReader(http.HandlerFunc(h.getAskPage)))
+	h.mux.Handle("POST /", assertReader(http.HandlerFunc(h.handleAsk)))
 	h.mux.Handle("POST /index", assertWriter(http.HandlerFunc(h.handleIndex)))
-	h.mux.HandleFunc("GET /tasks/{taskID}", h.getTaskPage)
+	h.mux.Handle("GET /tasks/{taskID}", assertWriter(http.HandlerFunc(h.getTaskPage)))
 
 	return h
 }

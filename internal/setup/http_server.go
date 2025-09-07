@@ -5,24 +5,32 @@ import (
 
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/http"
-	"github.com/bornholm/corpus/internal/http/authz"
 	"github.com/bornholm/corpus/internal/http/handler/mcp"
 	"github.com/bornholm/corpus/internal/http/handler/metrics"
 	"github.com/bornholm/corpus/internal/http/handler/webui"
+	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/pkg/errors"
 )
 
 func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Server, error) {
-	// Configure API handler
 	api, err := getAPIHandlerFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not configure api handler from config")
 	}
 
-	taskRunner, err := getTaskRunner(ctx, conf)
+	authn, err := getAuthnHandlerFromConfig(ctx, conf)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create task runner from config")
+		return nil, errors.Wrap(err, "could not configure authn handler from config")
 	}
+
+	authnMiddleware := authn.Middleware()
+
+	authzMiddleware, err := getAuthzMiddlewareFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not configure authz handler from config")
+	}
+
+	assets := common.NewHandler()
 
 	documentManager, err := getDocumentManager(ctx, conf)
 	if err != nil {
@@ -32,9 +40,11 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 	options := []http.OptionFunc{
 		http.WithAddress(conf.HTTP.Address),
 		http.WithBaseURL(conf.HTTP.BaseURL),
-		http.WithMount("/api/v1/", api),
-		http.WithMount("/metrics/", metrics.NewHandler()),
-		http.WithMount("/mcp/", mcp.NewHandler(conf.HTTP.BaseURL, "/mcp", documentManager)),
+		http.WithMount("/assets/", assets),
+		http.WithMount("/auth/", authn),
+		http.WithMount("/api/v1/", authnMiddleware(authzMiddleware(api))),
+		http.WithMount("/metrics/", authnMiddleware(authzMiddleware(metrics.NewHandler()))),
+		http.WithMount("/mcp/", authnMiddleware(authzMiddleware(mcp.NewHandler(conf.HTTP.BaseURL, "/mcp", documentManager)))),
 	}
 
 	if conf.WebUI.Enabled {
@@ -43,28 +53,15 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 			return nil, errors.Wrap(err, "could not create llm client from config")
 		}
 
-		options = append(options, http.WithMount("/", webui.NewHandler(documentManager, llm, taskRunner)))
-	}
+		taskRunner, err := getTaskRunner(ctx, conf)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not create task runner from config")
+		}
 
-	users := []http.User{}
-	if conf.HTTP.Auth.Reader.Username != "" && conf.HTTP.Auth.Reader.Password != "" {
-		users = append(users, http.User{
-			Username: conf.HTTP.Auth.Reader.Username,
-			Password: conf.HTTP.Auth.Reader.Password,
-			Roles:    []string{authz.RoleReader},
-		})
-	}
+		webui := webui.NewHandler(documentManager, llm, taskRunner)
 
-	if conf.HTTP.Auth.Writer.Username != "" && conf.HTTP.Auth.Writer.Password != "" {
-		users = append(users, http.User{
-			Username: conf.HTTP.Auth.Writer.Username,
-			Password: conf.HTTP.Auth.Writer.Password,
-			Roles:    []string{authz.RoleWriter},
-		})
+		options = append(options, http.WithMount("/", authnMiddleware(authzMiddleware(webui))))
 	}
-
-	options = append(options, http.WithAuth(users...))
-	options = append(options, http.WithAllowAnonymous(conf.HTTP.Auth.AllowAnonymous))
 
 	// Create HTTP server
 

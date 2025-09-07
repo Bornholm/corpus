@@ -21,7 +21,7 @@ func NewHandler() *Handler {
 		mux: &http.ServeMux{},
 	}
 
-	assertAuthenticated := authz.Middleware(authz.IsAuthenticated)
+	assertAuthenticated := authz.Middleware(nil, authz.IsAuthenticated)
 
 	h.mux.Handle("GET /", assertAuthenticated(promhttp.Handler()))
 
