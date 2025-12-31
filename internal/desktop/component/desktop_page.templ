@@ -1,0 +1,21 @@
+package component
+
+import common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+
+type DesktopPageVModel struct {
+	PageOptions       []common.PageOptionFunc
+	SidebarActiveItem string
+}
+
+templ DesktopPage(vmodel DesktopPageVModel) {
+	@common.Page(common.WithFooter(false)) {
+		@Sidebar(SidebarVModel{
+			ActiveItem: vmodel.SidebarActiveItem,
+		})
+		<div
+			style="position:absolute;top:0;bottom:0;right:0;width:calc(100% - 60px);height:100%;left:60px;overflow:hidden;"
+		>
+			{ children... }
+		</div>
+	}
+}

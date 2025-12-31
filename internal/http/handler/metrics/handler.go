@@ -3,7 +3,7 @@ package metrics
 import (
 	"net/http"
 
-	"github.com/bornholm/corpus/internal/http/authz"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 

@@ -9,7 +9,7 @@ import (
 )
 
 var getBackupManager = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (*service.BackupManager, error) {
-	store, err := getStoreFromConfig(ctx, conf)
+	store, err := getDocumentStoreFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create store from config")
 	}

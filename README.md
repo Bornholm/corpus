@@ -62,6 +62,12 @@ CORPUS_LLM_PROVIDER_CHAT_COMPLETION_MODEL=mistral-small-latest
 CORPUS_LLM_PROVIDER_EMBEDDINGS_MODEL=mistral-embed
 ```
 
+## Sponsors
+
+<a title="Cadoles" href="https://www.cadoles.com">
+  <img alt="Logo Cadoles" src="https://www.cadoles.com/images/logo-long.svg" width="200" />
+</a>
+
 ## License
 
 [AGPL-3.0](LICENSE.md)

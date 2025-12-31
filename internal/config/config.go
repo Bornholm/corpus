@@ -10,7 +10,6 @@ type Config struct {
 	HTTP          HTTP          `envPrefix:"HTTP_"`
 	Storage       Storage       `envPrefix:"STORAGE_"`
 	LLM           LLM           `envPrefix:"LLM_"`
-	WebUI         WebUI         `envPrefix:"WEBUI_"`
 	FileConverter FileConverter `envPrefix:"FILE_CONVERTER_"`
 	TaskRunner    TaskRunner    `envPrefix:"TASK_RUNNER_"`
 }

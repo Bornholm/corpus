@@ -1,0 +1,37 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/desktop/settings"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
+
+type IndexersPageVModel struct {
+	Settings settings.Settings
+}
+
+templ IndexersPage(vmodel IndexersPageVModel) {
+	@DesktopPage(DesktopPageVModel{
+		PageOptions: []common.PageOptionFunc{
+			common.WithTitle("Indexation"), common.WithFooter(false),
+		},
+		SidebarActiveItem: "indexers",
+	}) {
+		<div class="container is-fluid">
+			<section class="section">
+				<div class="level">
+					<div class="level-left">
+						<h2 class="title is-4 level-item">Indexation</h2>
+					</div>
+					<div class="level-right"></div>
+				</div>
+				<div class="columns">
+					<div class="column">
+						<div class="notification">
+							<strong>Work in progress...</strong>
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	}
+}

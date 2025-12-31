@@ -1,3 +1,3 @@
 package context
 
-type key string
+type contextKey string

@@ -1,0 +1,36 @@
+package component
+
+import (
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strings"
+)
+
+type LoginPageVModel struct {
+	AllowedOrigins []string
+}
+
+templ LoginPage(vmodel LoginPageVModel) {
+	@common.Page() {
+		<form hx-boost="false" action={ common.CurrentURL(ctx) } method="post" id="loginForm">
+			<input type="hidden" name="token" id="tokenInput"/>
+		</form>
+		<script type="text/javascript" data-allowed-origins={ strings.Join(vmodel.AllowedOrigins, ",") }>
+      (function() {
+        const parentWindow = window.parent;
+        if (!parentWindow) return;
+
+        const allowedOrigins = document.currentScript.dataset.allowedOrigins.split(',')
+
+        window.addEventListener("message", (event) => {
+					if (allowedOrigins.indexOf(event.origin) === -1) return;
+					const data = JSON.parse(event.data);
+          if (!data.token) return
+          document.getElementById("tokenInput").value = data.token;
+          document.getElementById("loginForm").requestSubmit();
+				}, false);
+
+        parentWindow.postMessage(JSON.stringify({"action": "login"}), "*")
+      }())
+    </script>
+	}
+}

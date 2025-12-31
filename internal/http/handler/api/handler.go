@@ -5,7 +5,7 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
-	"github.com/bornholm/corpus/internal/http/authz"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 )
 
 type Handler struct {
@@ -28,25 +28,25 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *service
 		mux:             &http.ServeMux{},
 	}
 
-	assertAuthenticated := authz.Middleware(nil, authz.IsAuthenticated)
-	assertWriter := authz.Middleware(nil, authz.Has(authz.RoleWriter))
+	assertUser := authz.Middleware(nil, authz.Has(authz.RoleUser))
+	assertAdmin := authz.Middleware(nil, authz.Has(authz.RoleAdmin))
 
-	h.mux.Handle("GET /search", assertAuthenticated(http.HandlerFunc(h.handleSearch)))
-	h.mux.Handle("GET /ask", assertAuthenticated(http.HandlerFunc(h.handleAsk)))
-	h.mux.Handle("POST /index", assertWriter(http.HandlerFunc(h.handleIndexDocument)))
-	h.mux.Handle("GET /tasks", assertAuthenticated(http.HandlerFunc(h.listTasks)))
-	h.mux.Handle("GET /tasks/{taskID}", assertAuthenticated(http.HandlerFunc(h.showTask)))
+	h.mux.Handle("GET /search", assertUser(http.HandlerFunc(h.handleSearch)))
+	h.mux.Handle("GET /ask", assertUser(http.HandlerFunc(h.handleAsk)))
+	h.mux.Handle("POST /index", assertUser(http.HandlerFunc(h.handleIndexDocument)))
+	h.mux.Handle("GET /tasks", assertUser(http.HandlerFunc(h.listTasks)))
+	h.mux.Handle("GET /tasks/{taskID}", assertUser(http.HandlerFunc(h.showTask)))
 
-	h.mux.Handle("GET /backup", assertAuthenticated(http.HandlerFunc(h.handleGenerateBackup)))
-	h.mux.Handle("PUT /backup", assertWriter(http.HandlerFunc(h.handleRestoreBackup)))
+	h.mux.Handle("GET /backup", assertAdmin(http.HandlerFunc(h.handleGenerateBackup)))
+	h.mux.Handle("PUT /backup", assertAdmin(http.HandlerFunc(h.handleRestoreBackup)))
 
-	h.mux.Handle("GET /documents", assertAuthenticated(http.HandlerFunc(h.handleListDocuments)))
-	h.mux.Handle("GET /documents/{documentID}", assertAuthenticated(http.HandlerFunc(h.handleGetDocument)))
-	h.mux.Handle("DELETE /documents/{documentID}", assertWriter(http.HandlerFunc(h.handleDeleteDocument)))
-	h.mux.Handle("GET /documents/{documentID}/content", assertAuthenticated(http.HandlerFunc(h.handleGetDocumentContent)))
-	h.mux.Handle("POST /documents/{documentID}/reindex", assertWriter(http.HandlerFunc(h.handleReindexDocument)))
-	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}", assertAuthenticated(http.HandlerFunc(h.handleGetDocumentSection)))
-	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}/content", assertAuthenticated(http.HandlerFunc(h.handleGetSectionContent)))
+	h.mux.Handle("GET /documents", assertUser(http.HandlerFunc(h.handleListDocuments)))
+	h.mux.Handle("GET /documents/{documentID}", assertUser(http.HandlerFunc(h.handleGetDocument)))
+	h.mux.Handle("DELETE /documents/{documentID}", assertUser(http.HandlerFunc(h.handleDeleteDocument)))
+	h.mux.Handle("GET /documents/{documentID}/content", assertUser(http.HandlerFunc(h.handleGetDocumentContent)))
+	h.mux.Handle("POST /documents/{documentID}/reindex", assertUser(http.HandlerFunc(h.handleReindexDocument)))
+	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}", assertUser(http.HandlerFunc(h.handleGetDocumentSection)))
+	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}/content", assertUser(http.HandlerFunc(h.handleGetSectionContent)))
 
 	return h
 }

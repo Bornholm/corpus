@@ -340,4 +340,4 @@ components:
   securitySchemes:
     auth:
       type: http
-      scheme: basic
+      scheme: bearer

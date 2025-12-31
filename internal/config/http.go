@@ -9,10 +9,8 @@ type HTTP struct {
 	Session Session `envPrefix:"SESSION_"`
 }
 type Authn struct {
-	Providers    AuthProviders     `envPrefix:"PROVIDERS_"`
-	Whitelist    []string          `env:"WHITELIST" envSeparator:","`
-	DefaultRole  string            `env:"DEFAULT_ROLE" envDefault:"reader"`
-	RoleMappings map[string]string `env:"ROLE_MAPPINGS" envKeyValSeparator:":"`
+	Providers     AuthProviders `envPrefix:"PROVIDERS_"`
+	DefaultAdmins []string      `env:"DEFAULT_ADMINS" envSeparator:","`
 }
 
 type Session struct {

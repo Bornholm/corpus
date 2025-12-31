@@ -15,7 +15,7 @@ RELEASE_CHANNEL ?= $(shell git rev-parse --abbrev-ref HEAD)
 COMMIT_TIMESTAMP = $(shell git show -s --format=%ct)
 RELEASE_VERSION ?= $(shell TZ=Europe/Paris date -d "@$(COMMIT_TIMESTAMP)" +%Y.%-m.%-d)-$(RELEASE_CHANNEL).$(shell date -d "@${COMMIT_TIMESTAMP}" +%-H%M).$(shell git rev-parse --short HEAD)
 
-GORELEASER_ARGS ?= release --auto-snapshot --clean
+GORELEASER_ARGS ?= release --snapshot --clean
 
 watch: tools/modd/bin/modd
 	tools/modd/bin/modd
@@ -23,7 +23,7 @@ watch: tools/modd/bin/modd
 run-with-env: .env
 	( set -o allexport && source .env && set +o allexport && $(value CMD))
 
-build: build-server build-client
+build: build-server build-client build-desktop
 
 build-%: generate
 	CGO_ENABLED=0 \

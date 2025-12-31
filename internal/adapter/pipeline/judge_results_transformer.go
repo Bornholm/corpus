@@ -11,13 +11,14 @@ import (
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/genai/llm"
+	"github.com/bornholm/genai/llm/prompt"
 	"github.com/pkg/errors"
 )
 
 // Hypothetical document
 type JudgeResultsTransformer struct {
 	llm      llm.Client
-	store    port.Store
+	store    port.DocumentStore
 	maxWords int
 }
 
@@ -40,7 +41,7 @@ If no documents are relevant, return:
 
 // TransformResults implements ResultsTransformer.
 func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error) {
-	systemPrompt, err := llm.PromptTemplate(defaultJudgeResultsTransformer, struct {
+	systemPrompt, err := prompt.Template(defaultJudgeResultsTransformer, struct {
 	}{})
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -172,7 +173,7 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 	return sb.String(), nil
 }
 
-func NewJudgeResultsTransformer(client llm.Client, store port.Store, maxWords int) *JudgeResultsTransformer {
+func NewJudgeResultsTransformer(client llm.Client, store port.DocumentStore, maxWords int) *JudgeResultsTransformer {
 	return &JudgeResultsTransformer{
 		llm:      client,
 		store:    store,

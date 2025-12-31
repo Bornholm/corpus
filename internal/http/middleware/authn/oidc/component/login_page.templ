@@ -1,0 +1,48 @@
+package component
+
+import (
+	"fmt"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
+
+type Provider struct {
+	ID    string
+	Label string
+	Icon  string
+}
+
+type LoginPageVModel struct {
+	Providers []Provider
+}
+
+const defaultMaxCollections = 3
+
+templ LoginPage(vmodel LoginPageVModel) {
+	@common.Page(common.WithTitle("Authentification")) {
+		<div class="is-flex is-justify-content-center is-align-items-center" style="height:100%">
+			<nav class="panel" style="min-width: 33%">
+				<div class="panel-heading has-background-link-95 is-flex">
+					<div>
+						<img
+							style="height:3em;vertical-align:middle"
+							src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }
+						/>
+					</div>
+					<div style="flex:1" class="pl-3">
+						<span class="title">Corpus</span>
+						<br/>
+						<span class="subtitle">Veuillez vous authentifier</span>
+					</div>
+				</div>
+				for _, p := range vmodel.Providers {
+					<a class="panel-block py-5" href={ common.BaseURL(ctx, common.WithPath(fmt.Sprintf("/auth/oidc/providers/%s", p.ID))) } hx-boost="false">
+						<span class="panel-icon is-size-3">
+							<i class={ fmt.Sprintf("fab %s", p.Icon) } aria-hidden="true"></i>
+						</span>
+						<span class="is-size-5">{ p.Label }</span>
+					</a>
+				}
+			</nav>
+		</div>
+	}
+}

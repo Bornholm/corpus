@@ -2,7 +2,7 @@ name: check
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "desktop"]
   pull_request:
     branches: ["main"]
 
@@ -27,3 +27,11 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+      - uses: goreleaser/goreleaser-action@v4
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean --snapshot ${{ env.flags }}
+        env:
+          REPO_OWNER: ${{ github.actor }}

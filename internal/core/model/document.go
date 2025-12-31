@@ -18,7 +18,8 @@ func NewDocumentID() DocumentID {
 }
 
 type Document interface {
-	ID() DocumentID
+	WithID[DocumentID]
+
 	Source() *url.URL
 	ETag() string
 	Collections() []Collection

@@ -11,7 +11,8 @@ func NewCollectionID() CollectionID {
 }
 
 type Collection interface {
-	ID() CollectionID
+	WithID[CollectionID]
+
 	Name() string
 	Label() string
 	Description() string

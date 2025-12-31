@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -191,7 +191,7 @@ func (f *File) Seek(offset int64, whence int) (int64, error) {
 		return f.offset, nil
 	}
 
-	log.Printf("WARNING: Seek behavior triggered, highly inefficent. Offset before seek is at %d\n", f.offset)
+	slog.Warn("seek behavior triggered, highly inefficent", "startingOffset", f.offset)
 
 	if err := f.Sync(); err != nil {
 		return 0, errors.WithStack(err)

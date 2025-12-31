@@ -1,5 +1,7 @@
 package common
 
+import "net/http"
+
 type Error struct {
 	err         string
 	userMessage string
@@ -27,3 +29,7 @@ func NewError(err string, userMessage string, statusCode int) *Error {
 
 var _ UserFacingError = &Error{}
 var _ HTTPError = &Error{}
+
+func NewHTTPError(statusCode int) *Error {
+	return &Error{http.StatusText(statusCode), http.StatusText(statusCode), statusCode}
+}

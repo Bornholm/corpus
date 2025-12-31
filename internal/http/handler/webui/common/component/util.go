@@ -5,8 +5,8 @@ import (
 	"net/url"
 
 	"github.com/a-h/templ"
-	"github.com/bornholm/corpus/internal/http/authz"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	httpURL "github.com/bornholm/corpus/internal/http/url"
 	"github.com/pkg/errors"
 )
@@ -17,6 +17,10 @@ var (
 	WithValuesReset = httpURL.WithValuesReset
 	WithValues      = httpURL.WithValues
 )
+
+func IsDesktopApp(ctx context.Context) bool {
+	return httpCtx.IsDesktopApp(ctx)
+}
 
 func WithUser(username string, password string) httpURL.MutationFunc {
 	return func(u *url.URL) {

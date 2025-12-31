@@ -2,7 +2,6 @@ package smb
 
 import (
 	"io/fs"
-	"log"
 	"time"
 
 	"github.com/bornholm/corpus/internal/filesystem/backend"
@@ -112,8 +111,6 @@ func (fs *Fs) RemoveAll(path string) error {
 // Rename implements afero.Fs.
 func (fs *Fs) Rename(oldname string, newname string) error {
 	if err := fs.share.Rename(oldname, newname); err != nil {
-
-		log.Printf("%+v", errors.WithStack(err))
 		return errors.WithStack(err)
 	}
 

@@ -21,7 +21,7 @@ func init() {
 }
 
 // GenerateSnapshot implements backup.Snapshotable.
-func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
+func (s *DocumentStore) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 	r, w := io.Pipe()
 
 	go func() {
@@ -82,7 +82,7 @@ func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 }
 
 // RestoreSnapshot implements backup.Snapshotable.
-func (s *Store) RestoreSnapshot(ctx context.Context, r io.Reader) error {
+func (s *DocumentStore) RestoreSnapshot(ctx context.Context, r io.Reader) error {
 	decoder := gob.NewDecoder(r)
 
 	slog.DebugContext(ctx, "restoring snapshotted documents")
@@ -119,7 +119,7 @@ func (s *Store) RestoreSnapshot(ctx context.Context, r io.Reader) error {
 
 }
 
-var _ backup.Snapshotable = &Store{}
+var _ backup.Snapshotable = &DocumentStore{}
 
 type SnapshottedDocument struct {
 	ID          string

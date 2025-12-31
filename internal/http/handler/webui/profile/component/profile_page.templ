@@ -1,0 +1,223 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/go-x/templx/form"
+)
+
+type ProfilePageVModel struct {
+	User         model.User
+	AuthTokens   []model.AuthToken
+	TokenForm    *form.Form
+	CreatedToken string
+	DeletedToken bool
+	Navbar       *common.NavbarVModel
+}
+
+templ ProfilePage(vmodel ProfilePageVModel) {
+	@common.Page(common.WithTitle("Profil")) {
+		<div class="container">
+			if vmodel.Navbar != nil {
+				@common.Navbar(*vmodel.Navbar)
+			}
+			<section class="section pt-3">
+				<div class="columns is-centered">
+					<div class="column is-8">
+						<div class="card">
+							<div class="card-header">
+								<p class="card-header-title">
+									<span class="icon">
+										<i class="fas fa-user"></i>
+									</span>
+									<span>Profil</span>
+								</p>
+							</div>
+							<div class="card-content">
+								<div class="content">
+									<div class="field">
+										<label class="label">Nom d'affichage</label>
+										<div class="control">
+											<input class="input" type="text" value={ vmodel.User.DisplayName() } readonly/>
+										</div>
+									</div>
+									<div class="field">
+										<label class="label">Courriel</label>
+										<div class="control">
+											<input class="input" type="text" value={ vmodel.User.Email() } readonly/>
+										</div>
+									</div>
+									<div class="notification">
+										<p>Ces informations sont contrôlées par votre fournisseur d'identité et ne peuvent être modifiées.</p>
+									</div>
+								</div>
+							</div>
+						</div>
+						<!-- Auth Tokens Section -->
+						<div class="card mt-5">
+							<div class="card-header">
+								<p class="card-header-title">
+									<span class="icon">
+										<i class="fas fa-key"></i>
+									</span>
+									<span>Jetons d'authentification</span>
+								</p>
+								<div class="card-header-icon">
+									<button class="button is-primary is-small" onclick="openTokenModal()">
+										<span class="icon">
+											<i class="fas fa-plus"></i>
+										</span>
+										<span>Nouveau jeton</span>
+									</button>
+								</div>
+							</div>
+							<div class="card-content">
+								<div class="content">
+									if len(vmodel.AuthTokens) == 0 {
+										<div class="notification is-info is-light">
+											<p>Aucun jeton d'authentification configuré.</p>
+											<p>Les jetons permettent aux applications externes d'accéder à votre compte de manière sécurisée.</p>
+										</div>
+									} else {
+										<div class="table-container">
+											<table class="table is-fullwidth is-striped">
+												<thead>
+													<tr>
+														<th>Nom</th>
+														<th>Créé le</th>
+														<th>Actions</th>
+													</tr>
+												</thead>
+												<tbody>
+													for _, token := range vmodel.AuthTokens {
+														<tr>
+															<td>{ token.Label() }</td>
+															<td>-</td>
+															<td>
+																<button class="button is-danger is-small" data-token-id={ string(token.ID()) } onclick="deleteTokenHandler(this)">
+																	<span class="icon">
+																		<i class="fas fa-trash"></i>
+																	</span>
+																	<span>Supprimer</span>
+																</button>
+															</td>
+														</tr>
+													}
+												</tbody>
+											</table>
+										</div>
+									}
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+		<!-- Token Creation Modal -->
+		<div id="token-modal" class="modal">
+			<div class="modal-background" onclick="closeTokenModal()"></div>
+			<div class="modal-card">
+				<header class="modal-card-head">
+					<p class="modal-card-title">Créer un nouveau jeton</p>
+					<button class="delete" aria-label="close" onclick="closeTokenModal()"></button>
+				</header>
+				<div class="modal-card-body">
+					<div class="notification is-warning is-light">
+						<p><strong>Important :</strong> Le jeton ne sera affiché qu'une seule fois après sa création. Assurez-vous de le copier dans un endroit sûr.</p>
+					</div>
+					@form.FormWrapper(vmodel.TokenForm, common.BaseURL(ctx, common.WithPath("/profile/tokens")), "POST")
+				</div>
+				<footer class="modal-card-foot">
+					<button type="submit" class="button is-primary" onclick="document.querySelector('#token-modal form').submit()">Créer le jeton</button>
+					<button class="button" onclick="closeTokenModal()">Annuler</button>
+				</footer>
+			</div>
+		</div>
+		<!-- Token Created Success Modal -->
+		if vmodel.CreatedToken != "" {
+			<div id="token-success-modal" class="modal is-active">
+				<div class="modal-background" onclick="closeSuccessModal()"></div>
+				<div class="modal-card">
+					<header class="modal-card-head">
+						<p class="modal-card-title">Jeton créé avec succès</p>
+						<button class="delete" aria-label="close" onclick="closeSuccessModal()"></button>
+					</header>
+					<div class="modal-card-body">
+						<div class="notification is-success">
+							<p><strong>Votre nouveau jeton d'authentification :</strong></p>
+							<div class="field has-addons">
+								<div class="control is-expanded">
+									<input class="input" type="text" value={ vmodel.CreatedToken } readonly id="created-token"/>
+								</div>
+								<div class="control">
+									<button class="button is-info" onclick="copyToken()">
+										<span class="icon">
+											<i class="fas fa-copy"></i>
+										</span>
+										<span>Copier</span>
+									</button>
+								</div>
+							</div>
+							<p class="help is-danger">
+								<strong>Attention :</strong> Ce jeton ne sera plus affiché. Copiez-le maintenant dans un endroit sûr.
+							</p>
+						</div>
+					</div>
+					<footer class="modal-card-foot">
+						<button class="button is-primary" onclick="closeSuccessModal()">J'ai copié le jeton</button>
+					</footer>
+				</div>
+			</div>
+		}
+		<!-- Token Deleted Success Notification -->
+		if vmodel.DeletedToken {
+			<div class="notification is-success is-light" style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+				<button class="delete" onclick="this.parentElement.style.display='none'"></button>
+				<p><strong>Jeton supprimé avec succès</strong></p>
+			</div>
+		}
+		<script>
+			function openTokenModal() {
+				document.getElementById('token-modal').classList.add('is-active');
+			}
+			
+			function closeTokenModal() {
+				document.getElementById('token-modal').classList.remove('is-active');
+			}
+			
+			function closeSuccessModal() {
+				document.getElementById('token-success-modal').classList.remove('is-active');
+			}
+			
+			function copyToken() {
+				const tokenInput = document.getElementById('created-token');
+				tokenInput.select();
+				document.execCommand('copy');
+				
+				const button = event.target.closest('button');
+				const originalText = button.innerHTML;
+				button.innerHTML = '<span class="icon"><i class="fas fa-check"></i></span><span>Copié!</span>';
+				button.classList.remove('is-info');
+				button.classList.add('is-success');
+				
+				setTimeout(() => {
+					button.innerHTML = originalText;
+					button.classList.remove('is-success');
+					button.classList.add('is-info');
+				}, 2000);
+			}
+			
+			function deleteTokenHandler(button) {
+				const tokenId = button.getAttribute('data-token-id');
+				if (confirm('Êtes-vous sûr de vouloir supprimer ce jeton ? Cette action est irréversible.')) {
+					fetch('/profile/tokens/' + tokenId, {
+						method: 'DELETE',
+					}).then(() => {
+						window.location.reload();
+					});
+				}
+			}
+		</script>
+	}
+}

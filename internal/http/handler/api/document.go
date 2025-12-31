@@ -53,7 +53,7 @@ func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 		opts.MatchingSource = source
 	}
 
-	documents, total, err := h.documentManager.Store.QueryDocuments(ctx, opts)
+	documents, total, err := h.documentManager.DocumentStore.QueryDocuments(ctx, opts)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not query documents", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -100,7 +100,7 @@ func (h *Handler) handleGetDocument(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	document, err := h.documentManager.Store.GetDocumentByID(ctx, documentID)
+	document, err := h.documentManager.DocumentStore.GetDocumentByID(ctx, documentID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -150,7 +150,7 @@ func (h *Handler) handleGetDocumentContent(w http.ResponseWriter, r *http.Reques
 
 	ctx := r.Context()
 
-	document, err := h.documentManager.Store.GetDocumentByID(ctx, documentID)
+	document, err := h.documentManager.DocumentStore.GetDocumentByID(ctx, documentID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -182,7 +182,7 @@ func (h *Handler) handleReindexDocument(w http.ResponseWriter, r *http.Request) 
 
 	ctx := r.Context()
 
-	document, err := h.documentManager.Store.GetDocumentByID(ctx, documentID)
+	document, err := h.documentManager.DocumentStore.GetDocumentByID(ctx, documentID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -237,7 +237,7 @@ func (h *Handler) handleGetDocumentSection(w http.ResponseWriter, r *http.Reques
 
 	ctx := r.Context()
 
-	section, err := h.documentManager.Store.GetSectionByID(ctx, sectionID)
+	section, err := h.documentManager.DocumentStore.GetSectionByID(ctx, sectionID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -291,7 +291,7 @@ func (h *Handler) handleGetSectionContent(w http.ResponseWriter, r *http.Request
 
 	ctx := r.Context()
 
-	section, err := h.documentManager.Store.GetSectionByID(ctx, sectionID)
+	section, err := h.documentManager.DocumentStore.GetSectionByID(ctx, sectionID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -328,7 +328,7 @@ func (h *Handler) handleDeleteDocument(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	err := h.documentManager.Store.DeleteDocumentByID(ctx, documentID)
+	err := h.documentManager.DocumentStore.DeleteDocumentByID(ctx, documentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not delete document", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

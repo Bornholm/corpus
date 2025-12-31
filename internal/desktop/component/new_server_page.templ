@@ -1,0 +1,41 @@
+package component
+
+import (
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/go-x/templx/form"
+)
+
+type NewServerPageVModel struct {
+	Form *form.Form
+}
+
+templ NewServerPage(vmodel NewServerPageVModel) {
+	@DesktopPage(DesktopPageVModel{
+		PageOptions: []common.PageOptionFunc{
+			common.WithTitle("Ajouter un serveur"), common.WithFooter(false),
+		},
+		SidebarActiveItem: "servers",
+	}) {
+		<div class="container is-fluid">
+			<section class="section">
+				<div class="columns">
+					<div class={ "column" }>
+						<h2 class="title is-4">Nouveau serveur</h2>
+						<div class="box">
+							@form.FormWrapper(vmodel.Form, common.BaseURL(ctx, common.WithPath("/servers")), "POST") {
+								<div class="is-clearfix">
+									<button type="submit" class="button is-primary is-pulled-right">
+										<span class="icon">
+											<i class="fas fa-plus"></i>
+										</span>
+										<span>Créer</span>
+									</button>
+								</div>
+							}
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	}
+}

@@ -2,12 +2,16 @@ package http
 
 import (
 	"net/http"
+
+	"github.com/bornholm/corpus/internal/desktop"
+	"github.com/rs/cors"
 )
 
 type Options struct {
 	Address string
 	BaseURL string
 	Mounts  map[string]http.Handler
+	CORS    cors.Options
 }
 
 type OptionFunc func(opts *Options)
@@ -17,6 +21,11 @@ func NewOptions(funcs ...OptionFunc) *Options {
 		Address: ":3002",
 		BaseURL: "",
 		Mounts:  map[string]http.Handler{},
+		CORS: cors.Options{
+			AllowedOrigins:   desktop.Origins(),
+			AllowCredentials: true,
+			Debug:            false,
+		},
 	}
 	for _, fn := range funcs {
 		fn(opts)
@@ -39,5 +48,11 @@ func WithBaseURL(baseURL string) OptionFunc {
 func WithAddress(addr string) OptionFunc {
 	return func(opts *Options) {
 		opts.Address = addr
+	}
+}
+
+func WithCORS(options cors.Options) OptionFunc {
+	return func(opts *Options) {
+		opts.CORS = options
 	}
 }

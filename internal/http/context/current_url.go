@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const keyCurrentURL = "currentURL"
+const keyCurrentURL contextKey = "currentURL"
 
 func CurrentURL(ctx context.Context) *url.URL {
 	currentURL, ok := ctx.Value(keyCurrentURL).(*url.URL)

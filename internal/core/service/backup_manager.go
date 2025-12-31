@@ -18,7 +18,7 @@ import (
 
 type BackupManager struct {
 	index      port.Index
-	store      port.Store
+	store      port.DocumentStore
 	taskRunner port.TaskRunner
 }
 
@@ -156,7 +156,7 @@ func (m *BackupManager) getRestorables() []Restorable {
 	return restorables
 }
 
-func NewBackupManager(index port.Index, store port.Store, taskRunner port.TaskRunner) *BackupManager {
+func NewBackupManager(index port.Index, store port.DocumentStore, taskRunner port.TaskRunner) *BackupManager {
 	backupManager := &BackupManager{index, store, taskRunner}
 
 	taskRunner.Register(restoreBackupTaskType, port.TaskHandlerFunc(backupManager.handleRestoreBackupTaskfunc))

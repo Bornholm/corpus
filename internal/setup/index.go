@@ -25,7 +25,7 @@ var getIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *co
 		return nil, errors.Wrap(err, "could not get llm client from config")
 	}
 
-	store, err := getStoreFromConfig(ctx, conf)
+	documentStore, err := getDocumentStoreFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get store from config")
 	}
@@ -38,11 +38,11 @@ var getIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *co
 	pipelinedIndex := pipeline.NewIndex(
 		weightedIndexes,
 		pipeline.WithQueryTransformers(
-			pipeline.NewHyDEQueryTransformer(llmClient, store),
+			pipeline.NewHyDEQueryTransformer(llmClient, documentStore),
 		),
 		pipeline.WithResultsTransformers(
-			pipeline.NewDuplicateContentResultsTransformer(store),
-			pipeline.NewJudgeResultsTransformer(llmClient, store, conf.LLM.Index.MaxWords),
+			pipeline.NewDuplicateContentResultsTransformer(documentStore),
+			pipeline.NewJudgeResultsTransformer(llmClient, documentStore, conf.LLM.Index.MaxWords),
 		),
 	)
 

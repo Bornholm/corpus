@@ -7,8 +7,10 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
 
+	"github.com/bornholm/corpus/internal/desktop"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
 )
 
@@ -28,12 +30,20 @@ func (s *Server) Run(ctx context.Context) error {
 	handler := sloghttp.Recovery(mux)
 	handler = sloghttp.New(slog.Default())(handler)
 
+	cors := cors.New(s.opts.CORS)
+
+	handler = cors.Handler(handler)
+
 	handler = func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 
 			ctx = httpCtx.SetBaseURL(ctx, s.opts.BaseURL)
 			ctx = httpCtx.SetCurrentURL(ctx, r.URL)
+
+			userAgent := r.Header.Get("User-Agent")
+			isDesktopApp := strings.HasPrefix(userAgent, desktop.UserAgentPrefix)
+			ctx = httpCtx.SetDesktopApp(ctx, isDesktopApp)
 
 			r = r.WithContext(ctx)
 

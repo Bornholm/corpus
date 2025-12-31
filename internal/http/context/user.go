@@ -6,7 +6,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 )
 
-const keyUser = "user"
+const keyUser contextKey = "user"
 
 func User(ctx context.Context) model.User {
 	user, ok := ctx.Value(keyUser).(model.User)

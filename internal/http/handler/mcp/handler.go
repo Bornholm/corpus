@@ -10,7 +10,7 @@ import (
 	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
-	"github.com/bornholm/corpus/internal/http/authz"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/gorilla/sessions"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -94,7 +94,7 @@ func (h *Handler) filterTools(ctx context.Context, tools []mcp.Tool) []mcp.Tool 
 }
 
 func (h *Handler) getAskDescription(ctx context.Context) (string, error) {
-	collections, err := h.documentManager.Store.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	collections, err := h.documentManager.DocumentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
 	if err != nil {
 		return "", errors.WithStack(err)
 	}

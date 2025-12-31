@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-const keyBaseURL = "baseURL"
+const keyBaseURL contextKey = "baseURL"
 
 func BaseURL(ctx context.Context) *url.URL {
 	rawBaseURL, ok := ctx.Value(keyBaseURL).(string)

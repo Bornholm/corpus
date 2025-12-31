@@ -154,7 +154,7 @@ func (d *dummyStore) UpdateCollection(ctx context.Context, id model.CollectionID
 	panic("unimplemented")
 }
 
-var _ port.Store = &dummyStore{}
+var _ port.DocumentStore = &dummyStore{}
 
 type dummySection struct {
 	id     model.SectionID

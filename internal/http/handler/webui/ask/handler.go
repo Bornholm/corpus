@@ -5,7 +5,7 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
-	"github.com/bornholm/corpus/internal/http/authz"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/bornholm/genai/llm"
 )
 
@@ -29,13 +29,12 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRu
 		llm:             llm,
 	}
 
-	assertReader := authz.Middleware(http.HandlerFunc(h.getForbiddenPage), authz.OneOf(authz.Has(authz.RoleReader), authz.Has(authz.RoleWriter)))
-	assertWriter := authz.Middleware(http.HandlerFunc(h.getForbiddenPage), authz.Has(authz.RoleWriter))
+	assertUser := authz.Middleware(http.HandlerFunc(h.getForbiddenPage), authz.OneOf(authz.Has(authz.RoleUser), authz.Has(authz.RoleAdmin)))
 
-	h.mux.Handle("GET /", assertReader(http.HandlerFunc(h.getAskPage)))
-	h.mux.Handle("POST /", assertReader(http.HandlerFunc(h.handleAsk)))
-	h.mux.Handle("POST /index", assertWriter(http.HandlerFunc(h.handleIndex)))
-	h.mux.Handle("GET /tasks/{taskID}", assertWriter(http.HandlerFunc(h.getTaskPage)))
+	h.mux.Handle("GET /", assertUser(http.HandlerFunc(h.getAskPage)))
+	h.mux.Handle("POST /", assertUser(http.HandlerFunc(h.handleAsk)))
+	h.mux.Handle("POST /index", assertUser(http.HandlerFunc(h.handleIndex)))
+	h.mux.Handle("GET /tasks/{taskID}", assertUser(http.HandlerFunc(h.getTaskPage)))
 
 	return h
 }

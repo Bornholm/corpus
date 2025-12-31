@@ -4,8 +4,8 @@ import (
 	"encoding/base64"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/corpus/internal/http/authz"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"slices"
 	"strconv"
 	"strings"
@@ -25,7 +25,7 @@ type AskPageVModel struct {
 	Duration        time.Duration
 	UploadFileModal *UploadFileModalVModel
 
-	Navbar *NavbarVModel
+	Navbar *common.NavbarVModel
 }
 
 const defaultMaxCollections = 3
@@ -35,15 +35,16 @@ templ AskPage(vmodel AskPageVModel) {
 		if vmodel.UploadFileModal != nil {
 			@UploadFileModal(*vmodel.UploadFileModal)
 		}
-		<div class="container">
-			if vmodel.Navbar != nil {
-				@Navbar(*vmodel.Navbar)
+		{{ isDesktopApp := common.IsDesktopApp(ctx) }}
+		<div class={ "container", templ.KV("is-fluid", isDesktopApp), templ.KV("pt-3", isDesktopApp) }>
+			if vmodel.Navbar != nil && !isDesktopApp {
+				@common.Navbar(*vmodel.Navbar)
 			}
 			<section class="section pt-3">
-				<div class="level">
+				<div class="level is-mobile">
 					<div class="level-left"></div>
 					<div class="level-right">
-						if common.AssertUser(ctx, authz.Has(authz.RoleWriter)) {
+						if common.AssertUser(ctx, authz.Has(authz.RoleUser)) {
 							<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
 						}
 					</div>

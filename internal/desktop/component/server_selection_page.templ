@@ -1,0 +1,78 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/desktop/settings"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
+
+type ServerSelectionPageVModel struct {
+	Servers []settings.Server
+}
+
+templ ServerSelectionPage(vmodel ServerSelectionPageVModel) {
+	@DesktopPage(DesktopPageVModel{
+		PageOptions: []common.PageOptionFunc{
+			common.WithTitle("Sélectionner un serveur"), common.WithFooter(false),
+		},
+		SidebarActiveItem: "servers",
+	}) {
+		<div class="container is-fluid">
+			<section class="section">
+				<div class="level">
+					<div class="level-left">
+						<h2 class="title is-4 level-item">Serveurs</h2>
+					</div>
+					<div class="level-right">
+						<div class="buttons is-right level-item">
+							<a href={ common.BaseURL(ctx, common.WithPath("/servers/new")) } class="button"><span class="icon"><i class="fas fa-plus"></i></span><span>Ajouter un serveur</span></a>
+						</div>
+					</div>
+				</div>
+				<div class="columns">
+					<div class="column">
+						if len(vmodel.Servers) == 0 {
+							<div class="notification is-warning is-light">
+								<p>Aucun serveur configuré pour l'instant.</p>
+							</div>
+						}
+						for _, server := range vmodel.Servers {
+							<div class="box">
+								<div class="level">
+									<div class="level-left">
+										<div class="level-item">
+											<div>
+												<strong>{ server.Label }</strong>
+												if server.Preferred {
+													<span class="tag is-success is-small ml-3">Par défaut</span>
+												}
+												<br/>
+												<small class="has-text-grey">{ server.URL }</small>
+												<br/>
+												<a class="button is-ghost is-small mt-3 px-0" href={ common.BaseURL(ctx, common.WithPath("/servers/", server.ID)) }>Éditer</a>
+											</div>
+										</div>
+									</div>
+									<div class="level-right">
+										<div class="level-item">
+											<div>
+												<button
+													class="button is-link"
+													hx-target="closest body"
+													hx-swap="outerHTML"
+													hx-post={ common.BaseURL(ctx, common.WithPath("/servers/actions/select"), common.WithValues("server", server.ID)) }
+												>
+													<span>Choisir</span>
+													<span class="icon"><i class="fas fa-arrow-right"></i></span>
+												</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						}
+					</div>
+				</div>
+			</section>
+		</div>
+	}
+}

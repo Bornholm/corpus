@@ -10,13 +10,14 @@ import (
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/genai/llm"
+	"github.com/bornholm/genai/llm/prompt"
 	"github.com/pkg/errors"
 )
 
 // Hypothetical document
 type HyDEQueryTransformer struct {
 	llm   llm.Client
-	store port.Store
+	store port.DocumentStore
 }
 
 const defaultHyDEPromptTemplate = `
@@ -44,7 +45,7 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string)
 		return "", errors.WithStack(err)
 	}
 
-	prompt, err := llm.PromptTemplate(defaultHyDEPromptTemplate, struct {
+	prompt, err := prompt.Template(defaultHyDEPromptTemplate, struct {
 		Query       string
 		Collections []model.Collection
 	}{
@@ -86,7 +87,7 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string)
 	return sb.String(), nil
 }
 
-func NewHyDEQueryTransformer(client llm.Client, store port.Store) *HyDEQueryTransformer {
+func NewHyDEQueryTransformer(client llm.Client, store port.DocumentStore) *HyDEQueryTransformer {
 	return &HyDEQueryTransformer{
 		llm:   client,
 		store: store,

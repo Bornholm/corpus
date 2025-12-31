@@ -1,0 +1,70 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/desktop/settings"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/go-x/templx/form"
+)
+
+type EditServerPageVModel struct {
+	Form   *form.Form
+	Server *settings.Server
+}
+
+templ EditServerPage(vmodel EditServerPageVModel) {
+	@DesktopPage(DesktopPageVModel{
+		PageOptions: []common.PageOptionFunc{
+			common.WithTitle("Éditer un serveur"), common.WithFooter(false),
+		},
+		SidebarActiveItem: "servers",
+	}) {
+		<div class="container is-fluid">
+			<section class="section">
+				<div class="columns">
+					<div class={ "column" }>
+						<div class="level">
+							<div class="level-left">
+								<div class="level-item">
+									<h2 class="title is-4">Éditer le serveur</h2>
+								</div>
+							</div>
+							<div class="level-right">
+								<div class="level-item">
+									<button
+										class="button is-danger is-outlined"
+										hx-boost="false"
+										hx-delete={ common.BaseURL(ctx, common.WithPath("/servers", vmodel.Server.ID)) }
+										hx-confirm="Êtes vous sûr de vouloir supprimer ce serveur ?"
+										hx-target="closest body"
+									>
+										<span class="icon">
+											<i class="fas fa-trash"></i>
+										</span>
+										<span>Supprimer</span>
+									</button>
+								</div>
+							</div>
+						</div>
+						<div class="box">
+							<style>
+								input[type="password"] {
+									-webkit-text-security: disc;
+								}
+							</style>
+							@form.FormWrapper(vmodel.Form, common.BaseURL(ctx, common.WithPath("/servers", vmodel.Server.ID)), "POST") {
+								<div class="is-clearfix">
+									<button type="submit" class="button is-primary is-pulled-right">
+										<span class="icon">
+											<i class="fas fa-plus"></i>
+										</span>
+										<span>Modifier</span>
+									</button>
+								</div>
+							}
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	}
+}

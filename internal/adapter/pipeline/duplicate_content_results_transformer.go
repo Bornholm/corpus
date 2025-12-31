@@ -11,7 +11,7 @@ import (
 // Delete duplicated content originating from the same
 // branch in the document
 type DuplicateContentResultsTransformer struct {
-	store port.Store
+	store port.DocumentStore
 }
 
 // TransformResults implements ResultsTransformer.
@@ -65,7 +65,7 @@ func (t *DuplicateContentResultsTransformer) TransformResults(ctx context.Contex
 	return merged, nil
 }
 
-func NewDuplicateContentResultsTransformer(store port.Store) *DuplicateContentResultsTransformer {
+func NewDuplicateContentResultsTransformer(store port.DocumentStore) *DuplicateContentResultsTransformer {
 	return &DuplicateContentResultsTransformer{
 		store: store,
 	}

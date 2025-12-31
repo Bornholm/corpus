@@ -18,6 +18,7 @@ import (
 	"github.com/bornholm/corpus/internal/util"
 	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/bornholm/genai/llm"
+	"github.com/bornholm/genai/llm/prompt"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 )
@@ -48,7 +49,7 @@ func NewDocumentManagerOptions(funcs ...DocumentManagerOptionFunc) *DocumentMana
 }
 
 type DocumentManager struct {
-	port.Store
+	port.DocumentStore
 
 	maxWordPerSection int
 	fileConverter     port.FileConverter
@@ -95,7 +96,7 @@ func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...Doc
 
 	collections := make([]model.CollectionID, 0)
 	for _, c := range opts.Collections {
-		coll, err := m.Store.GetCollectionByName(ctx, c)
+		coll, err := m.DocumentStore.GetCollectionByName(ctx, c)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -212,7 +213,7 @@ func (m *DocumentManager) generateResponse(ctx context.Context, systemPromptTemp
 		}
 	}
 
-	systemPrompt, err := llm.PromptTemplate(systemPromptTemplate, struct {
+	systemPrompt, err := prompt.Template(systemPromptTemplate, struct {
 		Sections []contextSection
 	}{
 		Sections: contextSections,
@@ -412,13 +413,13 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 				}
 
 				for _, name := range indexFileTask.opts.Collections {
-					coll, err := m.Store.GetCollectionByName(ctx, name)
+					coll, err := m.DocumentStore.GetCollectionByName(ctx, name)
 					if err != nil {
 						if !errors.Is(err, port.ErrNotFound) {
 							return errors.Wrapf(err, "could not find collection with name '%s'", name)
 						}
 
-						coll, err = m.Store.CreateCollection(ctx, name)
+						coll, err = m.DocumentStore.CreateCollection(ctx, name)
 						if err != nil {
 							return errors.WithStack(err)
 						}
@@ -527,7 +528,7 @@ func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.
 	}
 	err := m.index.All(ctx, func(id model.SectionID) bool {
 		count++
-		exists, err := m.Store.SectionExists(ctx, id)
+		exists, err := m.DocumentStore.SectionExists(ctx, id)
 		if err != nil {
 			slog.ErrorContext(ctx, "could not check if section exists", slog.Any("error", errors.WithStack(err)))
 			return true
@@ -558,12 +559,12 @@ func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.
 	return nil
 }
 
-func NewDocumentManager(store port.Store, index port.Index, taskRunner port.TaskRunner, llm llm.Client, funcs ...DocumentManagerOptionFunc) *DocumentManager {
+func NewDocumentManager(store port.DocumentStore, index port.Index, taskRunner port.TaskRunner, llm llm.Client, funcs ...DocumentManagerOptionFunc) *DocumentManager {
 	opts := NewDocumentManagerOptions(funcs...)
 
 	documentManager := &DocumentManager{
 		maxWordPerSection: opts.MaxWordPerSection,
-		Store:             store,
+		DocumentStore:     store,
 		taskRunner:        taskRunner,
 		index:             index,
 		fileConverter:     opts.FileConverter,

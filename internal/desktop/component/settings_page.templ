@@ -1,0 +1,53 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/build"
+	"github.com/bornholm/corpus/internal/desktop/settings"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
+
+type SettingsPageVModel struct {
+	Settings settings.Settings
+}
+
+templ SettingsPage(vmodel SettingsPageVModel) {
+	@DesktopPage(DesktopPageVModel{
+		PageOptions: []common.PageOptionFunc{
+			common.WithTitle("Paramètres"), common.WithFooter(false),
+		},
+		SidebarActiveItem: "settings",
+	}) {
+		<div class="container is-fluid">
+			<section class="section">
+				<div class="level">
+					<div class="level-left">
+						<h2 class="title is-4 level-item">Paramètres</h2>
+					</div>
+					<div class="level-right">
+						<div class="buttons is-right level-item">
+							<button
+								hx-confirm="Êtes vous sûr de vouloir réinitialiser les paramètres ? Vous perdrez toutes vos choix, incluant les serveurs configurés ?"
+								hx-delete={ common.BaseURL(ctx, common.WithPath("/settings")) }
+								hx-boost="false"
+								class="button is-outlined is-danger"
+								hx-target="closest body"
+							>
+								<span class="icon"><i class="fas fa-recycle"></i></span><span>Réinitialiser</span>
+							</button>
+						</div>
+					</div>
+				</div>
+				<div class="columns">
+					<div class="column">
+						<div class="notification">
+							<strong>Work in progress...</strong>
+						</div>
+						<div class="content">
+							<strong>Version: </strong><code>{ build.LongVersion }</code>
+						</div>
+					</div>
+				</div>
+			</section>
+		</div>
+	}
+}

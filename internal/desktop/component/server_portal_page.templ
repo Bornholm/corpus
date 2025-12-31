@@ -1,0 +1,43 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/desktop/settings"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
+
+type ServerPortalVModel struct {
+	Server   settings.Server
+	LoginURL string
+	Token    string
+}
+
+templ ServerPortalPage(vmodel ServerPortalVModel) {
+	@DesktopPage(DesktopPageVModel{
+		PageOptions: []common.PageOptionFunc{
+			common.WithTitle(vmodel.Server.Label), common.WithFooter(false),
+		},
+		SidebarActiveItem: "home",
+	}) {
+		<script type="text/javascript" data-allowed-origin={ vmodel.Server.URL } data-token={ vmodel.Token }>
+			(function() {
+				const allowedOrigin = document.currentScript.dataset.allowedOrigin;
+				const token = document.currentScript.dataset.token;
+				window.addEventListener("message", (event) => {
+					if (event.origin !== allowedOrigin) return;
+					const data = JSON.parse(event.data);
+					if (data.action !== "login") return;
+					event.source.postMessage(
+						JSON.stringify({"token": token }),
+						event.origin,
+					);
+				}, false);
+			}())
+		</script>
+		<iframe
+			id="portal"
+			src={ vmodel.LoginURL }
+			seamless
+			style="width:100%;height:100%;"
+		></iframe>
+	}
+}

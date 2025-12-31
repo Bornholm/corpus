@@ -64,10 +64,11 @@ templ Page(funcs ...PageOptionFunc) {
 				@opts.Head()
 			}
 		</head>
-		<body hx-boost="true" class="is-fullheight">
+		{{ isDesktopApp := IsDesktopApp(ctx) }}
+		<body hx-boost="true" class={ "is-fullheight" }>
 			<div id="main" class="is-fullheight">
 				{ children... }
-				if opts.IncludeFooter {
+				if opts.IncludeFooter && !isDesktopApp {
 					<footer class="footer">
 						<div class="content has-text-centered">
 							<p>

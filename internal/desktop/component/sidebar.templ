@@ -1,0 +1,126 @@
+package component
+
+import common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+
+type SidebarVModel struct {
+	ActiveItem string
+}
+
+templ Sidebar(vmodel SidebarVModel) {
+	<aside class="sidebar is-fixed-left">
+		<nav class="sidebar-nav">
+			<ul class="sidebar-menu">
+				<li class="sidebar-item">
+					<a
+						href={ common.BaseURL(ctx, common.WithPath("/portal")) }
+						class={ "sidebar-link", templ.KV("is-active", vmodel.ActiveItem == "home") }
+						title="Accueil"
+					>
+						<span class="icon">
+							<i class={ "fas", "fa-home" }></i>
+						</span>
+					</a>
+				</li>
+				<li class="sidebar-item">
+					<a
+						href={ common.BaseURL(ctx, common.WithPath("/indexers")) }
+						class={ "sidebar-link", templ.KV("is-active", vmodel.ActiveItem == "indexers") }
+						title="Serveurs"
+					>
+						<span class="icon">
+							<i class="fas fa-folder-plus"></i>
+						</span>
+					</a>
+				</li>
+				<li class="sidebar-separator"></li>
+				<li class="sidebar-item">
+					<a
+						href={ common.BaseURL(ctx, common.WithPath("/servers")) }
+						class={ "sidebar-link", templ.KV("is-active", vmodel.ActiveItem == "servers") }
+						title="Serveurs"
+					>
+						<span class="icon">
+							<i class={ "fas", "fa-server" }></i>
+						</span>
+					</a>
+				</li>
+				<li class="sidebar-item">
+					<a
+						href={ common.BaseURL(ctx, common.WithPath("/settings")) }
+						class={ "sidebar-link", templ.KV("is-active", vmodel.ActiveItem == "settings") }
+						title="Paramètres"
+					>
+						<span class="icon">
+							<i class={ "fas", "fa-cog" }></i>
+						</span>
+					</a>
+				</li>
+			</ul>
+		</nav>
+	</aside>
+	<style>
+		.sidebar {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 60px;
+			height: 100vh;
+			background-color: #363636;
+			border-right: 1px solid #dbdbdb;
+			z-index: 1000;
+		}
+
+		.sidebar-nav {
+			height: 100%;
+			padding: 1rem 0;
+		}
+
+		.sidebar-menu {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+			display: flex;
+			flex-direction: column;
+			height: 100%;
+		}
+
+		.sidebar-item {
+			margin-bottom: 0.5rem;
+		}
+
+		.sidebar-separator {
+			margin-top: auto;
+		}
+
+		.sidebar-link {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 100%;
+			height: 48px;
+			color: #b5b5b5;
+			text-decoration: none;
+			transition: all 0.2s ease;
+			border-radius: 0;
+		}
+
+		.sidebar-link:hover {
+			background-color: #4a4a4a;
+			color: #ffffff;
+		}
+
+		.sidebar-link.is-active {
+			background-color: #3273dc;
+			color: #ffffff;
+		}
+
+		.sidebar-link .icon {
+			font-size: 1.25rem;
+		}
+
+		/* Adjust main content to account for sidebar */
+		.has-sidebar {
+			margin-left: 60px;
+		}
+	</style>
+}

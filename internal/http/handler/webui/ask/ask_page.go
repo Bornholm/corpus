@@ -14,6 +14,7 @@ import (
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/pkg/errors"
 )
 
@@ -141,7 +142,7 @@ func (h *Handler) fillAskPageVModelFileUploadModal(ctx context.Context, vmodel *
 }
 
 func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
-	collections, err := h.documentManager.Store.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	collections, err := h.documentManager.DocumentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -149,7 +150,7 @@ func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *comp
 	vmodel.CollectionStats = make(map[model.CollectionID]*model.CollectionStats)
 
 	for _, c := range collections {
-		stats, err := h.documentManager.Store.GetCollectionStats(ctx, c.ID())
+		stats, err := h.documentManager.DocumentStore.GetCollectionStats(ctx, c.ID())
 		if err != nil {
 			return errors.WithStack(err)
 		}
@@ -196,7 +197,7 @@ func (h *Handler) fillAskPageVModelNavbar(ctx context.Context, vmodel *component
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = &component.NavbarVModel{
+	vmodel.Navbar = &commonComp.NavbarVModel{
 		User: user,
 	}
 
