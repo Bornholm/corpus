@@ -36,8 +36,22 @@ func (h *Handler) handleProviderCallback(w http.ResponseWriter, r *http.Request)
 	user := &authn.User{
 		Email:       gothUser.Email,
 		Provider:    gothUser.Provider,
-		Subject:     gothUser.UserID,
 		DisplayName: getUserDisplayName(gothUser),
+	}
+
+	rawSubject := gothUser.RawData["sub"]
+	if subject, ok := rawSubject.(string); ok {
+		user.Subject = subject
+	}
+
+	if user.Subject == "" {
+		user.Subject = gothUser.UserID
+	}
+
+	if user.Subject == "" {
+		slog.ErrorContext(r.Context(), "could not authenticate user", slog.Any("error", errors.New("user subject missing")))
+		http.Redirect(w, r, "/auth/logout", http.StatusTemporaryRedirect)
+		return
 	}
 
 	if user.Email == "" {
