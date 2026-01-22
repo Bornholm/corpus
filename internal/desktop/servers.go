@@ -305,6 +305,10 @@ func (h *Handler) handleDeleteServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if currentServer := h.getCurrentServer(); currentServer != nil && server.ID == currentServer.ID {
+		h.setCurrentServer(nil)
+	}
+
 	redirectURL := commonComp.BaseURL(ctx, commonComp.WithPath("/servers"))
 
 	w.Header().Add("HX-Refresh", "true")
