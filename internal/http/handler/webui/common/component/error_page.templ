@@ -12,6 +12,7 @@ type LinkItem struct {
 
 templ ErrorPage(vmodel ErrorPageVModel) {
 	@Page(WithTitle("Erreur"), WithFooter(false)) {
+		{{ isDesktopApp := IsDesktopApp(ctx) }}
 		<section class="section is-fullheight">
 			<div class="is-flex is-justify-content-center is-align-items-center is-fullheight">
 				<article class="message is-danger">
@@ -21,7 +22,9 @@ templ ErrorPage(vmodel ErrorPageVModel) {
 					<div class="message-body">
 						{ vmodel.Message }
 						<p class="has-text-centered mt-5">
-							<a href={ BaseURL(ctx) }>Retour à la page d'accueil</a>
+							if !isDesktopApp {
+								<a href={ BaseURL(ctx) }>Retour à la page d'accueil</a>
+							}
 							for _, l := range vmodel.Links {
 								<span>| </span>
 								<a href={ templ.SafeURL(l.URL) }>{ l.Label }</a>

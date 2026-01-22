@@ -36,8 +36,8 @@ templ AskPage(vmodel AskPageVModel) {
 			@UploadFileModal(*vmodel.UploadFileModal)
 		}
 		{{ isDesktopApp := common.IsDesktopApp(ctx) }}
-		<div class={ "container", templ.KV("is-fluid", isDesktopApp), templ.KV("pt-3", isDesktopApp) }>
-			if vmodel.Navbar != nil && !isDesktopApp {
+		<div class={ "container", templ.KV("is-fluid", isDesktopApp) }>
+			if vmodel.Navbar != nil {
 				@common.Navbar(*vmodel.Navbar)
 			}
 			<section class="section pt-3">

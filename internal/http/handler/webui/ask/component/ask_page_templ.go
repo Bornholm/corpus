@@ -82,7 +82,7 @@ func AskPage(vmodel AskPageVModel) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			isDesktopApp := common.IsDesktopApp(ctx)
-			var templ_7745c5c3_Var3 = []any{"container", templ.KV("is-fluid", isDesktopApp), templ.KV("pt-3", isDesktopApp)}
+			var templ_7745c5c3_Var3 = []any{"container", templ.KV("is-fluid", isDesktopApp)}
 			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var3...)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -104,7 +104,7 @@ func AskPage(vmodel AskPageVModel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if vmodel.Navbar != nil && !isDesktopApp {
+			if vmodel.Navbar != nil {
 				templ_7745c5c3_Err = common.Navbar(*vmodel.Navbar).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

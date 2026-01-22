@@ -14,9 +14,10 @@ import (
 )
 
 type ServerPortalVModel struct {
-	Server   settings.Server
-	LoginURL string
-	Token    string
+	Server            settings.Server
+	IFrameURL         string
+	Token             string
+	SidebarActiveItem string
 }
 
 func ServerPortalPage(vmodel ServerPortalVModel) templ.Component {
@@ -59,7 +60,7 @@ func ServerPortalPage(vmodel ServerPortalVModel) templ.Component {
 			var templ_7745c5c3_Var3 string
 			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.Server.URL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/desktop/component/server_portal_page.templ`, Line: 21, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/desktop/component/server_portal_page.templ`, Line: 22, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 			if templ_7745c5c3_Err != nil {
@@ -72,20 +73,20 @@ func ServerPortalPage(vmodel ServerPortalVModel) templ.Component {
 			var templ_7745c5c3_Var4 string
 			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.Token)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/desktop/component/server_portal_page.templ`, Line: 21, Col: 100}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/desktop/component/server_portal_page.templ`, Line: 22, Col: 100}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">\n\t\t\t(function() {\n\t\t\t\tconst allowedOrigin = document.currentScript.dataset.allowedOrigin;\n\t\t\t\tconst token = document.currentScript.dataset.token;\n\t\t\t\twindow.addEventListener(\"message\", (event) => {\n\t\t\t\t\tif (event.origin !== allowedOrigin) return;\n\t\t\t\t\tconst data = JSON.parse(event.data);\n\t\t\t\t\tif (data.action !== \"login\") return;\n\t\t\t\t\tevent.source.postMessage(\n\t\t\t\t\t\tJSON.stringify({\"token\": token }),\n\t\t\t\t\t\tevent.origin,\n\t\t\t\t\t);\n\t\t\t\t}, false);\n\t\t\t}())\n\t\t</script> <iframe id=\"portal\" src=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\">\n\t\t\t(function() {\n\t\t\t\tconst allowedOrigin = document.currentScript.dataset.allowedOrigin;\n\t\t\t\tconst token = document.currentScript.dataset.token;\n\t\t\t\twindow.addEventListener(\"message\", (event) => {\n\t\t\t\t\tif (event.origin !== allowedOrigin) return;\n\t\t\t\t\tconst data = JSON.parse(event.data);\n\t\t\t\t\tif (data.action !== \"login\") return;\n\t\t\t\t\tevent.source.postMessage(\n\t\t\t\t\t\tJSON.stringify({\"token\": token }),\n\t\t\t\t\t\tevent.origin,\n\t\t\t\t\t);\n\t\t\t\t}, false);\n\t\t\t}())\n\n\t\t\tfunction onIframeLoad() {\n\t\t\t\tconst loader = document.getElementById(\"loader\");\n\t\t\t\tif (!loader) return;\n\t\t\t\tsetTimeout(() => loader.parentElement.removeChild(loader), 0);\n\t\t\t}\n\t\t</script> <div id=\"loader\" class=\"has-background-white is-flex is-justify-content-center is-align-items-center is-flex-direction-column\" style=\"position:absolute;z-index:1000000;top:0;bottom:0;right:0;left:0;\"><div class=\"button is-loading is-outlined is-large is-ghost\"></div><span class=\"mt-3 has-text-grey\">Chargement...</span></div><iframe id=\"portal\" onload=\"javascript:onIframeLoad()\" src=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.LoginURL)
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.IFrameURL)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/desktop/component/server_portal_page.templ`, Line: 38, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/desktop/component/server_portal_page.templ`, Line: 54, Col: 25}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {

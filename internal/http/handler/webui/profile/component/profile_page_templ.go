@@ -56,7 +56,26 @@ func ProfilePage(vmodel ProfilePageVModel) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container\">")
+			isDesktopApp := common.IsDesktopApp(ctx)
+			var templ_7745c5c3_Var3 = []any{"container", templ.KV("is-fluid", isDesktopApp)}
+			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var3...)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(templ.CSSClasses(templ_7745c5c3_Var3).String())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 1, Col: 0}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -66,84 +85,84 @@ func ProfilePage(vmodel ProfilePageVModel) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<section class=\"section pt-3\"><div class=\"columns is-centered\"><div class=\"column is-8\"><div class=\"card\"><div class=\"card-header\"><p class=\"card-header-title\"><span class=\"icon\"><i class=\"fas fa-user\"></i></span> <span>Profil</span></p></div><div class=\"card-content\"><div class=\"content\"><div class=\"field\"><label class=\"label\">Nom d'affichage</label><div class=\"control\"><input class=\"input\" type=\"text\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<section class=\"section pt-3\"><div class=\"columns is-centered\"><div class=\"column is-8\"><div class=\"card\"><div class=\"card-header\"><p class=\"card-header-title\"><span class=\"icon\"><i class=\"fas fa-user\"></i></span> <span>Profil</span></p></div><div class=\"card-content\"><div class=\"content\"><div class=\"field\"><label class=\"label\">Nom d'affichage</label><div class=\"control\"><input class=\"input\" type=\"text\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.User.DisplayName())
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.User.DisplayName())
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 41, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 42, Col: 77}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" readonly></div></div><div class=\"field\"><label class=\"label\">Courriel</label><div class=\"control\"><input class=\"input\" type=\"text\" value=\"")
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.User.Email())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 47, Col: 71}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" readonly></div></div><div class=\"field\"><label class=\"label\">Courriel</label><div class=\"control\"><input class=\"input\" type=\"text\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" readonly></div></div><div class=\"notification\"><p>Ces informations sont contrôlées par votre fournisseur d'identité et ne peuvent être modifiées.</p></div></div></div></div><!-- Auth Tokens Section --><div class=\"card mt-5\"><div class=\"card-header\"><p class=\"card-header-title\"><span class=\"icon\"><i class=\"fas fa-key\"></i></span> <span>Jetons d'authentification</span></p><div class=\"card-header-icon\"><button class=\"button is-primary is-small\" onclick=\"openTokenModal()\"><span class=\"icon\"><i class=\"fas fa-plus\"></i></span> <span>Nouveau jeton</span></button></div></div><div class=\"card-content\"><div class=\"content\">")
+			var templ_7745c5c3_Var6 string
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.User.Email())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 48, Col: 71}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" readonly></div></div><div class=\"notification\"><p>Ces informations sont contrôlées par votre fournisseur d'identité et ne peuvent être modifiées.</p></div></div></div></div><!-- Auth Tokens Section --><div class=\"card mt-5\"><div class=\"card-header\"><p class=\"card-header-title\"><span class=\"icon\"><i class=\"fas fa-key\"></i></span> <span>Jetons d'authentification</span></p><div class=\"card-header-icon\"><button class=\"button is-primary is-small\" onclick=\"openTokenModal()\"><span class=\"icon\"><i class=\"fas fa-plus\"></i></span> <span>Nouveau jeton</span></button></div></div><div class=\"card-content\"><div class=\"content\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if len(vmodel.AuthTokens) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<div class=\"notification is-info is-light\"><p>Aucun jeton d'authentification configuré.</p><p>Les jetons permettent aux applications externes d'accéder à votre compte de manière sécurisée.</p></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"notification is-info is-light\"><p>Aucun jeton d'authentification configuré.</p><p>Les jetons permettent aux applications externes d'accéder à votre compte de manière sécurisée.</p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"table-container\"><table class=\"table is-fullwidth is-striped\"><thead><tr><th>Nom</th><th>Créé le</th><th>Actions</th></tr></thead> <tbody>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"table-container\"><table class=\"table is-fullwidth is-striped\"><thead><tr><th>Nom</th><th>Créé le</th><th>Actions</th></tr></thead> <tbody>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, token := range vmodel.AuthTokens {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<tr><td>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "<tr><td>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var5 string
-					templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(token.Label())
+					var templ_7745c5c3_Var7 string
+					templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(token.Label())
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 94, Col: 34}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 95, Col: 34}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</td><td>-</td><td><button class=\"button is-danger is-small\" data-token-id=\"")
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var6 string
-					templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(string(token.ID()))
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 97, Col: 92}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "</td><td>-</td><td><button class=\"button is-danger is-small\" data-token-id=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\" onclick=\"deleteTokenHandler(this)\"><span class=\"icon\"><i class=\"fas fa-trash\"></i></span> <span>Supprimer</span></button></td></tr>")
+					var templ_7745c5c3_Var8 string
+					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(string(token.ID()))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 98, Col: 92}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "\" onclick=\"deleteTokenHandler(this)\"><span class=\"icon\"><i class=\"fas fa-trash\"></i></span> <span>Supprimer</span></button></td></tr>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</tbody></table></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</tbody></table></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</div></div></div></div></div></section></div><!-- Token Creation Modal --> <div id=\"token-modal\" class=\"modal\"><div class=\"modal-background\" onclick=\"closeTokenModal()\"></div><div class=\"modal-card\"><header class=\"modal-card-head\"><p class=\"modal-card-title\">Créer un nouveau jeton</p><button class=\"delete\" aria-label=\"close\" onclick=\"closeTokenModal()\"></button></header><div class=\"modal-card-body\"><div class=\"notification is-warning is-light\"><p><strong>Important :</strong> Le jeton ne sera affiché qu'une seule fois après sa création. Assurez-vous de le copier dans un endroit sûr.</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div></div></div></div></div></section></div><!-- Token Creation Modal --> <div id=\"token-modal\" class=\"modal\"><div class=\"modal-background\" onclick=\"closeTokenModal()\"></div><div class=\"modal-card\"><header class=\"modal-card-head\"><p class=\"modal-card-title\">Créer un nouveau jeton</p><button class=\"delete\" aria-label=\"close\" onclick=\"closeTokenModal()\"></button></header><div class=\"modal-card-body\"><div class=\"notification is-warning is-light\"><p><strong>Important :</strong> Le jeton ne sera affiché qu'une seule fois après sa création. Assurez-vous de le copier dans un endroit sûr.</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -151,40 +170,40 @@ func ProfilePage(vmodel ProfilePageVModel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "</div><footer class=\"modal-card-foot\"><button type=\"submit\" class=\"button is-primary\" onclick=\"document.querySelector(&#39;#token-modal form&#39;).submit()\">Créer le jeton</button> <button class=\"button\" onclick=\"closeTokenModal()\">Annuler</button></footer></div></div><!-- Token Created Success Modal --> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "</div><footer class=\"modal-card-foot\"><button type=\"submit\" class=\"button is-primary\" onclick=\"document.querySelector(&#39;#token-modal form&#39;).submit()\">Créer le jeton</button> <button class=\"button\" onclick=\"closeTokenModal()\">Annuler</button></footer></div></div><!-- Token Created Success Modal --> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if vmodel.CreatedToken != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "<div id=\"token-success-modal\" class=\"modal is-active\"><div class=\"modal-background\" onclick=\"closeSuccessModal()\"></div><div class=\"modal-card\"><header class=\"modal-card-head\"><p class=\"modal-card-title\">Jeton créé avec succès</p><button class=\"delete\" aria-label=\"close\" onclick=\"closeSuccessModal()\"></button></header><div class=\"modal-card-body\"><div class=\"notification is-success\"><p><strong>Votre nouveau jeton d'authentification :</strong></p><div class=\"field has-addons\"><div class=\"control is-expanded\"><input class=\"input\" type=\"text\" value=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<div id=\"token-success-modal\" class=\"modal is-active\"><div class=\"modal-background\" onclick=\"closeSuccessModal()\"></div><div class=\"modal-card\"><header class=\"modal-card-head\"><p class=\"modal-card-title\">Jeton créé avec succès</p><button class=\"delete\" aria-label=\"close\" onclick=\"closeSuccessModal()\"></button></header><div class=\"modal-card-body\"><div class=\"notification is-success\"><p><strong>Votre nouveau jeton d'authentification :</strong></p><div class=\"field has-addons\"><div class=\"control is-expanded\"><input class=\"input\" type=\"text\" value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var7 string
-				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.CreatedToken)
+				var templ_7745c5c3_Var9 string
+				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.CreatedToken)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 151, Col: 69}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/profile/component/profile_page.templ`, Line: 152, Col: 69}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "\" readonly id=\"created-token\"></div><div class=\"control\"><button class=\"button is-info\" onclick=\"copyToken()\"><span class=\"icon\"><i class=\"fas fa-copy\"></i></span> <span>Copier</span></button></div></div><p class=\"help is-danger\"><strong>Attention :</strong> Ce jeton ne sera plus affiché. Copiez-le maintenant dans un endroit sûr.</p></div></div><footer class=\"modal-card-foot\"><button class=\"button is-primary\" onclick=\"closeSuccessModal()\">J'ai copié le jeton</button></footer></div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "\" readonly id=\"created-token\"></div><div class=\"control\"><button class=\"button is-info\" onclick=\"copyToken()\"><span class=\"icon\"><i class=\"fas fa-copy\"></i></span> <span>Copier</span></button></div></div><p class=\"help is-danger\"><strong>Attention :</strong> Ce jeton ne sera plus affiché. Copiez-le maintenant dans un endroit sûr.</p></div></div><footer class=\"modal-card-foot\"><button class=\"button is-primary\" onclick=\"closeSuccessModal()\">J'ai copié le jeton</button></footer></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, " <!-- Token Deleted Success Notification --> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, " <!-- Token Deleted Success Notification --> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if vmodel.DeletedToken {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "<div class=\"notification is-success is-light\" style=\"position: fixed; top: 20px; right: 20px; z-index: 1000;\"><button class=\"delete\" onclick=\"this.parentElement.style.display=&#39;none&#39;\"></button><p><strong>Jeton supprimé avec succès</strong></p></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "<div class=\"notification is-success is-light\" style=\"position: fixed; top: 20px; right: 20px; z-index: 1000;\"><button class=\"delete\" onclick=\"this.parentElement.style.display=&#39;none&#39;\"></button><p><strong>Jeton supprimé avec succès</strong></p></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, " <script>\n\t\t\tfunction openTokenModal() {\n\t\t\t\tdocument.getElementById('token-modal').classList.add('is-active');\n\t\t\t}\n\t\t\t\n\t\t\tfunction closeTokenModal() {\n\t\t\t\tdocument.getElementById('token-modal').classList.remove('is-active');\n\t\t\t}\n\t\t\t\n\t\t\tfunction closeSuccessModal() {\n\t\t\t\tdocument.getElementById('token-success-modal').classList.remove('is-active');\n\t\t\t}\n\t\t\t\n\t\t\tfunction copyToken() {\n\t\t\t\tconst tokenInput = document.getElementById('created-token');\n\t\t\t\ttokenInput.select();\n\t\t\t\tdocument.execCommand('copy');\n\t\t\t\t\n\t\t\t\tconst button = event.target.closest('button');\n\t\t\t\tconst originalText = button.innerHTML;\n\t\t\t\tbutton.innerHTML = '<span class=\"icon\"><i class=\"fas fa-check\"></i></span><span>Copié!</span>';\n\t\t\t\tbutton.classList.remove('is-info');\n\t\t\t\tbutton.classList.add('is-success');\n\t\t\t\t\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\tbutton.innerHTML = originalText;\n\t\t\t\t\tbutton.classList.remove('is-success');\n\t\t\t\t\tbutton.classList.add('is-info');\n\t\t\t\t}, 2000);\n\t\t\t}\n\t\t\t\n\t\t\tfunction deleteTokenHandler(button) {\n\t\t\t\tconst tokenId = button.getAttribute('data-token-id');\n\t\t\t\tif (confirm('Êtes-vous sûr de vouloir supprimer ce jeton ? Cette action est irréversible.')) {\n\t\t\t\t\tfetch('/profile/tokens/' + tokenId, {\n\t\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\t}).then(() => {\n\t\t\t\t\t\twindow.location.reload();\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t}\n\t\t</script>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, " <script>\n\t\t\tfunction openTokenModal() {\n\t\t\t\tdocument.getElementById('token-modal').classList.add('is-active');\n\t\t\t}\n\t\t\t\n\t\t\tfunction closeTokenModal() {\n\t\t\t\tdocument.getElementById('token-modal').classList.remove('is-active');\n\t\t\t}\n\t\t\t\n\t\t\tfunction closeSuccessModal() {\n\t\t\t\tdocument.getElementById('token-success-modal').classList.remove('is-active');\n\t\t\t}\n\t\t\t\n\t\t\tfunction copyToken() {\n\t\t\t\tconst tokenInput = document.getElementById('created-token');\n\t\t\t\ttokenInput.select();\n\t\t\t\tdocument.execCommand('copy');\n\t\t\t\t\n\t\t\t\tconst button = event.target.closest('button');\n\t\t\t\tconst originalText = button.innerHTML;\n\t\t\t\tbutton.innerHTML = '<span class=\"icon\"><i class=\"fas fa-check\"></i></span><span>Copié!</span>';\n\t\t\t\tbutton.classList.remove('is-info');\n\t\t\t\tbutton.classList.add('is-success');\n\t\t\t\t\n\t\t\t\tsetTimeout(() => {\n\t\t\t\t\tbutton.innerHTML = originalText;\n\t\t\t\t\tbutton.classList.remove('is-success');\n\t\t\t\t\tbutton.classList.add('is-info');\n\t\t\t\t}, 2000);\n\t\t\t}\n\t\t\t\n\t\t\tfunction deleteTokenHandler(button) {\n\t\t\t\tconst tokenId = button.getAttribute('data-token-id');\n\t\t\t\tif (confirm('Êtes-vous sûr de vouloir supprimer ce jeton ? Cette action est irréversible.')) {\n\t\t\t\t\tfetch('/profile/tokens/' + tokenId, {\n\t\t\t\t\t\tmethod: 'DELETE',\n\t\t\t\t\t}).then(() => {\n\t\t\t\t\t\twindow.location.reload();\n\t\t\t\t\t});\n\t\t\t\t}\n\t\t\t}\n\t\t</script>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

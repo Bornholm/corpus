@@ -15,7 +15,8 @@ type TaskPageVModel struct {
 templ TaskPage(vmodel TaskPageVModel) {
 	{{ progress := strconv.FormatFloat(float64(vmodel.Task.Progress*100), 'f', 0, 32) }}
 	@common.Page(common.WithTitle(fmt.Sprintf("(%s%%) Indexation en cours...", progress))) {
-		<div class="container">
+		{{ isDesktopApp := common.IsDesktopApp(ctx) }}
+		<div class={ "container", templ.KV("is-fluid", isDesktopApp) }>
 			<section class="section">
 				<div class="level">
 					<div class="level-left">

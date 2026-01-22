@@ -50,7 +50,7 @@ func ServerSelectionPage(vmodel ServerSelectionPageVModel) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container is-fluid\"><section class=\"section\"><div class=\"level\"><div class=\"level-left\"><h2 class=\"title is-4 level-item\">Serveurs</h2></div><div class=\"level-right\"><div class=\"buttons is-right level-item\"><a href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container is-fluid\"><section class=\"section\"><div class=\"level is-mobile\"><div class=\"level-left\"><h2 class=\"title is-4 level-item\">Serveurs</h2></div><div class=\"level-right\"><div class=\"buttons is-right level-item\"><a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -70,7 +70,7 @@ func ServerSelectionPage(vmodel ServerSelectionPageVModel) templ.Component {
 				}
 			}
 			for _, server := range vmodel.Servers {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"box\"><div class=\"level\"><div class=\"level-left\"><div class=\"level-item\"><div><strong>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"box\"><div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><div><strong>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

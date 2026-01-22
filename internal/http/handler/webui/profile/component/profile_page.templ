@@ -17,7 +17,8 @@ type ProfilePageVModel struct {
 
 templ ProfilePage(vmodel ProfilePageVModel) {
 	@common.Page(common.WithTitle("Profil")) {
-		<div class="container">
+		{{ isDesktopApp := common.IsDesktopApp(ctx) }}
+		<div class={ "container", templ.KV("is-fluid", isDesktopApp) }>
 			if vmodel.Navbar != nil {
 				@common.Navbar(*vmodel.Navbar)
 			}

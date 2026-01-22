@@ -51,7 +51,7 @@ func SettingsPage(vmodel SettingsPageVModel) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container is-fluid\"><section class=\"section\"><div class=\"level\"><div class=\"level-left\"><h2 class=\"title is-4 level-item\">Paramètres</h2></div><div class=\"level-right\"><div class=\"buttons is-right level-item\"><button hx-confirm=\"Êtes vous sûr de vouloir réinitialiser les paramètres ? Vous perdrez toutes vos choix, incluant les serveurs configurés ?\" hx-delete=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container is-fluid\"><section class=\"section\"><div class=\"level is-mobile\"><div class=\"level-left\"><h2 class=\"title is-4 level-item\">Paramètres</h2></div><div class=\"level-right\"><div class=\"buttons is-right level-item\"><button hx-confirm=\"Êtes vous sûr de vouloir réinitialiser les paramètres ? Vous perdrez toutes vos choix, incluant les serveurs configurés ?\" hx-delete=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

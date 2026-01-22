@@ -74,7 +74,7 @@ func EditServerPage(vmodel EditServerPageVModel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"><div class=\"level\"><div class=\"level-left\"><div class=\"level-item\"><h2 class=\"title is-4\">Éditer le serveur</h2></div></div><div class=\"level-right\"><div class=\"level-item\"><button class=\"button is-danger is-outlined\" hx-boost=\"false\" hx-delete=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"><div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><h2 class=\"title is-4\">Éditer le serveur</h2></div></div><div class=\"level-right\"><div class=\"level-item\"><button class=\"button is-danger is-outlined\" hx-boost=\"false\" hx-delete=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

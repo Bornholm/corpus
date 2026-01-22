@@ -35,12 +35,22 @@ func (h *Handler) getServerPortal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var iframeURL string
+
 	loginURL := serverURL.JoinPath("/auth/token/login")
 
+	if path := r.URL.Query().Get("path"); path != "" {
+		query := loginURL.Query()
+		query.Set("redirect", path)
+		loginURL.RawQuery = query.Encode()
+	}
+
+	iframeURL = loginURL.String()
+
 	page := component.ServerPortalPage(component.ServerPortalVModel{
-		Server:   *server,
-		LoginURL: loginURL.String(),
-		Token:    token,
+		Server:    *server,
+		IFrameURL: iframeURL,
+		Token:     token,
 	})
 
 	templ.Handler(page).ServeHTTP(w, r)
