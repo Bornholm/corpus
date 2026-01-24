@@ -41,12 +41,17 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *service
 	h.mux.Handle("PUT /backup", assertAdmin(http.HandlerFunc(h.handleRestoreBackup)))
 
 	h.mux.Handle("GET /documents", assertUser(http.HandlerFunc(h.handleListDocuments)))
-	h.mux.Handle("GET /documents/{documentID}", assertUser(http.HandlerFunc(h.handleGetDocument)))
-	h.mux.Handle("DELETE /documents/{documentID}", assertUser(http.HandlerFunc(h.handleDeleteDocument)))
-	h.mux.Handle("GET /documents/{documentID}/content", assertUser(http.HandlerFunc(h.handleGetDocumentContent)))
-	h.mux.Handle("POST /documents/{documentID}/reindex", assertUser(http.HandlerFunc(h.handleReindexDocument)))
-	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}", assertUser(http.HandlerFunc(h.handleGetDocumentSection)))
-	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}/content", assertUser(http.HandlerFunc(h.handleGetSectionContent)))
+	h.mux.Handle("GET /documents/{documentID}", assertUser(h.assertDocumentReadable(http.HandlerFunc(h.handleGetDocument))))
+	h.mux.Handle("DELETE /documents/{documentID}", assertUser(h.assertDocumentWritable(http.HandlerFunc(h.handleDeleteDocument))))
+	h.mux.Handle("GET /documents/{documentID}/content", assertUser(h.assertDocumentReadable(http.HandlerFunc(h.handleGetDocumentContent))))
+	h.mux.Handle("POST /documents/{documentID}/reindex", assertUser(h.assertDocumentWritable(http.HandlerFunc(h.handleReindexDocument))))
+	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}", assertUser(h.assertDocumentReadable(http.HandlerFunc(h.handleGetDocumentSection))))
+	h.mux.Handle("GET /documents/{documentID}/sections/{sectionID}/content", assertUser(h.assertDocumentReadable(http.HandlerFunc(h.handleGetSectionContent))))
+
+	h.mux.Handle("GET /collections", assertUser(http.HandlerFunc(h.handleListCollections)))
+	h.mux.Handle("GET /collections/{collectionID}", assertUser(h.assertCollectionReadable(http.HandlerFunc(h.handleGetCollection))))
+	h.mux.Handle("PUT /collections/{collectionID}", assertUser(h.assertCollectionWritable(http.HandlerFunc(h.handleUpdateCollection))))
+	h.mux.Handle("DELETE /collections/{collectionID}", assertUser(h.assertCollectionWritable(http.HandlerFunc(h.handleDeleteCollection))))
 
 	return h
 }

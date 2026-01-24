@@ -54,9 +54,13 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
 
-	if collections, exists := r.Form["collection"]; exists {
-		searchOptions = append(searchOptions, service.WithDocumentManagerSearchCollections(collections...))
+	collections, err := h.getReadableCollections(ctx, r.Form["collection"])
+	if err != nil {
+		common.HandleError(w, r, errors.WithStack(err))
+		return
 	}
+
+	searchOptions = append(searchOptions, service.WithDocumentManagerSearchCollections(collections...))
 
 	results, err := h.documentManager.Search(ctx, vmodel.Query, searchOptions...)
 	if err != nil {
@@ -103,7 +107,8 @@ func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVMode
 }
 
 func (h *Handler) fillAskPageVModelTotalDocuments(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
-	total, err := h.documentManager.CountDocuments(ctx)
+	user := httpCtx.User(ctx)
+	total, err := h.documentManager.CountReadableDocuments(ctx, user.ID())
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -134,15 +139,27 @@ func (h *Handler) fillAskPageVModelFileUploadModal(ctx context.Context, vmodel *
 		return nil
 	}
 
+	user := httpCtx.User(ctx)
+	writableCollections, _, err := h.documentManager.DocumentStore.QueryUserWritableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	baseURL := httpCtx.BaseURL(ctx)
+	createCollectionURL := baseURL.JoinPath("/collections/create")
+
 	vmodel.UploadFileModal = &component.UploadFileModalVModel{
 		SupportedExtensions: h.documentManager.SupportedExtensions(),
+		WritableCollections: writableCollections,
+		CreateCollectionURL: createCollectionURL.String(),
 	}
 
 	return nil
 }
 
 func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
-	collections, err := h.documentManager.DocumentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	user := httpCtx.User(ctx)
+	collections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -158,9 +175,9 @@ func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *comp
 		vmodel.CollectionStats[c.ID()] = stats
 	}
 
-	slices.SortFunc(collections, func(c1, c2 model.Collection) int {
-		selected1 := slices.Contains(vmodel.SelectedCollectionNames, c1.Name())
-		selected2 := slices.Contains(vmodel.SelectedCollectionNames, c2.Name())
+	slices.SortFunc(collections, func(c1, c2 model.PersistedCollection) int {
+		selected1 := slices.Contains(vmodel.SelectedCollections, c1.ID())
+		selected2 := slices.Contains(vmodel.SelectedCollections, c2.ID())
 
 		if selected1 && !selected2 {
 			return -1
@@ -181,12 +198,20 @@ func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *comp
 }
 
 func (h *Handler) fillAskPageVModelSelectedCollectionIDs(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
-	collections, exists := r.URL.Query()["collection"]
+	rawCollections, exists := r.URL.Query()["collection"]
 	if !exists {
 		return nil
 	}
 
-	vmodel.SelectedCollectionNames = collections
+	collections := slices.Collect(func(yield func(model.CollectionID) bool) {
+		for _, rawCollectionID := range rawCollections {
+			if !yield(model.CollectionID(rawCollectionID)) {
+				return
+			}
+		}
+	})
+
+	vmodel.SelectedCollections = collections
 
 	return nil
 }
@@ -197,9 +222,50 @@ func (h *Handler) fillAskPageVModelNavbar(ctx context.Context, vmodel *component
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = &commonComp.NavbarVModel{
+	vmodel.Navbar = commonComp.NavbarVModel{
 		User: user,
 	}
 
 	return nil
+}
+
+func (h *Handler) getReadableCollections(ctx context.Context, rawCollections []string) ([]model.CollectionID, error) {
+	user := httpCtx.User(ctx)
+
+	readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	if len(readableCollections) == 0 {
+		return nil, common.NewError("no collection", "VOus n'avez pas encore d'accès à une collection.", http.StatusBadRequest)
+	}
+
+	collections := make([]model.CollectionID, 0)
+
+	if len(rawCollections) > 0 {
+		for _, rawCollectionID := range rawCollections {
+			collectionID := model.CollectionID(rawCollectionID)
+
+			isWritable := slices.ContainsFunc(readableCollections, func(c model.PersistedCollection) bool {
+				return collectionID == c.ID()
+			})
+
+			if !isWritable {
+				return nil, common.NewHTTPError(http.StatusForbidden)
+			}
+
+			collections = append(collections, collectionID)
+		}
+	} else {
+		collections = slices.Collect(func(yield func(model.CollectionID) bool) {
+			for _, c := range readableCollections {
+				if !yield(c.ID()) {
+					return
+				}
+			}
+		})
+	}
+
+	return collections, nil
 }

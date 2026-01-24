@@ -3,6 +3,8 @@ package mcp
 import (
 	"context"
 	"net/http"
+
+	"github.com/bornholm/corpus/internal/core/model"
 )
 
 type contextKey string
@@ -21,7 +23,7 @@ func contextSessionData(ctx context.Context) *SessionData {
 	rawSessionData := ctx.Value(contextKeySessionData)
 	if rawSessionData == nil {
 		return &SessionData{
-			Collections: make([]string, 0),
+			Collections: make([]model.CollectionID, 0),
 		}
 	}
 
@@ -30,6 +32,6 @@ func contextSessionData(ctx context.Context) *SessionData {
 	}
 
 	return &SessionData{
-		Collections: make([]string, 0),
+		Collections: make([]model.CollectionID, 0),
 	}
 }

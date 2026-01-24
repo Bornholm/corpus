@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/bornholm/corpus/internal/backup"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/util"
@@ -123,7 +124,12 @@ func (m *BackupManager) handleRestoreBackupTaskfunc(ctx context.Context, task po
 		slog.InfoContext(ctx, "restoring documents", slog.Int64("totalDocuments", total), slog.Int("progressPercent", int(progress*100)))
 
 		for _, r := range restorable {
-			if err := r.RestoreDocuments(ctx, documents); err != nil {
+			docs := make([]model.Document, len(documents))
+			for i, d := range documents {
+				docs[i] = d
+			}
+
+			if err := r.RestoreDocuments(ctx, docs); err != nil {
 				return errors.WithStack(err)
 			}
 		}

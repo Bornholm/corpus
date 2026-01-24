@@ -10,10 +10,20 @@ import (
 type Document struct {
 	data        []byte
 	id          model.DocumentID
+	ownerID     model.UserID
 	etag        string
 	source      *url.URL
 	collections []model.Collection
 	sections    []*Section
+}
+
+// OwnerID implements [model.Document].
+func (d *Document) OwnerID() model.UserID {
+	return d.ownerID
+}
+
+func (d *Document) SetOwnerID(ownerID model.UserID) {
+	d.ownerID = ownerID
 }
 
 // ETag implements model.Document.
@@ -41,7 +51,7 @@ func (d *Document) Content() ([]byte, error) {
 
 type Collection struct {
 	id          model.CollectionID
-	name        string
+	ownerID     model.UserID
 	label       string
 	description string
 }
@@ -51,9 +61,9 @@ func (c *Collection) Label() string {
 	return c.label
 }
 
-// Name implements model.Collection.
-func (c *Collection) Name() string {
-	return c.name
+// OwnerID implements model.Collection.
+func (c *Collection) OwnerID() model.UserID {
+	return c.ownerID
 }
 
 // Description implements model.Collection.

@@ -7,23 +7,23 @@ import (
 )
 
 type QueryTransformer interface {
-	TransformQuery(ctx context.Context, query string) (string, error)
+	TransformQuery(ctx context.Context, query string, opts port.IndexSearchOptions) (string, error)
 }
 
-type QueryTransformerFunc func(ctx context.Context, query string) (string, error)
+type QueryTransformerFunc func(ctx context.Context, query string, opts port.IndexSearchOptions) (string, error)
 
-func (fn QueryTransformerFunc) TransformQuery(ctx context.Context, query string) (string, error) {
-	return fn(ctx, query)
+func (fn QueryTransformerFunc) TransformQuery(ctx context.Context, query string, opts port.IndexSearchOptions) (string, error) {
+	return fn(ctx, query, opts)
 }
 
 type ResultsTransformer interface {
-	TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error)
+	TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error)
 }
 
-type ResultsTransformerFunc func(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error)
+type ResultsTransformerFunc func(ctx context.Context, query string, results []*port.IndexSearchResult, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error)
 
-func (fn ResultsTransformerFunc) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error) {
-	return fn(ctx, query, results)
+func (fn ResultsTransformerFunc) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
+	return fn(ctx, query, results, opts)
 }
 
 type Options struct {

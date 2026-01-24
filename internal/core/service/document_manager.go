@@ -61,7 +61,7 @@ type DocumentManager struct {
 type DocumentManagerSearchOptions struct {
 	MaxResults int
 	// Names of the collection the query will be restricted to
-	Collections []string
+	Collections []model.CollectionID
 }
 
 type DocumentManagerSearchOptionFunc func(opts *DocumentManagerSearchOptions)
@@ -69,7 +69,7 @@ type DocumentManagerSearchOptionFunc func(opts *DocumentManagerSearchOptions)
 func NewDocumentManagerSearchOptions(funcs ...DocumentManagerSearchOptionFunc) *DocumentManagerSearchOptions {
 	opts := &DocumentManagerSearchOptions{
 		MaxResults:  5,
-		Collections: make([]string, 0),
+		Collections: make([]model.CollectionID, 0),
 	}
 	for _, fn := range funcs {
 		fn(opts)
@@ -83,7 +83,7 @@ func WithDocumentManagerSearchMaxResults(max int) DocumentManagerSearchOptionFun
 	}
 }
 
-func WithDocumentManagerSearchCollections(collections ...string) DocumentManagerSearchOptionFunc {
+func WithDocumentManagerSearchCollections(collections ...model.CollectionID) DocumentManagerSearchOptionFunc {
 	return func(opts *DocumentManagerSearchOptions) {
 		opts.Collections = collections
 	}
@@ -96,7 +96,7 @@ func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...Doc
 
 	collections := make([]model.CollectionID, 0)
 	for _, c := range opts.Collections {
-		coll, err := m.DocumentStore.GetCollectionByName(ctx, c)
+		coll, err := m.DocumentStore.GetCollectionByID(ctx, c)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -252,12 +252,12 @@ type DocumentManagerIndexFileOptions struct {
 	ETag   string
 	Source *url.URL
 	// Names of the collection to associate with the document
-	Collections []string
+	Collections []model.CollectionID
 }
 
 type DocumentManagerIndexFileOptionFunc func(opts *DocumentManagerIndexFileOptions)
 
-func WithDocumentManagerIndexFileCollections(collections ...string) DocumentManagerIndexFileOptionFunc {
+func WithDocumentManagerIndexFileCollections(collections ...model.CollectionID) DocumentManagerIndexFileOptionFunc {
 	return func(opts *DocumentManagerIndexFileOptions) {
 		opts.Collections = collections
 	}
@@ -283,7 +283,7 @@ func NewDocumentManagerIndexFileOptions(funcs ...DocumentManagerIndexFileOptionF
 	return opts
 }
 
-func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (port.TaskID, error) {
+func (m *DocumentManager) IndexFile(ctx context.Context, ownerID model.UserID, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (port.TaskID, error) {
 	metrics.TotalIndexRequests.Add(1)
 
 	opts := NewDocumentManagerIndexFileOptions(funcs...)
@@ -310,6 +310,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, filename string, r io.R
 	indexFileTask := &indexFileTask{
 		id:           taskID,
 		path:         path,
+		ownerID:      ownerID,
 		originalName: filename,
 		opts:         opts,
 	}
@@ -398,6 +399,8 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.Wrap(err, "could not parse document")
 				}
 
+				doc.SetOwnerID(indexFileTask.ownerID)
+
 				events <- port.NewTaskEvent(port.WithTaskMessage("document parsed"))
 
 				if indexFileTask.opts.Source != nil {
@@ -412,17 +415,27 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					doc.SetETag(indexFileTask.opts.ETag)
 				}
 
-				for _, name := range indexFileTask.opts.Collections {
-					coll, err := m.DocumentStore.GetCollectionByName(ctx, name)
-					if err != nil {
-						if !errors.Is(err, port.ErrNotFound) {
-							return errors.Wrapf(err, "could not find collection with name '%s'", name)
-						}
+				writableCollections, _, err := m.DocumentStore.QueryUserWritableCollections(ctx, indexFileTask.ownerID, port.QueryCollectionsOptions{})
+				if err != nil {
+					return errors.Wrap(err, "could not retrieve user writable collections")
+				}
 
-						coll, err = m.DocumentStore.CreateCollection(ctx, name)
-						if err != nil {
-							return errors.WithStack(err)
-						}
+				if len(indexFileTask.opts.Collections) == 0 {
+					return errors.New("no specified target collections")
+				}
+
+				for _, collectionID := range indexFileTask.opts.Collections {
+					isWritable := slices.ContainsFunc(writableCollections, func(c model.PersistedCollection) bool {
+						return collectionID == c.ID()
+					})
+
+					if !isWritable {
+						return errors.Errorf("collection '%s' is not writable to the user '%s'", collectionID, indexFileTask.ownerID)
+					}
+
+					coll, err := m.DocumentStore.GetCollectionByID(ctx, collectionID)
+					if err != nil {
+						return errors.WithStack(err)
 					}
 
 					doc.AddCollection(coll)
@@ -449,7 +462,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 				return nil
 			},
 			func(ctx context.Context) error {
-				if err := m.DeleteDocumentBySource(ctx, document.Source()); err != nil {
+				if err := m.DeleteDocumentBySource(ctx, indexFileTask.ownerID, document.Source()); err != nil {
 					return errors.WithStack(err)
 				}
 
@@ -581,6 +594,7 @@ const indexFileTaskType port.TaskType = "indexFile"
 
 type indexFileTask struct {
 	id           port.TaskID
+	ownerID      model.UserID
 	path         string
 	originalName string
 	opts         *DocumentManagerIndexFileOptions

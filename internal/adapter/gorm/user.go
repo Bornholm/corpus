@@ -16,7 +16,11 @@ type User struct {
 	DisplayName string
 	Email       string `gorm:"unique"`
 
-	AuthTokens []*AuthToken `gorm:"constraint:OnDelete:CASCADE;"`
+	AuthTokens  []*AuthToken  `gorm:"foreignKey:OwnerID;constraint:OnDelete:CASCADE;"`
+	Documents   []*Document   `gorm:"foreignKey:OwnerID;constraint:OnDelete:CASCADE;"`
+	Collections []*Collection `gorm:"foreignKey:OwnerID;constraint:OnDelete:CASCADE;"`
+
+	Roles []*UserRole `gorm:"constraint:OnDelete:CASCADE;"`
 
 	Active bool
 }
@@ -27,9 +31,20 @@ type AuthToken struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	User   *User
-	UserID string
+	Owner   *User
+	OwnerID string
 
 	Label string
 	Value string `gorm:"unique"`
+}
+
+type UserRole struct {
+	ID uint `gorm:"primaryKey"`
+
+	CreatedAt time.Time
+
+	User   *User
+	UserID string `gorm:"index:user_role_index,unique"`
+
+	Role string `gorm:"index:user_role_index,unique"`
 }

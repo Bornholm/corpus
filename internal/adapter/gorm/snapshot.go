@@ -59,12 +59,24 @@ func (s *DocumentStore) GenerateSnapshot(ctx context.Context) (io.ReadCloser, er
 					return
 				}
 
+				ownedCollections := make([]model.OwnedCollection, len(d.Collections()))
+				for i, c := range d.Collections() {
+					oc, ok := c.(model.OwnedCollection)
+					if !ok {
+						w.CloseWithError(errors.Errorf("unexpected collection type '%T'", c))
+						return
+					}
+
+					ownedCollections[i] = oc
+				}
+
 				err = encoder.Encode(SnapshottedDocument{
 					ID:          string(d.ID()),
+					OwnerID:     string(d.OwnerID()),
 					Source:      d.Source().String(),
 					ETag:        d.ETag(),
 					Content:     content,
-					Collections: toSnapshottedCollections(d.Collections()),
+					Collections: toSnapshottedCollections(ownedCollections),
 					Sections:    toSnapshottedSections(d.Sections()),
 				})
 				if err != nil {
@@ -89,7 +101,7 @@ func (s *DocumentStore) RestoreSnapshot(ctx context.Context, r io.Reader) error 
 	defer slog.DebugContext(ctx, "snapshotted documents restored")
 
 	batchSize := 100
-	batch := make([]model.Document, 0, batchSize)
+	batch := make([]model.OwnedDocument, 0, batchSize)
 
 	for {
 		var doc SnapshottedDocument
@@ -123,6 +135,7 @@ var _ backup.Snapshotable = &DocumentStore{}
 
 type SnapshottedDocument struct {
 	ID          string
+	OwnerID     string
 	Source      string
 	ETag        string
 	Content     []byte
@@ -132,6 +145,11 @@ type SnapshottedDocument struct {
 
 type snapshottedDocumentWrapper struct {
 	snapshot SnapshottedDocument
+}
+
+// OwnerID implements [model.Document].
+func (w *snapshottedDocumentWrapper) OwnerID() model.UserID {
+	return model.UserID(w.snapshot.OwnerID)
 }
 
 // ETag implements model.Document.
@@ -193,7 +211,7 @@ var _ model.Document = &snapshottedDocumentWrapper{}
 
 type SnapshottedCollection struct {
 	ID          string
-	Name        string
+	OwnerID     string
 	Label       string
 	Description string
 }
@@ -217,19 +235,19 @@ func (s *snapshottedCollectionWrapper) Label() string {
 	return s.snapshot.Label
 }
 
-// Name implements model.Collection.
-func (s *snapshottedCollectionWrapper) Name() string {
-	return s.snapshot.Name
+// OwnerID implements model.Collection.
+func (s *snapshottedCollectionWrapper) OwnerID() model.UserID {
+	return model.UserID(s.snapshot.OwnerID)
 }
 
 var _ model.Collection = &snapshottedCollectionWrapper{}
 
-func toSnapshottedCollections(collections []model.Collection) []SnapshottedCollection {
+func toSnapshottedCollections(collections []model.OwnedCollection) []SnapshottedCollection {
 	snapshots := make([]SnapshottedCollection, 0, len(collections))
 	for _, c := range collections {
 		snapshots = append(snapshots, SnapshottedCollection{
 			ID:          string(c.ID()),
-			Name:        c.Name(),
+			OwnerID:     string(c.OwnerID()),
 			Label:       c.Label(),
 			Description: c.Description(),
 		})

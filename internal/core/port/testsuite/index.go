@@ -115,6 +115,8 @@ func TestIndex(t *testing.T, factory func(t *testing.T) (port.Index, error)) {
 func loadTestDocuments(t *testing.T, index port.Index) (map[string]model.Collection, error) {
 	ctx := context.TODO()
 
+	jdoe := model.NewUserID()
+
 	files, err := fs.Glob(testdata, "testdata/documents/*.md")
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -140,9 +142,9 @@ func loadTestDocuments(t *testing.T, index port.Index) (map[string]model.Collect
 
 		coll, exists := collections[collectionName]
 		if !exists {
-			coll = model.NewReadOnlyCollection(
+			coll = model.NewCollection(
 				model.NewCollectionID(),
-				collectionName,
+				jdoe,
 				"",
 				"",
 			)
@@ -153,7 +155,7 @@ func loadTestDocuments(t *testing.T, index port.Index) (map[string]model.Collect
 
 		t.Logf("indexing document %s within collections %v", doc.Source(), slices.Collect[string](func(yield func(string) bool) {
 			for _, c := range doc.Collections() {
-				if !yield(c.Name()) {
+				if !yield(c.Label()) {
 					return
 				}
 			}

@@ -1,0 +1,100 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
+)
+
+type CollectionListPageVModel struct {
+	TotalCollections int64
+	Collections      []model.PersistedCollection
+	CollectionStats  map[model.CollectionID]*model.CollectionStats
+	Navbar           common.NavbarVModel
+}
+
+templ CollectionListPage(vmodel CollectionListPageVModel) {
+	@common.NavbarPage(vmodel.Navbar, common.WithTitle("Collections")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<h2 class="title is-size-3">Collections</h2>
+			</div>
+			<div class="level-right">
+				<a href="/collections/new" class="button is-primary">
+					<span class="icon">
+						<i class="fas fa-plus"></i>
+					</span>
+					<span>Nouvelle collection</span>
+				</a>
+			</div>
+		</div>
+		if len(vmodel.Collections) == 0 {
+			<div class="has-text-centered py-6">
+				<i class="fas fa-folder-open fa-4x has-text-grey-light mb-4"></i>
+				<h3 class="title is-size-4">Aucune collection pour l'instant</h3>
+				<p class="subtitle">Créez votre première collection pour organiser vos documents.</p>
+				<a href="/collections/new" class="button is-primary">
+					Créer une collection
+				</a>
+			</div>
+		} else {
+			<div class="columns is-multiline">
+				for _, collection := range vmodel.Collections {
+					@CollectionCard(CollectionCardVModel{
+						Collection: collection,
+						Stats:      vmodel.CollectionStats[collection.ID()],
+					})
+				}
+			</div>
+		}
+	}
+}
+
+type CollectionCardVModel struct {
+	Collection model.Collection
+	Stats      *model.CollectionStats
+}
+
+templ CollectionCard(vmodel CollectionCardVModel) {
+	<div class="column is-one-third">
+		<div class="card">
+			<header class="card-header">
+				<p class="card-header-title">{ vmodel.Collection.Label() }</p>
+			</header>
+			<div class="card-content">
+				<div class="content">
+					if vmodel.Collection.Description() != "" {
+						<p>{ vmodel.Collection.Description() }</p>
+					} else {
+						<p class="is-italic">Aucune description pour l'instant.</p>
+					}
+				</div>
+				<div class="tags mt-3">
+					<span class="tag is-light">
+						<span class="icon">
+							<i class="fas fa-file-alt"></i>
+						</span>
+						<span>
+							if vmodel.Stats != nil {
+								{ strconv.FormatInt(vmodel.Stats.TotalDocuments, 10) } documents
+							} else {
+								0 documents
+							}
+						</span>
+					</span>
+				</div>
+			</div>
+			<footer class="card-footer">
+				<a
+					href={ templ.URL("/collections/" + string(vmodel.Collection.ID()) + "/edit") }
+					class="card-footer-item"
+				>
+					<span class="icon">
+						<i class="fas fa-edit"></i>
+					</span>
+					<span>Modifier</span>
+				</a>
+			</footer>
+		</div>
+	</div>
+}

@@ -18,7 +18,12 @@ import (
 )
 
 func TestWatch(t *testing.T, dsn string) {
+	var done atomic.Bool
+	done.Store(false)
+	defer done.Store(true)
+
 	t.Logf("Using backend '%s'", dsn)
+
 	backend, err := backend.New(dsn)
 	if err != nil {
 		t.Fatalf("%+v", errors.WithStack(err))
@@ -27,15 +32,16 @@ func TestWatch(t *testing.T, dsn string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	var pendingEvents int64 = 4
+	var pendingEvents atomic.Int64
+	pendingEvents.Store(4)
+
 	defer func() {
-		if pendingEvents > 0 {
-			t.Errorf("expected all events to be received, pending %d", pendingEvents)
+		if pe := pendingEvents.Load(); pe > 0 {
+			t.Errorf("expected all events to be received, pending %d", pe)
 		}
 	}()
 
 	err = backend.Mount(ctx, func(ctx context.Context, fs afero.Fs) error {
-
 		fs = filesystem.NewLogger(fs, func(message string, attrs ...slog.Attr) {
 			var sb strings.Builder
 			sb.WriteString(message)
@@ -51,7 +57,9 @@ func TestWatch(t *testing.T, dsn string) {
 				sb.WriteString(")")
 			}
 
-			t.Log(sb.String())
+			if !done.Load() {
+				t.Log(sb.String())
+			}
 		})
 
 		var handler filesystem.WatchHandlerFunc = func(ctx context.Context, w *watcher.Watcher, event filesystem.WatchEvent) error {
@@ -62,10 +70,10 @@ func TestWatch(t *testing.T, dsn string) {
 				switch event.Op.String() {
 
 				case "CREATE":
-					atomic.AddInt64(&pendingEvents, -1)
+					pendingEvents.Add(-1)
 
 				case "WRITE":
-					atomic.AddInt64(&pendingEvents, -1)
+					pendingEvents.Add(-1)
 
 					time.Sleep(2 * time.Second)
 
@@ -89,9 +97,6 @@ func TestWatch(t *testing.T, dsn string) {
 						t.Errorf("data: expected '%s', got '%s'", e, g)
 					}
 
-				case "REMOVE":
-					atomic.AddInt64(&pendingEvents, -1)
-
 				default:
 					t.Errorf("event.Op: expected 'CREATE', 'WRITE' or 'REMOVE', got '%v'", event.Op.String())
 				}
@@ -100,10 +105,10 @@ func TestWatch(t *testing.T, dsn string) {
 				switch event.Op.String() {
 
 				case "CREATE":
-					atomic.AddInt64(&pendingEvents, -1)
+					pendingEvents.Add(-1)
 
 				case "REMOVE":
-					atomic.AddInt64(&pendingEvents, -1)
+					pendingEvents.Add(-1)
 
 				case "WRITE":
 					// Ignore
@@ -114,7 +119,7 @@ func TestWatch(t *testing.T, dsn string) {
 
 			}
 
-			if atomic.LoadInt64(&pendingEvents) <= 0 {
+			if pendingEvents.Load() <= 0 {
 				time.Sleep(2 * time.Second)
 				cancel()
 			}
@@ -171,6 +176,8 @@ func TestWatch(t *testing.T, dsn string) {
 			return errors.WithStack(err)
 		}
 
+		time.Sleep(2 * time.Second)
+
 		file, err = fs.Create("watched/2.txt")
 		if err != nil {
 			return errors.WithStack(err)
@@ -185,6 +192,8 @@ func TestWatch(t *testing.T, dsn string) {
 		if err := fs.Remove("watched/2.txt"); err != nil {
 			return errors.WithStack(err)
 		}
+
+		time.Sleep(2 * time.Second)
 
 		wg.Wait()
 

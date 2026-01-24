@@ -72,7 +72,7 @@ func (h *Handler) getUserFromToken(ctx context.Context, token string) (*authn.Us
 		return nil, errors.WithStack(err)
 	}
 
-	user, err := h.userStore.GetUserByID(ctx, authToken.UserID())
+	user, err := h.userStore.GetUserByID(ctx, authToken.OwnerID())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

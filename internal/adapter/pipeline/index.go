@@ -241,7 +241,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 
 // Search implements port.Index.
 func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
-	query, err := i.transformQuery(ctx, query)
+	query, err := i.transformQuery(ctx, query, opts)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -342,7 +342,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 		return nil, errors.WithStack(err)
 	}
 
-	transformed, err := i.transformResults(ctx, query, merged)
+	transformed, err := i.transformResults(ctx, query, merged, opts)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -350,10 +350,10 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 	return transformed, nil
 }
 
-func (i *Index) transformQuery(ctx context.Context, query string) (string, error) {
+func (i *Index) transformQuery(ctx context.Context, query string, opts port.IndexSearchOptions) (string, error) {
 	var err error
 	for _, t := range i.queryTransformers {
-		query, err = t.TransformQuery(ctx, query)
+		query, err = t.TransformQuery(ctx, query, opts)
 		if err != nil {
 			return "", errors.WithStack(err)
 		}
@@ -362,10 +362,10 @@ func (i *Index) transformQuery(ctx context.Context, query string) (string, error
 	return query, nil
 }
 
-func (i *Index) transformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error) {
+func (i *Index) transformResults(ctx context.Context, query string, results []*port.IndexSearchResult, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
 	var err error
 	for _, t := range i.resultsTransformers {
-		results, err = t.TransformResults(ctx, query, results)
+		results, err = t.TransformResults(ctx, query, results, opts)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}

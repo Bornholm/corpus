@@ -310,6 +310,107 @@ paths:
           description: The document or section could not be found
         "500":
           description: An unknown error occured
+  /collections:
+    get:
+      summary: List collections
+      operationId: list-collections
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: number
+          description: The page offset
+          min: 0
+        - in: query
+          name: limit
+          schema:
+            type: number
+            min: 1
+          description: Maximum number of results to return
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authorization
+        "500":
+          description: An unknown error occured
+  /collections/{collectionId}:
+    get:
+      summary: Get collection details
+      operationId: get-collection
+      parameters:
+        - in: path
+          name: collectionId
+          schema:
+            type: string
+          description: The collection identifier
+          required: true
+      responses:
+        "200":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authorization
+        "404":
+          description: The collection could not be found
+        "500":
+          description: An unknown error occured
+    put:
+      summary: Update collection
+      operationId: update-collection
+      parameters:
+        - in: path
+          name: collectionId
+          schema:
+            type: string
+          description: The collection identifier
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  description: The collection label
+                  allowEmptyValue: true
+                description:
+                  type: string
+                  description: The collection description
+                  allowEmptyValue: true
+      responses:
+        "200":
+          description: Successful operation
+        "400":
+          description: Request invalid or malformed
+        "403":
+          description: Action forbidden to your level of authorization
+        "404":
+          description: The collection could not be found
+        "500":
+          description: An unknown error occured
+    delete:
+      summary: Delete collection
+      operationId: delete-collection
+      parameters:
+        - in: path
+          name: collectionId
+          schema:
+            type: string
+          description: The collection identifier
+          required: true
+      responses:
+        "204":
+          description: Successful operation
+        "403":
+          description: Action forbidden to your level of authorization
+        "404":
+          description: The collection could not be found
+        "501":
+          description: Collection deletion not implemented
+        "500":
+          description: An unknown error occured
   /documents/{documentId}/sections/{sectionId}/content:
     get:
       summary: Get section content

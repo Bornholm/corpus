@@ -15,14 +15,15 @@ type Section struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Document   *Document `gorm:"constraint:OnDelete:CASCADE"`
-	DocumentID string    `gorm:"primaryKey;autoIncrement:false"`
+	Document   *Document
+	DocumentID string
 
-	Parent           *Section
-	ParentID         *string
-	ParentDocumentID *string
+	Parent   *Section
+	ParentID *string
 
-	Sections []*Section `gorm:"foreignKey:ParentID,ParentDocumentID;constraint:OnDelete:CASCADE"`
+	// Fixed: Self-referencing relationship should only use ParentID as foreign key
+	// ParentID references the ID field of the same Section table
+	Sections []*Section `gorm:"foreignKey:ParentID;references:ID;constraint:OnDelete:CASCADE"`
 
 	Branch *Branch
 	Level  uint

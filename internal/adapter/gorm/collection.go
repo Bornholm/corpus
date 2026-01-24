@@ -12,7 +12,9 @@ type Collection struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
-	Name        string `gorm:"unique"`
+	Owner   *User
+	OwnerID string
+
 	Label       string
 	Description string
 
@@ -21,6 +23,16 @@ type Collection struct {
 
 type wrappedCollection struct {
 	c *Collection
+}
+
+// CreatedAt implements [model.PersistedCollection].
+func (w *wrappedCollection) CreatedAt() time.Time {
+	return w.c.CreatedAt
+}
+
+// UpdatedAt implements [model.PersistedCollection].
+func (w *wrappedCollection) UpdatedAt() time.Time {
+	return w.c.UpdatedAt
 }
 
 // Description implements model.Collection.
@@ -39,16 +51,16 @@ func (w *wrappedCollection) Label() string {
 }
 
 // Name implements model.Collection.
-func (w *wrappedCollection) Name() string {
-	return w.c.Name
+func (w *wrappedCollection) OwnerID() model.UserID {
+	return model.UserID(w.c.OwnerID)
 }
 
-var _ model.Collection = &wrappedCollection{}
+var _ model.PersistedCollection = &wrappedCollection{}
 
-func fromCollection(c model.Collection) *Collection {
+func fromCollection(c model.OwnedCollection) *Collection {
 	collection := &Collection{
 		ID:          string(c.ID()),
-		Name:        c.Name(),
+		OwnerID:     string(c.OwnerID()),
 		Label:       c.Label(),
 		Description: c.Description(),
 	}

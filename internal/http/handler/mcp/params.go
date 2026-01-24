@@ -3,9 +3,15 @@ package mcp
 import (
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 
+	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
+
+	httpCtx "github.com/bornholm/corpus/internal/http/context"
 )
 
 func (h *Handler) withParams(next http.Handler) http.Handler {
@@ -21,8 +27,48 @@ func (h *Handler) withParams(next http.Handler) http.Handler {
 
 		query := r.URL.Query()
 
-		if collections := query["collection"]; len(collections) > 0 {
+		ctx := r.Context()
+		user := httpCtx.User(ctx)
+
+		collections := make([]model.CollectionID, 0)
+
+		readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
+		if err != nil {
+			slog.ErrorContext(ctx, "could not retrieve user readable collections", slogx.Error(err))
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		rawCollections := query["collection"]
+
+		if len(rawCollections) > 0 {
+			for _, rawCollectionID := range rawCollections {
+				collectionID := model.CollectionID(rawCollectionID)
+
+				isReadable := slices.ContainsFunc(readableCollections, func(c model.PersistedCollection) bool {
+					return collectionID == c.ID()
+				})
+
+				if !isReadable {
+					http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+					return
+				}
+
+				collections = append(collections, collectionID)
+			}
+
 			sessionData.Collections = collections
+			shouldSave = true
+		} else {
+
+			collections = slices.Collect(func(yield func(model.CollectionID) bool) {
+				for _, c := range readableCollections {
+					if !yield(c.ID()) {
+						return
+					}
+				}
+			})
+
 			shouldSave = true
 		}
 

@@ -67,7 +67,7 @@ func TestBranchMergeResultsTransformer(t *testing.T) {
 		},
 	}
 
-	transformed, err := transformer.TransformResults(context.Background(), "test", results)
+	transformed, err := transformer.TransformResults(context.Background(), "test", results, port.IndexSearchOptions{})
 	if err != nil {
 		t.Fatalf("%+v", errors.WithStack(err))
 	}
@@ -89,68 +89,108 @@ type dummyStore struct {
 	sections map[model.SectionID]model.Section
 }
 
-// DeleteDocumentByID implements port.Store.
+// CanReadCollection implements [port.DocumentStore].
+func (d *dummyStore) CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
+	panic("unimplemented")
+}
+
+// CanReadDocument implements [port.DocumentStore].
+func (d *dummyStore) CanReadDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
+	panic("unimplemented")
+}
+
+// CanWriteCollection implements [port.DocumentStore].
+func (d *dummyStore) CanWriteCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
+	panic("unimplemented")
+}
+
+// CanWriteDocument implements [port.DocumentStore].
+func (d *dummyStore) CanWriteDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
+	panic("unimplemented")
+}
+
+// CountReadableDocuments implements [port.DocumentStore].
+func (d *dummyStore) CountReadableDocuments(ctx context.Context, userID model.UserID) (int64, error) {
+	panic("unimplemented")
+}
+
+// CreateCollection implements [port.DocumentStore].
+func (d *dummyStore) CreateCollection(ctx context.Context, ownerID model.UserID, label string) (model.PersistedCollection, error) {
+	panic("unimplemented")
+}
+
+// DeleteDocumentByID implements [port.DocumentStore].
 func (d *dummyStore) DeleteDocumentByID(ctx context.Context, id model.DocumentID) error {
 	panic("unimplemented")
 }
 
-// SectionExists implements port.Store.
-func (d *dummyStore) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
+// DeleteDocumentBySource implements [port.DocumentStore].
+func (d *dummyStore) DeleteDocumentBySource(ctx context.Context, ownerID model.UserID, source *url.URL) error {
 	panic("unimplemented")
 }
 
-// GetDocumentByID implements port.Store.
-func (d *dummyStore) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error) {
+// GetCollectionByID implements [port.DocumentStore].
+func (d *dummyStore) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.PersistedCollection, error) {
 	panic("unimplemented")
 }
 
-// CountDocuments implements port.Store.
-func (d *dummyStore) CountDocuments(ctx context.Context) (int64, error) {
-	panic("unimplemented")
-}
-
-// CreateCollection implements port.Store.
-func (d *dummyStore) CreateCollection(ctx context.Context, name string) (model.Collection, error) {
-	panic("unimplemented")
-}
-
-// DeleteDocumentBySource implements port.Store.
-func (d *dummyStore) DeleteDocumentBySource(ctx context.Context, source *url.URL) error {
-	panic("unimplemented")
-}
-
-// GetCollectionByName implements port.Store.
-func (d *dummyStore) GetCollectionByName(ctx context.Context, name string) (model.Collection, error) {
-	panic("unimplemented")
-}
-
-// GetCollectionStats implements port.Store.
+// GetCollectionStats implements [port.DocumentStore].
 func (d *dummyStore) GetCollectionStats(ctx context.Context, id model.CollectionID) (*model.CollectionStats, error) {
 	panic("unimplemented")
 }
 
-// GetSectionByID implements port.Store.
+// GetDocumentByID implements [port.DocumentStore].
+func (d *dummyStore) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.PersistedDocument, error) {
+	panic("unimplemented")
+}
+
+// GetSectionByID implements [port.DocumentStore].
 func (d *dummyStore) GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error) {
 	return d.sections[id], nil
 }
 
-// QueryCollections implements port.Store.
-func (d *dummyStore) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.Collection, error) {
+// QueryCollections implements [port.DocumentStore].
+func (d *dummyStore) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, error) {
 	panic("unimplemented")
 }
 
-// QueryDocuments implements port.Store.
-func (d *dummyStore) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.Document, int64, error) {
+// QueryDocuments implements [port.DocumentStore].
+func (d *dummyStore) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
 	panic("unimplemented")
 }
 
-// SaveDocument implements port.Store.
-func (d *dummyStore) SaveDocuments(ctx context.Context, documents ...model.Document) error {
+// QueryUserReadableCollections implements [port.DocumentStore].
+func (d *dummyStore) QueryUserReadableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
 	panic("unimplemented")
 }
 
-// UpdateCollection implements port.Store.
-func (d *dummyStore) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.Collection, error) {
+// QueryUserReadableDocuments implements [port.DocumentStore].
+func (d *dummyStore) QueryUserReadableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+	panic("unimplemented")
+}
+
+// QueryUserWritableCollections implements [port.DocumentStore].
+func (d *dummyStore) QueryUserWritableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
+	panic("unimplemented")
+}
+
+// QueryUserWritableDocuments implements [port.DocumentStore].
+func (d *dummyStore) QueryUserWritableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+	panic("unimplemented")
+}
+
+// SaveDocuments implements [port.DocumentStore].
+func (d *dummyStore) SaveDocuments(ctx context.Context, documents ...model.OwnedDocument) error {
+	panic("unimplemented")
+}
+
+// SectionExists implements [port.DocumentStore].
+func (d *dummyStore) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
+	panic("unimplemented")
+}
+
+// UpdateCollection implements [port.DocumentStore].
+func (d *dummyStore) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.PersistedCollection, error) {
 	panic("unimplemented")
 }
 

@@ -70,7 +70,7 @@ func (s *DocumentStore) SectionExists(ctx context.Context, id model.SectionID) (
 }
 
 // GetDocumentByID implements port.DocumentStore.
-func (s *DocumentStore) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.Document, error) {
+func (s *DocumentStore) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.PersistedDocument, error) {
 	var document Document
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -89,6 +89,28 @@ func (s *DocumentStore) GetDocumentByID(ctx context.Context, id model.DocumentID
 	}
 
 	return &wrappedDocument{&document}, nil
+}
+
+// GetCollectionByID implements [port.DocumentStore].
+func (s *DocumentStore) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.PersistedCollection, error) {
+	var collection Collection
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		if err := db.Preload(clause.Associations).First(&collection, "id = ?", id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WithStack(port.ErrNotFound)
+			}
+
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &wrappedCollection{&collection}, nil
 }
 
 // GetCollectionStats implements port.DocumentStore.
@@ -116,15 +138,16 @@ func (s *DocumentStore) GetCollectionStats(ctx context.Context, id model.Collect
 }
 
 // CreateCollection implements port.DocumentStore.
-func (s *DocumentStore) CreateCollection(ctx context.Context, name string) (model.Collection, error) {
-	var collection model.Collection
+func (s *DocumentStore) CreateCollection(ctx context.Context, ownerID model.UserID, label string) (model.PersistedCollection, error) {
+	var collection model.PersistedCollection
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		var coll Collection
+		coll := Collection{
+			ID:      string(model.NewCollectionID()),
+			OwnerID: string(ownerID),
+			Label:   label,
+		}
 
-		err := db.Where("name = ?", name).
-			Attrs(&Collection{ID: string(model.NewCollectionID()), Name: name}).
-			FirstOrCreate(&coll).Error
-		if err != nil {
+		if err := db.Create(&coll).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -140,24 +163,44 @@ func (s *DocumentStore) CreateCollection(ctx context.Context, name string) (mode
 }
 
 // UpdateCollection implements port.DocumentStore.
-func (s *DocumentStore) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.Collection, error) {
-	panic("unimplemented")
-}
-
-// GetCollectionByName implements port.DocumentStore.
-func (s *DocumentStore) GetCollectionByName(ctx context.Context, name string) (model.Collection, error) {
-	db, err := s.getDatabase(ctx)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
+func (s *DocumentStore) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.PersistedCollection, error) {
 	var collection Collection
 
-	if err := db.Where("name = ?", name).First(&collection).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.WithStack(port.ErrNotFound)
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		// First, find the existing collection
+		if err := db.First(&collection, "id = ?", id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WithStack(port.ErrNotFound)
+			}
+			return errors.WithStack(err)
 		}
 
+		// Prepare updates map
+		updateFields := make(map[string]interface{})
+
+		if updates.Label != nil {
+			updateFields["label"] = *updates.Label
+		}
+
+		if updates.Description != nil {
+			updateFields["description"] = *updates.Description
+		}
+
+		// Only perform update if there are fields to update
+		if len(updateFields) > 0 {
+			if err := db.Model(&collection).Updates(updateFields).Error; err != nil {
+				return errors.WithStack(err)
+			}
+		}
+
+		// Reload the collection to get the updated values
+		if err := db.Preload(clause.Associations).First(&collection, "id = ?", id).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -165,19 +208,45 @@ func (s *DocumentStore) GetCollectionByName(ctx context.Context, name string) (m
 }
 
 // QueryCollections implements port.DocumentStore.
-func (s *DocumentStore) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.Collection, error) {
+func (s *DocumentStore) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, error) {
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
+	query := db.Model(&Collection{})
+
+	if opts.IDs != nil {
+		rawCollectionIDs := slices.Collect(func(yield func(string) bool) {
+			for _, id := range opts.IDs {
+				if !yield(string(id)) {
+					return
+				}
+			}
+		})
+		query = query.Where("id in ?", rawCollectionIDs)
+	}
+
+	if opts.Page != nil {
+		limit := 100
+		if opts.Limit != nil {
+			limit = *opts.Limit
+		}
+
+		query = query.Offset(*opts.Page * limit)
+	}
+
+	if opts.Limit != nil {
+		query = query.Limit(*opts.Limit)
+	}
+
 	var collections []*Collection
 
-	if err := db.Find(&collections).Error; err != nil {
+	if err := query.Find(&collections).Error; err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	wrappedCollections := make([]model.Collection, 0, len(collections))
+	wrappedCollections := make([]model.PersistedCollection, 0, len(collections))
 	for _, c := range collections {
 		wrappedCollections = append(wrappedCollections, &wrappedCollection{c})
 	}
@@ -185,8 +254,8 @@ func (s *DocumentStore) QueryCollections(ctx context.Context, opts port.QueryCol
 	return wrappedCollections, nil
 }
 
-// CountDocuments implements port.DocumentStore.
-func (s *DocumentStore) CountDocuments(ctx context.Context) (int64, error) {
+// CountReadableDocuments implements port.DocumentStore.
+func (s *DocumentStore) CountReadableDocuments(ctx context.Context, userID model.UserID) (int64, error) {
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -194,7 +263,7 @@ func (s *DocumentStore) CountDocuments(ctx context.Context) (int64, error) {
 
 	var total int64
 
-	if err := db.Model(&Document{}).Count(&total).Error; err != nil {
+	if err := db.Model(&Document{}).Where("owner_id = ?", userID).Count(&total).Error; err != nil {
 		return 0, errors.WithStack(err)
 	}
 
@@ -224,14 +293,14 @@ func (s *DocumentStore) GetSectionByID(ctx context.Context, id model.SectionID) 
 }
 
 // DeleteDocumentBySource implements port.DocumentStore.
-func (s *DocumentStore) DeleteDocumentBySource(ctx context.Context, source *url.URL) error {
+func (s *DocumentStore) DeleteDocumentBySource(ctx context.Context, ownerID model.UserID, source *url.URL) error {
 	if source == nil {
 		return errors.WithStack(ErrMissingSource)
 	}
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		var doc Document
-		if err := db.First(&doc, "source = ?", source.String()).Error; err != nil {
+		if err := db.First(&doc, "source = ? and owner_id = ?", source.String(), ownerID).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil
 			}
@@ -253,7 +322,7 @@ func (s *DocumentStore) DeleteDocumentBySource(ctx context.Context, source *url.
 }
 
 // QueryDocuments implements port.DocumentStore.
-func (s *DocumentStore) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.Document, int64, error) {
+func (s *DocumentStore) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
 	var (
 		documents []*Document
 		total     int64
@@ -296,7 +365,119 @@ func (s *DocumentStore) QueryDocuments(ctx context.Context, opts port.QueryDocum
 		return nil, total, errors.WithStack(err)
 	}
 
-	wrappedDocuments := make([]model.Document, 0, len(documents))
+	wrappedDocuments := make([]model.PersistedDocument, 0, len(documents))
+	for _, d := range documents {
+		wrappedDocuments = append(wrappedDocuments, &wrappedDocument{d})
+	}
+
+	return wrappedDocuments, total, nil
+}
+
+// QueryUserReadableDocuments implements port.DocumentStore.
+func (s *DocumentStore) QueryUserReadableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+	var (
+		documents []*Document
+		total     int64
+	)
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		query := db.Model(&Document{})
+
+		query = query.Where("owner_id = ?", userID)
+
+		if opts.MatchingSource != nil {
+			query = query.Where("source = ?", opts.MatchingSource.String())
+		}
+
+		if err := query.Count(&total).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		limit := 10
+		if opts.Limit != nil {
+			limit = *opts.Limit
+		}
+
+		page := 0
+		if opts.Page != nil {
+			page = *opts.Page
+		}
+
+		query = query.Limit(limit).Offset(page * limit)
+
+		if !opts.HeaderOnly {
+			query = query.Preload(clause.Associations).Preload("Sections")
+		} else {
+			query = query.Omit(clause.Associations).Select("ID", "CreatedAt", "UpdatedAt", "Source", "ETag")
+		}
+
+		if err := query.Find(&documents).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.BUSY, sqlite3.LOCKED)
+	if err != nil {
+		return nil, total, errors.WithStack(err)
+	}
+
+	wrappedDocuments := make([]model.PersistedDocument, 0, len(documents))
+	for _, d := range documents {
+		wrappedDocuments = append(wrappedDocuments, &wrappedDocument{d})
+	}
+
+	return wrappedDocuments, total, nil
+}
+
+// QueryUserWritableDocuments implements port.DocumentStore.
+func (s *DocumentStore) QueryUserWritableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+	var (
+		documents []*Document
+		total     int64
+	)
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		query := db.Model(&Document{})
+
+		query = query.Where("owner_id = ?", userID)
+
+		if opts.MatchingSource != nil {
+			query = query.Where("source = ?", opts.MatchingSource.String())
+		}
+
+		if err := query.Count(&total).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		limit := 10
+		if opts.Limit != nil {
+			limit = *opts.Limit
+		}
+
+		page := 0
+		if opts.Page != nil {
+			page = *opts.Page
+		}
+
+		query = query.Limit(limit).Offset(page * limit)
+
+		if !opts.HeaderOnly {
+			query = query.Preload(clause.Associations).Preload("Sections")
+		} else {
+			query = query.Omit(clause.Associations).Select("ID", "CreatedAt", "UpdatedAt", "Source", "ETag")
+		}
+
+		if err := query.Find(&documents).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.BUSY, sqlite3.LOCKED)
+	if err != nil {
+		return nil, total, errors.WithStack(err)
+	}
+
+	wrappedDocuments := make([]model.PersistedDocument, 0, len(documents))
 	for _, d := range documents {
 		wrappedDocuments = append(wrappedDocuments, &wrappedDocument{d})
 	}
@@ -305,7 +486,7 @@ func (s *DocumentStore) QueryDocuments(ctx context.Context, opts port.QueryDocum
 }
 
 // SaveDocuments implements port.DocumentStore.
-func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.Document) error {
+func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.OwnedDocument) error {
 	for _, doc := range documents {
 		err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 			source := doc.Source()
@@ -337,7 +518,7 @@ func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.Do
 			createSection = func(s *Section) error {
 				err := db.
 					Clauses(clause.OnConflict{
-						Columns:   []clause.Column{{Name: "id"}, {Name: "document_id"}},
+						Columns:   []clause.Column{{Name: "id"}},
 						UpdateAll: true,
 					}).
 					Omit("Sections", "Parent", "Document").Create(s).Error
@@ -353,9 +534,8 @@ func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.Do
 					err := db.Model(&Section{}).
 						Where("id = ?", ss.ID).
 						Updates(map[string]any{
-							"parent_id":          s.ID,
-							"document_id":        s.DocumentID,
-							"parent_document_id": s.DocumentID,
+							"parent_id":   s.ID,
+							"document_id": s.DocumentID,
 						}).
 						Error
 					if err != nil {
@@ -380,6 +560,242 @@ func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.Do
 	}
 
 	return nil
+}
+
+// QueryUserWritableCollections implements [port.DocumentStore].
+func (s *DocumentStore) QueryUserWritableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
+	var (
+		collections []*Collection
+		total       int64
+	)
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		query := db.Model(&Collection{}).Where("owner_id = ?", string(userID))
+
+		// Apply ID filtering if specified
+		if opts.IDs != nil {
+			rawCollectionIDs := slices.Collect(func(yield func(string) bool) {
+				for _, id := range opts.IDs {
+					if !yield(string(id)) {
+						return
+					}
+				}
+			})
+			query = query.Where("id in ?", rawCollectionIDs)
+		}
+
+		// Get total count before applying pagination
+		if err := query.Count(&total).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		// Apply pagination
+		if opts.Page != nil {
+			limit := 100
+			if opts.Limit != nil {
+				limit = *opts.Limit
+			}
+			query = query.Offset(*opts.Page * limit)
+		}
+
+		if opts.Limit != nil {
+			query = query.Limit(*opts.Limit)
+		}
+
+		// Execute the query
+		if err := query.Find(&collections).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	wrappedCollections := make([]model.PersistedCollection, 0, len(collections))
+	for _, c := range collections {
+		wrappedCollections = append(wrappedCollections, &wrappedCollection{c})
+	}
+
+	return wrappedCollections, total, nil
+}
+
+// QueryUserReadableCollections implements [port.DocumentStore].
+func (s *DocumentStore) QueryUserReadableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
+	var (
+		collections []*Collection
+		total       int64
+	)
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		// For now, users can only read collections they own
+		// In the future, this could be extended to include shared collections
+		query := db.Model(&Collection{}).Where("owner_id = ?", string(userID))
+
+		// Apply ID filtering if specified
+		if opts.IDs != nil {
+			rawCollectionIDs := slices.Collect(func(yield func(string) bool) {
+				for _, id := range opts.IDs {
+					if !yield(string(id)) {
+						return
+					}
+				}
+			})
+			query = query.Where("id in ?", rawCollectionIDs)
+		}
+
+		// Get total count before applying pagination
+		if err := query.Count(&total).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		// Apply pagination
+		if opts.Page != nil {
+			limit := 100
+			if opts.Limit != nil {
+				limit = *opts.Limit
+			}
+			query = query.Offset(*opts.Page * limit)
+		}
+
+		if opts.Limit != nil {
+			query = query.Limit(*opts.Limit)
+		}
+
+		// Execute the query
+		if err := query.Find(&collections).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, 0, errors.WithStack(err)
+	}
+
+	wrappedCollections := make([]model.PersistedCollection, 0, len(collections))
+	for _, c := range collections {
+		wrappedCollections = append(wrappedCollections, &wrappedCollection{c})
+	}
+
+	return wrappedCollections, total, nil
+}
+
+// CanReadCollection implements [port.DocumentStore].
+func (s *DocumentStore) CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
+	slog.DebugContext(ctx, "checking collection read permission",
+		slog.String("user_id", string(userID)),
+		slog.String("collection_id", string(collectionID)))
+
+	var canRead bool
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var collection Collection
+		if err := db.First(&collection, "id = ? AND owner_id = ?", string(collectionID), string(userID)).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				canRead = false
+				return errors.WithStack(port.ErrNotFound)
+			}
+			return errors.WithStack(err)
+		}
+		canRead = true
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check collection read permission", slog.Any("error", err))
+		return false, errors.WithStack(err)
+	}
+
+	slog.DebugContext(ctx, "collection read permission result", slog.Bool("can_read", canRead))
+	return canRead, nil
+}
+
+// CanReadDocument implements [port.DocumentStore].
+func (s *DocumentStore) CanReadDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
+	slog.DebugContext(ctx, "checking document read permission",
+		slog.String("user_id", string(userID)),
+		slog.String("document_id", string(documentID)))
+
+	var canRead bool
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var document Document
+		if err := db.First(&document, "id = ? AND owner_id = ?", string(documentID), string(userID)).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				canRead = false
+				return errors.WithStack(port.ErrNotFound)
+			}
+			return errors.WithStack(err)
+		}
+		canRead = true
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check document read permission", slog.Any("error", err))
+		return false, errors.WithStack(err)
+	}
+
+	slog.DebugContext(ctx, "document read permission result", slog.Bool("can_read", canRead))
+	return canRead, nil
+}
+
+// CanWriteCollection implements [port.DocumentStore].
+func (s *DocumentStore) CanWriteCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
+	slog.DebugContext(ctx, "checking collection write permission",
+		slog.String("user_id", string(userID)),
+		slog.String("collection_id", string(collectionID)))
+
+	var canWrite bool
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var collection Collection
+		if err := db.First(&collection, "id = ? AND owner_id = ?", string(collectionID), string(userID)).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				canWrite = false
+				return errors.WithStack(port.ErrNotFound)
+			}
+			return errors.WithStack(err)
+		}
+		canWrite = true
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check collection write permission", slog.Any("error", err))
+		return false, errors.WithStack(err)
+	}
+
+	slog.DebugContext(ctx, "collection write permission result", slog.Bool("can_write", canWrite))
+	return canWrite, nil
+}
+
+// CanWriteDocument implements [port.DocumentStore].
+func (s *DocumentStore) CanWriteDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
+	slog.DebugContext(ctx, "checking document write permission",
+		slog.String("user_id", string(userID)),
+		slog.String("document_id", string(documentID)))
+
+	var canWrite bool
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var document Document
+		if err := db.First(&document, "id = ? AND owner_id = ?", string(documentID), string(userID)).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				canWrite = false
+				return errors.WithStack(port.ErrNotFound)
+			}
+			return errors.WithStack(err)
+		}
+		canWrite = true
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to check document write permission", slog.Any("error", err))
+		return false, errors.WithStack(err)
+	}
+
+	slog.DebugContext(ctx, "document write permission result", slog.Bool("can_write", canWrite))
+	return canWrite, nil
 }
 
 func (s *DocumentStore) withRetry(ctx context.Context, fn func(ctx context.Context, db *gorm.DB) error, codes ...sqlite3.ErrorCode) error {

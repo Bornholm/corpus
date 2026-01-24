@@ -1,0 +1,64 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
+
+type CollectionEditPageVModel struct {
+	Collection model.Collection
+	Navbar     common.NavbarVModel
+}
+
+templ CollectionEditPage(vmodel CollectionEditPageVModel) {
+	@common.NavbarPage(vmodel.Navbar, common.WithTitle("Modifier une collection")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<a href="/collections/" class="button is-text mr-3 is-medium" style="text-decoration:none">
+						<span class="icon">
+							<i class="fas fa-arrow-left"></i>
+						</span>
+					</a>
+					<h2 class="title is-size-3">
+						Modifier une collection
+					</h2>
+				</div>
+			</div>
+			<div class="level-right"></div>
+		</div>
+		<div class="columns">
+			<div class="column is-half">
+				<form method="post">
+					<div class="field">
+						<label class="label" for="label">Libellé</label>
+						<div class="control">
+							<input class="input" type="text" id="label" name="label" value={ vmodel.Collection.Label() } required/>
+						</div>
+						<p class="help">Le libellé associé à la collection.</p>
+					</div>
+					<div class="field">
+						<label class="label" for="description">Description</label>
+						<div class="control">
+							<textarea class="textarea" id="description" name="description" rows="4">{ vmodel.Collection.Description() }</textarea>
+						</div>
+						<p class="help">La description de la collection. Celle ci est utilisé par le LLM pour préparer le domaine métier des documents intégrés à cette collection.</p>
+					</div>
+					<div class="field is-grouped">
+						<div class="control">
+							<button type="submit" class="button is-primary">
+								<span class="icon">
+									<i class="fas fa-save"></i>
+								</span>
+								<span>Modifier</span>
+							</button>
+						</div>
+						<div class="control">
+							<a href="/collections/" class="button is-light">Annuler</a>
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	}
+}

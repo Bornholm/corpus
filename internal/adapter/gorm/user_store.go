@@ -50,9 +50,13 @@ func (w *wrappedUser) DisplayName() string {
 
 // Roles implements model.User.
 func (w *wrappedUser) Roles() []string {
-	// For now, return empty slice as roles are not stored in the GORM model
-	// This can be extended later if needed
-	return []string{}
+	return slices.Collect(func(yield func(string) bool) {
+		for _, r := range w.u.Roles {
+			if !yield(r.Role) {
+				return
+			}
+		}
+	})
 }
 
 var _ model.User = &wrappedUser{}
@@ -67,9 +71,9 @@ func (w *wrappedAuthToken) ID() model.AuthTokenID {
 	return model.AuthTokenID(w.t.ID)
 }
 
-// UserID implements model.AuthToken.
-func (w *wrappedAuthToken) UserID() model.UserID {
-	return model.UserID(w.t.UserID)
+// OwnerID implements model.AuthToken.
+func (w *wrappedAuthToken) OwnerID() model.UserID {
+	return model.UserID(w.t.OwnerID)
 }
 
 // Label implements model.AuthToken.
@@ -86,7 +90,7 @@ var _ model.AuthToken = &wrappedAuthToken{}
 
 // fromUser converts a model.User to a GORM User
 func fromUser(u model.User) *User {
-	return &User{
+	user := &User{
 		ID:          string(u.ID()),
 		Subject:     u.Subject(),
 		Provider:    u.Provider(),
@@ -94,15 +98,25 @@ func fromUser(u model.User) *User {
 		Email:       u.Email(),
 		Active:      true, // Default to active
 	}
+
+	for _, r := range u.Roles() {
+		user.Roles = append(user.Roles, &UserRole{
+			User:   user,
+			UserID: user.ID,
+			Role:   r,
+		})
+	}
+
+	return user
 }
 
 // fromAuthToken converts a model.AuthToken to a GORM AuthToken
 func fromAuthToken(t model.AuthToken) *AuthToken {
 	return &AuthToken{
-		ID:     string(t.ID()),
-		UserID: string(t.UserID()),
-		Label:  t.Label(),
-		Value:  t.Value(),
+		ID:      string(t.ID()),
+		OwnerID: string(t.OwnerID()),
+		Label:   t.Label(),
+		Value:   t.Value(),
 	}
 }
 
@@ -113,6 +127,7 @@ func (s *UserStore) FindOrCreateUser(ctx context.Context, provider, subject stri
 		var u User
 
 		err := db.Where("provider = ? AND subject = ?", provider, subject).
+			Preload(clause.Associations).
 			Attrs(&User{
 				ID:       string(model.NewUserID()),
 				Provider: provider,
@@ -163,8 +178,20 @@ func (s *UserStore) SaveUser(ctx context.Context, user model.User) error {
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
 			UpdateAll: true,
-		}).Create(gormUser).Error; err != nil {
+		}).Omit("Roles").Create(gormUser).Error; err != nil {
 			return errors.WithStack(err)
+		}
+
+		for _, r := range gormUser.Roles {
+			err := db.
+				Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "user_id"}, {Name: "role"}},
+					DoNothing: true,
+				}).
+				Omit("User").Save(r).Error
+			if err != nil {
+				return errors.WithStack(err)
+			}
 		}
 
 		return nil
@@ -181,7 +208,7 @@ func (s *UserStore) FindAuthToken(ctx context.Context, token string) (model.Auth
 	var authToken AuthToken
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload("User").First(&authToken, "value = ?", token).Error; err != nil {
+		if err := db.Preload("Owner").First(&authToken, "value = ?", token).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -201,7 +228,7 @@ func (s *UserStore) GetUserAuthTokens(ctx context.Context, userID model.UserID) 
 	var authTokens []*AuthToken
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Where("user_id = ?", string(userID)).Find(&authTokens).Error; err != nil {
+		if err := db.Where("owner_id = ?", string(userID)).Find(&authTokens).Error; err != nil {
 			return errors.WithStack(err)
 		}
 		return nil
@@ -303,7 +330,7 @@ func (s *UserStore) withRetry(ctx context.Context, fn func(ctx context.Context, 
 
 func NewUserStore(db *gorm.DB) *UserStore {
 	return &UserStore{
-		getDatabase: createGetDatabase(db, &User{}, &AuthToken{}),
+		getDatabase: createGetDatabase(db, &User{}, &AuthToken{}, &UserRole{}),
 	}
 }
 

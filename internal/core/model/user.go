@@ -106,8 +106,8 @@ func NewAuthTokenID() AuthTokenID {
 
 type AuthToken interface {
 	WithID[AuthTokenID]
+	WithOwner
 
-	UserID() UserID
 	Label() string
 	Value() string
 }
@@ -124,8 +124,8 @@ func (t *BaseAuthToken) ID() AuthTokenID {
 	return t.id
 }
 
-// UserID implements AuthToken.
-func (t *BaseAuthToken) UserID() UserID {
+// OwnerID implements AuthToken.
+func (t *BaseAuthToken) OwnerID() UserID {
 	return t.userID
 }
 

@@ -27,3 +27,13 @@ type Document interface {
 	Content() ([]byte, error)
 	Chunk(start, end int) ([]byte, error)
 }
+
+type OwnedDocument interface {
+	Document
+	WithOwner
+}
+
+type PersistedDocument interface {
+	OwnedDocument
+	WithLifecycle
+}

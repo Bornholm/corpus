@@ -27,7 +27,14 @@ templ Navbar(vmodel NavbarVModel) {
 			</a>
 		</div>
 		<div id="navbar-menu" class="navbar-menu">
-			<div class="navbar-start"></div>
+			<div class="navbar-start">
+				<a class="navbar-item" href={ BaseURL(ctx, WithPath("/collections")) }>
+					<span class="icon">
+						<i class="fa fa-folder-open"></i>
+					</span>
+					<span>Collections</span>
+				</a>
+			</div>
 			<div class="navbar-end">
 				<div class="navbar-item has-dropdown is-hoverable">
 					<a class="navbar-link is-hidden-touch">

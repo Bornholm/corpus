@@ -22,7 +22,7 @@ func TestWatch(t *testing.T) {
 
 	ctx := context.Background()
 	req := testcontainers.ContainerRequest{
-		Image: "docker.io/garethflowers/ftp-server",
+		Image: "docker.io/garethflowers/ftp-server:0.9.2",
 		Cmd:   []string{},
 		Env: map[string]string{
 			"FTP_PASS": "corpus",

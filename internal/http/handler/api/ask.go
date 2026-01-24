@@ -9,6 +9,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 )
 
@@ -26,11 +27,28 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collections := r.URL.Query()["collection"]
+	collections, err := h.getSelectedCollectionsFromRequest(r)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not retrieve collections from request", slogx.Error(err))
+		var httpErr common.HTTPError
+		if errors.As(err, &httpErr) {
+			http.Error(w, http.StatusText(httpErr.StatusCode()), httpErr.StatusCode())
+			return
+		}
+
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
 	res, err := h.doAsk(ctx, query, collections)
 	if err != nil {
-		slog.ErrorContext(ctx, "could not ask documents", slog.Any("error", errors.WithStack(err)))
+		var httpErr common.HTTPError
+		if errors.As(err, &httpErr) {
+			http.Error(w, httpErr.Error(), httpErr.StatusCode())
+			return
+		}
+
+		slog.ErrorContext(ctx, "could not ask documents", slogx.Error(err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -41,11 +59,11 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	if err := encoder.Encode(res); err != nil {
-		slog.ErrorContext(ctx, "could not encode response", slog.Any("error", errors.WithStack(err)))
+		slog.ErrorContext(ctx, "could not encode response", slogx.Error(err))
 	}
 }
 
-func (h *Handler) doAsk(ctx context.Context, query string, collections []string) (*AskResponse, error) {
+func (h *Handler) doAsk(ctx context.Context, query string, collections []model.CollectionID) (*AskResponse, error) {
 	slog.DebugContext(ctx, "executing ask query", slog.String("query", query), slog.Any("collections", collections))
 
 	results, err := h.documentManager.Search(ctx, query,

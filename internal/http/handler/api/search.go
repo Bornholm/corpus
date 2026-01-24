@@ -10,6 +10,8 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
+	"github.com/bornholm/corpus/internal/http/handler/webui/common"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 )
 
@@ -35,12 +37,22 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collections := r.URL.Query()["collection"]
+	collections, err := h.getSelectedCollectionsFromRequest(r)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not retrieve collections from request", slogx.Error(err))
+		var httpErr common.HTTPError
+		if errors.As(err, &httpErr) {
+			http.Error(w, http.StatusText(httpErr.StatusCode()), httpErr.StatusCode())
+			return
+		}
+
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 
 	rawSize := r.URL.Query().Get("size")
 	var (
 		size int64
-		err  error
 	)
 	if rawSize != "" {
 		size, err = strconv.ParseInt(rawSize, 10, 64)
@@ -70,8 +82,16 @@ func (h *Handler) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) doSearch(ctx context.Context, query string, collections []string, size int64) (*SearchResponse, error) {
+func (h *Handler) doSearch(ctx context.Context, query string, collections []model.CollectionID, size int64) (*SearchResponse, error) {
 	slog.DebugContext(ctx, "executing search", slog.String("query", query), slog.Any("collections", collections), slog.Any("size", size))
+
+	res := &SearchResponse{
+		Results: []*SearchResult{},
+	}
+
+	if len(collections) == 0 {
+		return res, nil
+	}
 
 	searchResults, err := h.documentManager.Search(ctx, query,
 		service.WithDocumentManagerSearchCollections(collections...),
@@ -79,10 +99,6 @@ func (h *Handler) doSearch(ctx context.Context, query string, collections []stri
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
-	}
-
-	res := &SearchResponse{
-		Results: []*SearchResult{},
 	}
 
 	for _, r := range searchResults {

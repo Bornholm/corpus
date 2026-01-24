@@ -15,7 +15,7 @@ type DuplicateContentResultsTransformer struct {
 }
 
 // TransformResults implements ResultsTransformer.
-func (t *DuplicateContentResultsTransformer) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error) {
+func (t *DuplicateContentResultsTransformer) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
 	merged := make([]*port.IndexSearchResult, 0, len(results))
 
 	for _, r := range results {

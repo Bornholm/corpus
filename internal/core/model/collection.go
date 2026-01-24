@@ -13,48 +13,59 @@ func NewCollectionID() CollectionID {
 type Collection interface {
 	WithID[CollectionID]
 
-	Name() string
 	Label() string
 	Description() string
+}
+
+type OwnedCollection interface {
+	Collection
+
+	WithOwner
+}
+
+type PersistedCollection interface {
+	OwnedCollection
+
+	WithLifecycle
 }
 
 type CollectionStats struct {
 	TotalDocuments int64
 }
-type ReadOnlyCollection struct {
+type BaseCollection struct {
 	id          CollectionID
-	name        string
 	label       string
 	description string
+	ownerID     UserID
 }
 
 // Description implements Collection.
-func (c *ReadOnlyCollection) Description() string {
+func (c *BaseCollection) Description() string {
 	return c.description
 }
 
 // ID implements Collection.
-func (c *ReadOnlyCollection) ID() CollectionID {
+func (c *BaseCollection) ID() CollectionID {
 	return c.id
 }
 
 // Name implements Collection.
-func (c *ReadOnlyCollection) Name() string {
-	return c.name
+func (c *BaseCollection) OwnerID() UserID {
+	return c.ownerID
 }
 
 // Label implements Collection.
-func (c *ReadOnlyCollection) Label() string {
+func (c *BaseCollection) Label() string {
 	return c.label
 }
 
-func NewReadOnlyCollection(id CollectionID, name string, label string, description string) *ReadOnlyCollection {
-	return &ReadOnlyCollection{
+func NewCollection(id CollectionID, ownerID UserID, label string, description string) *BaseCollection {
+	return &BaseCollection{
 		id:          id,
-		name:        name,
+		ownerID:     ownerID,
 		label:       label,
 		description: description,
 	}
 }
 
-var _ Collection = &ReadOnlyCollection{}
+var _ Collection = &BaseCollection{}

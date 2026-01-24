@@ -9,10 +9,14 @@ import (
 )
 
 type Document struct {
-	ID          string `gorm:"primaryKey;autoIncrement:false"`
-	ETag        string `gorm:"index"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID        string `gorm:"primaryKey;autoIncrement:false"`
+	ETag      string `gorm:"index"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	Owner   *User
+	OwnerID string
+
 	Source      string        `gorm:"unique;not null;index"`
 	Sections    []*Section    `gorm:"constraint:OnDelete:CASCADE"`
 	Collections []*Collection `gorm:"many2many:documents_collections;"`
@@ -21,6 +25,21 @@ type Document struct {
 
 type wrappedDocument struct {
 	d *Document
+}
+
+// CreatedAt implements [model.PersistedDocument].
+func (w *wrappedDocument) CreatedAt() time.Time {
+	return w.d.CreatedAt
+}
+
+// UpdatedAt implements [model.PersistedDocument].
+func (w *wrappedDocument) UpdatedAt() time.Time {
+	return w.d.UpdatedAt
+}
+
+// OwnerID implements [model.Document].
+func (w *wrappedDocument) OwnerID() model.UserID {
+	return model.UserID(w.d.OwnerID)
 }
 
 // ETag implements model.Document.
@@ -76,9 +95,9 @@ func (w *wrappedDocument) Source() *url.URL {
 	return url
 }
 
-var _ model.Document = &wrappedDocument{}
+var _ model.PersistedDocument = &wrappedDocument{}
 
-func fromDocument(d model.Document) (*Document, error) {
+func fromDocument(d model.OwnedDocument) (*Document, error) {
 	content, err := d.Content()
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -86,6 +105,7 @@ func fromDocument(d model.Document) (*Document, error) {
 
 	document := &Document{
 		ID:          string(d.ID()),
+		OwnerID:     string(d.OwnerID()),
 		ETag:        d.ETag(),
 		Source:      d.Source().String(),
 		Collections: make([]*Collection, 0, len(d.Collections())),
@@ -98,7 +118,12 @@ func fromDocument(d model.Document) (*Document, error) {
 	}
 
 	for _, c := range d.Collections() {
-		document.Collections = append(document.Collections, fromCollection(c))
+		oc, ok := c.(model.OwnedCollection)
+		if !ok {
+			return nil, errors.Errorf("unexpected collection type '%T'", c)
+		}
+
+		document.Collections = append(document.Collections, fromCollection(oc))
 	}
 
 	return document, nil

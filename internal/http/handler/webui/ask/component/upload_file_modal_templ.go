@@ -9,12 +9,15 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
+	"github.com/bornholm/corpus/internal/core/model"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"strings"
 )
 
 type UploadFileModalVModel struct {
 	SupportedExtensions []string
+	WritableCollections []model.PersistedCollection
+	CreateCollectionURL string
 }
 
 func UploadFileModal(vmodel UploadFileModalVModel) templ.Component {
@@ -38,6 +41,7 @@ func UploadFileModal(vmodel UploadFileModalVModel) templ.Component {
 			templ_7745c5c3_Var1 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
+		hasWritableCollection := len(vmodel.WritableCollections) > 0
 		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"modal is-active\"><div class=\"modal-background\"></div><form method=\"post\" enctype=\"multipart/form-data\" action=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
@@ -47,42 +51,155 @@ func UploadFileModal(vmodel UploadFileModalVModel) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" hx-on:submit=\"htmx.addClass(htmx.find(&#39;#index-submit&#39;), &#39;is-loading&#39;)\"><div class=\"modal-card\"><header class=\"modal-card-head\"><p class=\"modal-card-title\">Ajouter un fichier</p></header><section class=\"modal-card-body\"><div class=\"field\"><div class=\"control\"><div class=\"file has-name is-fullwidth\"><label class=\"file-label\"><input class=\"file-input\" type=\"file\" name=\"file\" required hx-on:change=\"onFileChange.call(this)\" accept=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" hx-on:submit=\"htmx.addClass(htmx.find(&#39;#index-submit&#39;), &#39;is-loading&#39;)\"><div class=\"modal-card\"><header class=\"modal-card-head\"><p class=\"modal-card-title\">Ajouter un fichier</p></header><section class=\"modal-card-body\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var3 string
-		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(vmodel.SupportedExtensions, ", "))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/upload_file_modal.templ`, Line: 36, Col: 65}
+		if hasWritableCollection {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"field\"><div class=\"control\"><div class=\"file has-name is-fullwidth\"><label class=\"file-label\"><input class=\"file-input\" type=\"file\" name=\"file\" required hx-on:change=\"onFileChange.call(this)\" accept=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var3 string
+			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(vmodel.SupportedExtensions, ", "))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/upload_file_modal.templ`, Line: 41, Col: 66}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\"> <span class=\"file-cta\"><span class=\"file-icon\"><i class=\"fas fa-upload\"></i></span> <span class=\"file-label\">Choisissez un fichier</span></span> <span class=\"file-name\"></span></label></div></div><p class=\"help\">Formats acceptés: <code>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(vmodel.SupportedExtensions, ", "))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/upload_file_modal.templ`, Line: 53, Col: 96}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</code></p></div><div class=\"field\"><label class=\"label\">URL</label><div class=\"control\"><input class=\"input\" type=\"url\" required name=\"source\" placeholder=\"https://myserver/mydocument.md\"></div><p class=\"help\">L'URL unique qui sera associée au document.</p></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"field\"><label class=\"label\">Collection(s)</label> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\"> <span class=\"file-cta\"><span class=\"file-icon\"><i class=\"fas fa-upload\"></i></span> <span class=\"file-label\">Choisissez un fichier</span></span> <span class=\"file-name\"></span></label></div></div><p class=\"help\">Formats acceptés: <code>")
+		if !hasWritableCollection {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<div class=\"message is-warning\"><div class=\"message-body\">Vous n'avez aucune collection accessible en écriture. <a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 templ.SafeURL = templ.SafeURL(vmodel.CreateCollectionURL)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var5)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "\" class=\"has-text-weight-bold\">Créez votre première collection</a> pour pouvoir indexer des documents.</div></div>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		} else {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "<div class=\"control\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			for i, collection := range vmodel.WritableCollections {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<label class=\"checkbox is-block\"><input type=\"checkbox\" name=\"collection\" value=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var6 string
+				templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(string(collection.ID()))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/upload_file_modal.templ`, Line: 79, Col: 42}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				if i == 0 {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, " checked required")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, " onchange=\"validateCollectionSelection()\"> ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var7 string
+				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(collection.Label())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/upload_file_modal.templ`, Line: 86, Col: 30}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, " ")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				if collection.Description() != "" {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<span class=\"has-text-grey\">- ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var8 string
+					templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinStringErrs(collection.Description())
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/upload_file_modal.templ`, Line: 88, Col: 67}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 16, "</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 17, "</label>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 18, "</div><p class=\"help\">Sélectionnez une ou plusieurs collections pour associer le document. Au moins une collection doit être sélectionnée.</p>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "</div></section><footer class=\"modal-card-foot\"><div class=\"buttons is-right\" style=\"width:100%\"><a href=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var4 string
-		templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(strings.Join(vmodel.SupportedExtensions, ", "))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/ask/component/upload_file_modal.templ`, Line: 48, Col: 95}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+		var templ_7745c5c3_Var9 templ.SafeURL = common.CurrentURL(ctx, common.WithoutValues("action", "*"))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var9)))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</code></p></div><div class=\"field\"><label class=\"label\">URL</label><div class=\"control\"><input class=\"input\" type=\"url\" required name=\"source\" placeholder=\"https://myserver/mydocument.md\"></div><p class=\"help\">L'URL unique qui sera associée au document.</p></div><div class=\"field\"><div class=\"level\"><div class=\"level-left\"><label class=\"label level-item\">Collection(s)</label></div><div class=\"level-right\"><button class=\"button level-item\" hx-on:click=\"onAddCollectionClick.call(this, event)\"><span class=\"icon\"><i class=\"fa fa-plus\"></i></span></button></div></div><div id=\"collectionContainer\" class=\"control\"><input class=\"input\" type=\"text\" name=\"collection\"><template id=\"newCollection\"><div class=\"field has-addons mt-3\"><div class=\"control is-expanded\"><input class=\"input\" type=\"text\" name=\"collection\"></div><div class=\"control\"><button class=\"button is-danger\" hx-on:click=\"onRemoveCollectionClick.call(this, event)\"><span class=\"icon\"><i class=\"fa fa-trash\"></i></span></button></div></div></template></div><p class=\"help\">Associer une ou plusieurs collections au document.</p></div></section><footer class=\"modal-card-foot\"><div class=\"buttons is-right\" style=\"width:100%\"><a href=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 20, "\" class=\"button is-medium\">Annuler</a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var5 templ.SafeURL = common.CurrentURL(ctx, common.WithoutValues("action", "*"))
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var5)))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
+		if hasWritableCollection {
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<button type=\"submit\" id=\"index-submit\" class=\"button is-success is-medium\">Indexer</button>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" class=\"button is-medium\">Annuler</a> <button type=\"submit\" id=\"index-submit\" class=\"button is-success is-medium\">Indexer</button></div></footer></div></form></div><script>\n    function onFileChange() {\n      if (this.files.length > 0) {\n        const fileNameInput = this.parentNode.querySelector(\".file-name\");\n        const name = this.files[0].name;\n        fileNameInput.textContent = name;\n        \n        const sourceInput = this.closest(\"form\").querySelector(`input[name=\"source\"]`)\n        if (!sourceInput.value) {\n          sourceInput.value = `file://${name.replace(/\\s+/g, '-')}`\n        }\n      }\n    }\n\n    function onAddCollectionClick(evt) {\n      evt.preventDefault()\n      const newCollection = document.getElementById(\"newCollection\").content.cloneNode(true);\n      htmx.process(newCollection);\n      document.getElementById(\"collectionContainer\").appendChild(newCollection)\n    }\n\n    function onRemoveCollectionClick(evt) {\n      evt.preventDefault()\n      const fieldElement = this.closest(\".field\");\n      fieldElement.parentNode.removeChild(fieldElement);\n    }\n  </script>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></footer></div></form></div><script>\n\t   function onFileChange() {\n\t     if (this.files.length > 0) {\n\t       const fileNameInput = this.parentNode.querySelector(\".file-name\");\n\t       const name = this.files[0].name;\n\t       fileNameInput.textContent = name;\n\t       \n\t       const sourceInput = this.closest(\"form\").querySelector(`input[name=\"source\"]`)\n\t       if (!sourceInput.value) {\n\t         sourceInput.value = `file://${name.replace(/\\s+/g, '-')}`\n\t       }\n\t     }\n\t   }\n\n\t   function validateCollectionSelection() {\n\t     const checkboxes = document.querySelectorAll('input[name=\"collection\"]');\n\t     const checkedBoxes = document.querySelectorAll('input[name=\"collection\"]:checked');\n\t     const submitButton = document.getElementById('index-submit');\n\t     \n\t     if (checkedBoxes.length === 0) {\n\t       // If no collections are checked, make the first one required\n\t       if (checkboxes.length > 0) {\n\t         checkboxes[0].required = true;\n\t       }\n\t       submitButton.disabled = true;\n\t     } else {\n\t       // If at least one is checked, remove required from all\n\t       checkboxes.forEach(cb => cb.required = false);\n\t       submitButton.disabled = false;\n\t     }\n\t   }\n\n\t   // Initialize validation on page load\n\t   document.addEventListener('DOMContentLoaded', function() {\n\t     validateCollectionSelection();\n\t   });\n\t </script>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

@@ -7,6 +7,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask"
+	"github.com/bornholm/corpus/internal/http/handler/webui/collection"
 	"github.com/bornholm/corpus/internal/http/handler/webui/profile"
 	"github.com/bornholm/corpus/internal/http/handler/webui/swagger"
 	"github.com/bornholm/genai/llm"
@@ -25,6 +26,7 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRu
 	mux := http.NewServeMux()
 
 	mount(mux, "/", ask.NewHandler(documentManager, llm, taskRunner))
+	mount(mux, "/collections/", collection.NewHandler(documentManager))
 	mount(mux, "/profile/", profile.NewHandler(userStore))
 	mount(mux, "/docs/", swagger.NewHandler())
 

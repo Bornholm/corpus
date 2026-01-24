@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"net/http"
 
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/pkg/errors"
 )
 
@@ -31,7 +32,7 @@ func (h *Handler) getSession(r *http.Request) *SessionData {
 
 	if sessionData == nil {
 		return &SessionData{
-			Collections: make([]string, 0),
+			Collections: make([]model.CollectionID, 0),
 		}
 	}
 
@@ -51,5 +52,5 @@ func (h *Handler) saveSession(w http.ResponseWriter, r *http.Request, data *Sess
 }
 
 type SessionData struct {
-	Collections []string
+	Collections []model.CollectionID
 }

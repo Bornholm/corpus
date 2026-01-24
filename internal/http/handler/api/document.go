@@ -53,9 +53,11 @@ func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 		opts.MatchingSource = source
 	}
 
-	documents, total, err := h.documentManager.DocumentStore.QueryDocuments(ctx, opts)
+	user := httpCtx.User(ctx)
+
+	readableDocuments, total, err := h.documentManager.DocumentStore.QueryUserReadableDocuments(ctx, user.ID(), opts)
 	if err != nil {
-		slog.ErrorContext(ctx, "could not query documents", slog.Any("error", errors.WithStack(err)))
+		slog.ErrorContext(ctx, "could not query readable documents", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
@@ -67,7 +69,7 @@ func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 		Limit:     limit,
 	}
 
-	for _, d := range documents {
+	for _, d := range readableDocuments {
 		res.Documents = append(res.Documents, DocumentHeader{
 			ID:     string(d.ID()),
 			ETag:   d.ETag(),
@@ -201,16 +203,18 @@ func (h *Handler) handleReindexDocument(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	collections := slices.Collect(func(yield func(c string) bool) {
+	collections := slices.Collect(func(yield func(c model.CollectionID) bool) {
 		for _, c := range document.Collections() {
-			if !yield(c.Name()) {
+			if !yield(c.ID()) {
 				return
 			}
 		}
 	})
 
+	user := httpCtx.User(ctx)
+
 	taskID, err := h.documentManager.IndexFile(
-		ctx, "file.md", bytes.NewBuffer(content),
+		ctx, user.ID(), "file.md", bytes.NewBuffer(content),
 		service.WithDocumentManagerIndexFileCollections(collections...),
 		service.WithDocumentManagerIndexFileSource(document.Source()),
 	)

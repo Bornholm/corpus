@@ -109,7 +109,7 @@ func (h *Handler) getAskDescription(ctx context.Context) (string, error) {
 		sb.WriteString("'\n\n")
 
 		sb.WriteString("**ID:** ")
-		sb.WriteString(c.Name())
+		sb.WriteString(string(c.ID()))
 		sb.WriteString("\n\n")
 
 		sb.WriteString("**Description:**\n")

@@ -32,22 +32,24 @@ As a knowledgeable and helpful research assistant, generate a hypothetical best-
 This this the available collections of documents in the database. Use them to orient your answer.
 
 {{ range .Collections }}
-### {{ .Name }}
+### {{ .Label }}
 
 {{ .Description }}
 {{ end }}
 `
 
 // TransformQuery implements QueryTransformer.
-func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string) (string, error) {
-	collections, err := t.store.QueryCollections(ctx, port.QueryCollectionsOptions{})
+func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string, opts port.IndexSearchOptions) (string, error) {
+	collections, err := t.store.QueryCollections(ctx, port.QueryCollectionsOptions{
+		IDs: opts.Collections,
+	})
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	prompt, err := prompt.Template(defaultHyDEPromptTemplate, struct {
 		Query       string
-		Collections []model.Collection
+		Collections []model.PersistedCollection
 	}{
 		Query:       query,
 		Collections: collections,

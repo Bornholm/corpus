@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -198,7 +199,9 @@ func triggerCreateEventForPreExistingFiles(ctx context.Context, afs afero.Fs, w 
 
 	baseDir, err := afs.Open(".")
 	if err != nil {
-		slog.ErrorContext(ctx, "could not open base directory", slog.Any("error", errors.WithStack(err)))
+		if !errors.Is(err, os.ErrNotExist) {
+			slog.ErrorContext(ctx, "could not open base directory", slog.Any("error", errors.WithStack(err)))
+		}
 		return
 	}
 

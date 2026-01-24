@@ -23,7 +23,7 @@ type JudgeResultsTransformer struct {
 }
 
 const defaultJudgeResultsTransformer = `
-You are a document retrieval system that evaluates document relevance against a user query. Your task is to analyze the provided documents and identify only those that are semantically relevant to the query.
+You are a document retrieval system that evaluates document relevance against a user query. Your task is to analyze the provided documents and identify only those that are relevant to the query.
 
 For each document, consider:
 1. Topical alignment with the query's main subject
@@ -33,14 +33,14 @@ For each document, consider:
 Return your assessment as a structured JSON object containing ONLY the identifiers of relevant documents. Do not include explanations, document content, or any other information in your response.
 
 For example:
-{"identifiers": ["doc_123", "doc_456"]}
+{"identifiers": ["doc_123", "doc_456"], "explanation": "The doc_123 contains informations about ..., relevant to the query"}
 
 If no documents are relevant, return:
-{"identifiers": []}
+{"identifiers": [], "explanation": "No document provide information linked to the query"}
 `
 
 // TransformResults implements ResultsTransformer.
-func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult) ([]*port.IndexSearchResult, error) {
+func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query string, results []*port.IndexSearchResult, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
 	systemPrompt, err := prompt.Template(defaultJudgeResultsTransformer, struct {
 	}{})
 	if err != nil {
@@ -74,8 +74,12 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 								"type": "string",
 							},
 						},
+						"explanation": map[string]any{
+							"type":        "string",
+							"description": "An explanation of why you selected theses documents or not.",
+						},
 					},
-					"required":             []string{"identifiers"},
+					"required":             []string{"identifiers", "explanation"},
 					"additionalProperties": false,
 				},
 			),
@@ -91,18 +95,19 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 
 	type llmResponse struct {
 		Identifiers []string `json:"identifiers"`
+		Explanation string   `json:"explanation"`
 	}
 
-	sections, err := llm.ParseJSON[llmResponse](completion.Message())
+	responses, err := llm.ParseJSON[llmResponse](completion.Message())
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	slog.DebugContext(ctx, "relevant sections", slog.Any("sections", sections))
+	slog.DebugContext(ctx, "judge responses", slog.Any("responses", responses))
 
 	selected := map[model.SectionID]struct{}{}
-	for _, d := range sections {
-		for _, s := range d.Identifiers {
+	for _, r := range responses {
+		for _, s := range r.Identifiers {
 			selected[model.SectionID(s)] = struct{}{}
 		}
 	}

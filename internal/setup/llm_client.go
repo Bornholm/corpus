@@ -2,6 +2,7 @@ package setup
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/metrics"
@@ -36,10 +37,13 @@ var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf
 	}
 
 	if conf.LLM.Provider.RateLimit != 0 {
+		slog.DebugContext(ctx, "using rate limited llm client", "rate", conf.LLM.Provider.RateLimit)
 		client = ratelimit.Wrap(client, conf.LLM.Provider.RateLimit, 1)
 	}
 
 	if conf.LLM.Provider.MaxRetries != 0 {
+		slog.DebugContext(ctx, "using llm client with retry", "max_retries", conf.LLM.Provider.MaxRetries, "base_backoff", conf.LLM.Provider.BaseBackoff)
+
 		client = retry.Wrap(client, conf.LLM.Provider.BaseBackoff, conf.LLM.Provider.MaxRetries)
 	}
 
