@@ -90,8 +90,8 @@ github.com/blevesearch/zapx/v15 v15.4.1 h1:B5IoTMUCEzFdc9FSQbhVOxAY+BO17c05866fN
 github.com/blevesearch/zapx/v15 v15.4.1/go.mod h1:b/MreHjYeQoLjyY2+UaM0hGZZUajEbE0xhnr1A2/Q6Y=
 github.com/blevesearch/zapx/v16 v16.2.3 h1:7Y0r+a3diEvlazsncexq1qoFOcBd64xwMS7aDm4lo1s=
 github.com/blevesearch/zapx/v16 v16.2.3/go.mod h1:wVJ+GtURAaRG9KQAMNYyklq0egV+XJlGcXNCE0OFjjA=
-github.com/bornholm/genai v0.0.3 h1:RVRlQivwaKNQuIpamFtzi5ib1jogXUM9tWlO9Wj2Z7A=
-github.com/bornholm/genai v0.0.3/go.mod h1:3PzE6ShRVN+CcdtM1z5dpt7SyR/1PsZl/5Rf451LE1A=
+github.com/bornholm/genai v0.0.6 h1:lF/HXh5rkXgeIfPxyZ2EiKzzJxW4bXnZrWbbHHfIwVM=
+github.com/bornholm/genai v0.0.6/go.mod h1:xHuGNjnMJLJzJ+je71V1lA6iQgkhAbaqJMiAjI4rsi4=
 github.com/bornholm/go-x v0.0.0-20260122094706-ec72b31f1255 h1:oU2JaSxH9d0ORZXMKrwVlyK/iskCNIoDFAUNJKkmbQM=
 github.com/bornholm/go-x v0.0.0-20260122094706-ec72b31f1255/go.mod h1:LrDsNbXXqkdlQ/tlcbWKUF/FoFA/WjUEtNDRa/Xl19c=
 github.com/bornholm/lorca v0.0.0-20240121134933-d5e83569cb4c h1:ZpouqOtVUkkHYcU4ZxML4v5VuFcRnFp5orEBYiD7PPU=
@@ -358,8 +358,8 @@ github.com/prometheus/procfs v0.15.1 h1:YagwOFzUgYfKKHX6Dr+sHT7km/hxC76UB0leargg
 github.com/prometheus/procfs v0.15.1/go.mod h1:fB45yRUv8NstnjriLhBQLuOUt+WW4BsoGhij/e3PBqk=
 github.com/redmatter/go-globre/v2 v2.0.0 h1:8A/hUpOSHaf7GXIJMzneL9G1kJuxjUVDO8rWsrJeg1c=
 github.com/redmatter/go-globre/v2 v2.0.0/go.mod h1:7+CyYNhJEwWoQietUHx7LjllEU+b1p91mVUgkeFZP44=
-github.com/revrost/go-openrouter v1.0.0 h1:aqsENhgUp2nr7/iggdtoDwDWHDhfENTRyMXraWXwIxc=
-github.com/revrost/go-openrouter v1.0.0/go.mod h1:jZFcumFqvS25o8oEQc1/+4yeK7lHDSnwPMIJ/pKPdNc=
+github.com/revrost/go-openrouter v1.1.5 h1:YkTxdRrkfTf5Y78Daa4a3k+WgX6KIKkLgDri2ZSndJ4=
+github.com/revrost/go-openrouter v1.1.5/go.mod h1:jZFcumFqvS25o8oEQc1/+4yeK7lHDSnwPMIJ/pKPdNc=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.4.7 h1:WUdvkW8uEhrYfLC4ZzdpI2ztxP1I582+49Oc5Mq64VQ=

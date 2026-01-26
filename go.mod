@@ -7,7 +7,7 @@ require (
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.0.0-00010101000000-000000000000
 	github.com/blevesearch/bleve/v2 v2.5.0
-	github.com/bornholm/genai v0.0.3
+	github.com/bornholm/genai v0.0.6
 	github.com/bornholm/go-x v0.0.0-20260122094706-ec72b31f1255
 	github.com/caarlos0/env/v11 v11.3.1
 	github.com/creativeprojects/go-selfupdate v1.5.2
@@ -138,7 +138,7 @@ require (
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
-	github.com/revrost/go-openrouter v1.0.0 // indirect
+	github.com/revrost/go-openrouter v1.1.5 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect

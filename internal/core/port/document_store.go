@@ -31,6 +31,8 @@ type DocumentStore interface {
 	UpdateCollection(ctx context.Context, id model.CollectionID, updates CollectionUpdates) (model.PersistedCollection, error)
 	GetCollectionStats(ctx context.Context, id model.CollectionID) (*model.CollectionStats, error)
 
+	DeleteCollection(ctx context.Context, id model.CollectionID) error
+
 	QueryUserReadableCollections(ctx context.Context, userID model.UserID, opts QueryCollectionsOptions) ([]model.PersistedCollection, int64, error)
 	QueryUserWritableCollections(ctx context.Context, userID model.UserID, opts QueryCollectionsOptions) ([]model.PersistedCollection, int64, error)
 

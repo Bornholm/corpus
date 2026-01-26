@@ -89,6 +89,11 @@ type dummyStore struct {
 	sections map[model.SectionID]model.Section
 }
 
+// DeleteCollection implements [port.DocumentStore].
+func (d *dummyStore) DeleteCollection(ctx context.Context, id model.CollectionID) error {
+	panic("unimplemented")
+}
+
 // CanReadCollection implements [port.DocumentStore].
 func (d *dummyStore) CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
 	panic("unimplemented")

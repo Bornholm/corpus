@@ -18,10 +18,11 @@ func init() {
 	gob.Register(SnapshottedDocument{})
 	gob.Register(SnapshottedCollection{})
 	gob.Register(SnapshottedSection{})
+	gob.Register(SnapshottedUser{})
 }
 
 // GenerateSnapshot implements backup.Snapshotable.
-func (s *DocumentStore) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
+func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 	r, w := io.Pipe()
 
 	go func() {
@@ -70,9 +71,15 @@ func (s *DocumentStore) GenerateSnapshot(ctx context.Context) (io.ReadCloser, er
 					ownedCollections[i] = oc
 				}
 
+				owner, err := s.GetUserByID(ctx, d.OwnerID())
+				if err != nil {
+					w.CloseWithError(errors.Wrapf(err, "could not retrieve user '%s'", d.OwnerID()))
+					return
+				}
+
 				err = encoder.Encode(SnapshottedDocument{
 					ID:          string(d.ID()),
-					OwnerID:     string(d.OwnerID()),
+					Owner:       toSnapshottedUser(owner),
 					Source:      d.Source().String(),
 					ETag:        d.ETag(),
 					Content:     content,
@@ -94,7 +101,7 @@ func (s *DocumentStore) GenerateSnapshot(ctx context.Context) (io.ReadCloser, er
 }
 
 // RestoreSnapshot implements backup.Snapshotable.
-func (s *DocumentStore) RestoreSnapshot(ctx context.Context, r io.Reader) error {
+func (s *Store) RestoreSnapshot(ctx context.Context, r io.Reader) error {
 	decoder := gob.NewDecoder(r)
 
 	slog.DebugContext(ctx, "restoring snapshotted documents")
@@ -119,6 +126,10 @@ func (s *DocumentStore) RestoreSnapshot(ctx context.Context, r io.Reader) error 
 			return errors.WithStack(err)
 		}
 
+		if err := s.remapUser(ctx, &doc); err != nil {
+			return errors.WithStack(err)
+		}
+
 		batch = append(batch, &snapshottedDocumentWrapper{doc})
 		if len(batch) >= batchSize {
 			if err := s.SaveDocuments(ctx, batch...); err != nil {
@@ -128,19 +139,43 @@ func (s *DocumentStore) RestoreSnapshot(ctx context.Context, r io.Reader) error 
 			batch = nil
 		}
 	}
-
 }
 
-var _ backup.Snapshotable = &DocumentStore{}
+func (s *Store) remapUser(ctx context.Context, doc *SnapshottedDocument) error {
+	owner, err := s.FindOrCreateUser(ctx, doc.Owner.Provider, doc.Owner.Subject)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	doc.Owner = toSnapshottedUser(owner)
+
+	return nil
+}
+
+var _ backup.Snapshotable = &Store{}
 
 type SnapshottedDocument struct {
 	ID          string
-	OwnerID     string
+	Owner       SnapshottedUser
 	Source      string
 	ETag        string
 	Content     []byte
 	Collections []SnapshottedCollection
 	Sections    []SnapshottedSection
+}
+
+type SnapshottedUser struct {
+	ID       string
+	Provider string
+	Subject  string
+}
+
+func toSnapshottedUser(user model.User) SnapshottedUser {
+	return SnapshottedUser{
+		ID:       string(user.ID()),
+		Provider: user.Provider(),
+		Subject:  user.Subject(),
+	}
 }
 
 type snapshottedDocumentWrapper struct {
@@ -149,7 +184,7 @@ type snapshottedDocumentWrapper struct {
 
 // OwnerID implements [model.Document].
 func (w *snapshottedDocumentWrapper) OwnerID() model.UserID {
-	return model.UserID(w.snapshot.OwnerID)
+	return model.UserID(w.snapshot.Owner.ID)
 }
 
 // ETag implements model.Document.

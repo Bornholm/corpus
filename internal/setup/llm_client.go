@@ -56,6 +56,50 @@ type InstrumentedClient struct {
 	embeddingsModel     string
 }
 
+// ChatCompletionStream implements [llm.Client].
+func (c *InstrumentedClient) ChatCompletionStream(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (<-chan llm.StreamChunk, error) {
+	sourceChan, err := c.client.ChatCompletionStream(ctx, funcs...)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	// Create a new channel to wrap the source channel and add metrics
+	wrappedChan := make(chan llm.StreamChunk)
+
+	go func() {
+		defer close(wrappedChan)
+
+		var totalUsage llm.ChatCompletionUsage
+
+		for chunk := range sourceChan {
+			wrappedChan <- chunk
+
+			if usage := chunk.Usage(); usage != nil {
+				totalUsage = usage
+			}
+		}
+
+		if totalUsage != nil {
+			metrics.CompletionTokens.With(prometheus.Labels{
+				metrics.LabelModel: c.chatCompletionModel,
+				metrics.LabelType:  "chat_completion",
+			}).Add(float64(totalUsage.CompletionTokens()))
+
+			metrics.TotalTokens.With(prometheus.Labels{
+				metrics.LabelModel: c.chatCompletionModel,
+				metrics.LabelType:  "chat_completion",
+			}).Add(float64(totalUsage.TotalTokens()))
+
+			metrics.PromptTokens.With(prometheus.Labels{
+				metrics.LabelModel: c.chatCompletionModel,
+				metrics.LabelType:  "chat_completion",
+			}).Add(float64(totalUsage.PromptTokens()))
+		}
+	}()
+
+	return wrappedChan, nil
+}
+
 // ChatCompletion implements llm.Client.
 func (c *InstrumentedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (llm.ChatCompletionResponse, error) {
 	res, err := c.client.ChatCompletion(ctx, funcs...)

@@ -28,7 +28,7 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *service
 		mux:             &http.ServeMux{},
 	}
 
-	assertUser := authz.Middleware(nil, authz.Has(authz.RoleUser))
+	assertUser := authz.Middleware(nil, authz.OneOf(authz.Has(authz.RoleUser), authz.Has(authz.RoleAdmin)))
 	assertAdmin := authz.Middleware(nil, authz.Has(authz.RoleAdmin))
 
 	h.mux.Handle("GET /search", assertUser(http.HandlerFunc(h.handleSearch)))

@@ -2,9 +2,6 @@ package gorm
 
 import (
 	"context"
-	"log/slog"
-	"slices"
-	"time"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -13,102 +10,6 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
-
-type UserStore struct {
-	getDatabase func(ctx context.Context) (*gorm.DB, error)
-}
-
-// wrappedUser implements the model.User interface
-type wrappedUser struct {
-	u *User
-}
-
-// ID implements model.User.
-func (w *wrappedUser) ID() model.UserID {
-	return model.UserID(w.u.ID)
-}
-
-// Email implements model.User.
-func (w *wrappedUser) Email() string {
-	return w.u.Email
-}
-
-// Subject implements model.User.
-func (w *wrappedUser) Subject() string {
-	return w.u.Subject
-}
-
-// Provider implements model.User.
-func (w *wrappedUser) Provider() string {
-	return w.u.Provider
-}
-
-// DisplayName implements model.User.
-func (w *wrappedUser) DisplayName() string {
-	return w.u.DisplayName
-}
-
-// Roles implements model.User.
-func (w *wrappedUser) Roles() []string {
-	return slices.Collect(func(yield func(string) bool) {
-		for _, r := range w.u.Roles {
-			if !yield(r.Role) {
-				return
-			}
-		}
-	})
-}
-
-var _ model.User = &wrappedUser{}
-
-// wrappedAuthToken implements the model.AuthToken interface
-type wrappedAuthToken struct {
-	t *AuthToken
-}
-
-// ID implements model.AuthToken.
-func (w *wrappedAuthToken) ID() model.AuthTokenID {
-	return model.AuthTokenID(w.t.ID)
-}
-
-// OwnerID implements model.AuthToken.
-func (w *wrappedAuthToken) OwnerID() model.UserID {
-	return model.UserID(w.t.OwnerID)
-}
-
-// Label implements model.AuthToken.
-func (w *wrappedAuthToken) Label() string {
-	return w.t.Label
-}
-
-// Value implements model.AuthToken.
-func (w *wrappedAuthToken) Value() string {
-	return w.t.Value
-}
-
-var _ model.AuthToken = &wrappedAuthToken{}
-
-// fromUser converts a model.User to a GORM User
-func fromUser(u model.User) *User {
-	user := &User{
-		ID:          string(u.ID()),
-		Subject:     u.Subject(),
-		Provider:    u.Provider(),
-		DisplayName: u.DisplayName(),
-		Email:       u.Email(),
-		Active:      true, // Default to active
-	}
-
-	for _, r := range u.Roles() {
-		user.Roles = append(user.Roles, &UserRole{
-			User:   user,
-			UserID: user.ID,
-			Role:   r,
-		})
-	}
-
-	return user
-}
 
 // fromAuthToken converts a model.AuthToken to a GORM AuthToken
 func fromAuthToken(t model.AuthToken) *AuthToken {
@@ -121,7 +22,7 @@ func fromAuthToken(t model.AuthToken) *AuthToken {
 }
 
 // FindOrCreateUser implements port.UserStore.
-func (s *UserStore) FindOrCreateUser(ctx context.Context, provider, subject string) (model.User, error) {
+func (s *Store) FindOrCreateUser(ctx context.Context, provider, subject string) (model.User, error) {
 	var user model.User
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		var u User
@@ -150,7 +51,7 @@ func (s *UserStore) FindOrCreateUser(ctx context.Context, provider, subject stri
 }
 
 // GetUserByID implements port.UserStore.
-func (s *UserStore) GetUserByID(ctx context.Context, userID model.UserID) (model.User, error) {
+func (s *Store) GetUserByID(ctx context.Context, userID model.UserID) (model.User, error) {
 	var user User
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -170,7 +71,7 @@ func (s *UserStore) GetUserByID(ctx context.Context, userID model.UserID) (model
 }
 
 // SaveUser implements port.UserStore.
-func (s *UserStore) SaveUser(ctx context.Context, user model.User) error {
+func (s *Store) SaveUser(ctx context.Context, user model.User) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		gormUser := fromUser(user)
 
@@ -204,7 +105,7 @@ func (s *UserStore) SaveUser(ctx context.Context, user model.User) error {
 }
 
 // FindAuthToken implements port.UserStore.
-func (s *UserStore) FindAuthToken(ctx context.Context, token string) (model.AuthToken, error) {
+func (s *Store) FindAuthToken(ctx context.Context, token string) (model.AuthToken, error) {
 	var authToken AuthToken
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -224,7 +125,7 @@ func (s *UserStore) FindAuthToken(ctx context.Context, token string) (model.Auth
 }
 
 // GetUserAuthTokens implements port.UserStore.
-func (s *UserStore) GetUserAuthTokens(ctx context.Context, userID model.UserID) ([]model.AuthToken, error) {
+func (s *Store) GetUserAuthTokens(ctx context.Context, userID model.UserID) ([]model.AuthToken, error) {
 	var authTokens []*AuthToken
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -246,7 +147,7 @@ func (s *UserStore) GetUserAuthTokens(ctx context.Context, userID model.UserID) 
 }
 
 // CreateAuthToken implements port.UserStore.
-func (s *UserStore) CreateAuthToken(ctx context.Context, token model.AuthToken) error {
+func (s *Store) CreateAuthToken(ctx context.Context, token model.AuthToken) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		gormToken := fromAuthToken(token)
 
@@ -264,7 +165,7 @@ func (s *UserStore) CreateAuthToken(ctx context.Context, token model.AuthToken) 
 }
 
 // DeleteAuthToken implements port.UserStore.
-func (s *UserStore) DeleteAuthToken(ctx context.Context, tokenID model.AuthTokenID) error {
+func (s *Store) DeleteAuthToken(ctx context.Context, tokenID model.AuthTokenID) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		result := db.Delete(&AuthToken{}, "id = ?", string(tokenID))
 		if result.Error != nil {
@@ -283,55 +184,3 @@ func (s *UserStore) DeleteAuthToken(ctx context.Context, tokenID model.AuthToken
 
 	return nil
 }
-
-func (s *UserStore) withRetry(ctx context.Context, fn func(ctx context.Context, db *gorm.DB) error, codes ...sqlite3.ErrorCode) error {
-	db, err := s.getDatabase(ctx)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	backoff := 500 * time.Millisecond
-	maxRetries := 10
-	retries := 0
-
-	for {
-		err := db.Transaction(func(tx *gorm.DB) error {
-			if err := fn(ctx, tx); err != nil {
-				return errors.WithStack(err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			if retries >= maxRetries {
-				return errors.WithStack(err)
-			}
-
-			var sqliteErr *sqlite3.Error
-			if errors.As(err, &sqliteErr) {
-				if !slices.Contains(codes, sqliteErr.Code()) {
-					return errors.WithStack(err)
-				}
-
-				slog.DebugContext(ctx, "transaction failed, will retry", slog.Int("retries", retries), slog.Duration("backoff", backoff), slog.Any("error", errors.WithStack(err)))
-
-				retries++
-				time.Sleep(backoff)
-				backoff *= 2
-				continue
-			}
-
-			return errors.WithStack(err)
-		}
-
-		return nil
-	}
-}
-
-func NewUserStore(db *gorm.DB) *UserStore {
-	return &UserStore{
-		getDatabase: createGetDatabase(db, &User{}, &AuthToken{}, &UserRole{}),
-	}
-}
-
-var _ port.UserStore = &UserStore{}

@@ -29,7 +29,7 @@ var getTaskRunner = createFromConfigOnce(func(ctx context.Context, conf *config.
 				slog.ErrorContext(taskRunnerCtx, "error while running task runner", slog.Any("error", errors.WithStack(err)))
 			}
 			time.Sleep(backoff)
-			if time.Now().Sub(start) > backoff/2 {
+			if time.Since(start) > backoff/2 {
 				backoff = time.Second
 			} else {
 				backoff *= 2

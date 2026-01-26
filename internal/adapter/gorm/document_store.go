@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/url"
 	"slices"
-	"time"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -15,12 +14,8 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-type DocumentStore struct {
-	getDatabase func(ctx context.Context) (*gorm.DB, error)
-}
-
 // DeleteDocumentByID implements port.DocumentStore.
-func (s *DocumentStore) DeleteDocumentByID(ctx context.Context, id model.DocumentID) error {
+func (s *Store) DeleteDocumentByID(ctx context.Context, id model.DocumentID) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		var doc Document
 		if err := db.First(&doc, "id = ?", id).Error; err != nil {
@@ -45,7 +40,7 @@ func (s *DocumentStore) DeleteDocumentByID(ctx context.Context, id model.Documen
 }
 
 // SectionExists implements port.DocumentStore.
-func (s *DocumentStore) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
+func (s *Store) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
 	var exists bool
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -70,7 +65,7 @@ func (s *DocumentStore) SectionExists(ctx context.Context, id model.SectionID) (
 }
 
 // GetDocumentByID implements port.DocumentStore.
-func (s *DocumentStore) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.PersistedDocument, error) {
+func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model.PersistedDocument, error) {
 	var document Document
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -92,7 +87,7 @@ func (s *DocumentStore) GetDocumentByID(ctx context.Context, id model.DocumentID
 }
 
 // GetCollectionByID implements [port.DocumentStore].
-func (s *DocumentStore) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.PersistedCollection, error) {
+func (s *Store) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.PersistedCollection, error) {
 	var collection Collection
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -114,7 +109,7 @@ func (s *DocumentStore) GetCollectionByID(ctx context.Context, id model.Collecti
 }
 
 // GetCollectionStats implements port.DocumentStore.
-func (s *DocumentStore) GetCollectionStats(ctx context.Context, id model.CollectionID) (*model.CollectionStats, error) {
+func (s *Store) GetCollectionStats(ctx context.Context, id model.CollectionID) (*model.CollectionStats, error) {
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -138,7 +133,7 @@ func (s *DocumentStore) GetCollectionStats(ctx context.Context, id model.Collect
 }
 
 // CreateCollection implements port.DocumentStore.
-func (s *DocumentStore) CreateCollection(ctx context.Context, ownerID model.UserID, label string) (model.PersistedCollection, error) {
+func (s *Store) CreateCollection(ctx context.Context, ownerID model.UserID, label string) (model.PersistedCollection, error) {
 	var collection model.PersistedCollection
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		coll := Collection{
@@ -163,7 +158,7 @@ func (s *DocumentStore) CreateCollection(ctx context.Context, ownerID model.User
 }
 
 // UpdateCollection implements port.DocumentStore.
-func (s *DocumentStore) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.PersistedCollection, error) {
+func (s *Store) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.PersistedCollection, error) {
 	var collection Collection
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -207,8 +202,33 @@ func (s *DocumentStore) UpdateCollection(ctx context.Context, id model.Collectio
 	return &wrappedCollection{&collection}, nil
 }
 
+// DeleteCollection implements [port.DocumentStore].
+func (s *Store) DeleteCollection(ctx context.Context, id model.CollectionID) error {
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		var collection Collection
+		if err := db.First(&collection, "id = ?", id).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.WithStack(port.ErrNotFound)
+			}
+			return errors.WithStack(err)
+		}
+
+		// Delete the collection with associations (documents relationship will be handled by CASCADE)
+		if err := db.Select(clause.Associations).Delete(&collection).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
+}
+
 // QueryCollections implements port.DocumentStore.
-func (s *DocumentStore) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, error) {
+func (s *Store) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, error) {
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -255,7 +275,7 @@ func (s *DocumentStore) QueryCollections(ctx context.Context, opts port.QueryCol
 }
 
 // CountReadableDocuments implements port.DocumentStore.
-func (s *DocumentStore) CountReadableDocuments(ctx context.Context, userID model.UserID) (int64, error) {
+func (s *Store) CountReadableDocuments(ctx context.Context, userID model.UserID) (int64, error) {
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return 0, errors.WithStack(err)
@@ -271,7 +291,7 @@ func (s *DocumentStore) CountReadableDocuments(ctx context.Context, userID model
 }
 
 // GetSectionByID implements port.DocumentStore.
-func (s *DocumentStore) GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error) {
+func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error) {
 	var section Section
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
@@ -293,7 +313,7 @@ func (s *DocumentStore) GetSectionByID(ctx context.Context, id model.SectionID) 
 }
 
 // DeleteDocumentBySource implements port.DocumentStore.
-func (s *DocumentStore) DeleteDocumentBySource(ctx context.Context, ownerID model.UserID, source *url.URL) error {
+func (s *Store) DeleteDocumentBySource(ctx context.Context, ownerID model.UserID, source *url.URL) error {
 	if source == nil {
 		return errors.WithStack(ErrMissingSource)
 	}
@@ -322,7 +342,7 @@ func (s *DocumentStore) DeleteDocumentBySource(ctx context.Context, ownerID mode
 }
 
 // QueryDocuments implements port.DocumentStore.
-func (s *DocumentStore) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
 	var (
 		documents []*Document
 		total     int64
@@ -374,7 +394,7 @@ func (s *DocumentStore) QueryDocuments(ctx context.Context, opts port.QueryDocum
 }
 
 // QueryUserReadableDocuments implements port.DocumentStore.
-func (s *DocumentStore) QueryUserReadableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+func (s *Store) QueryUserReadableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
 	var (
 		documents []*Document
 		total     int64
@@ -430,7 +450,7 @@ func (s *DocumentStore) QueryUserReadableDocuments(ctx context.Context, userID m
 }
 
 // QueryUserWritableDocuments implements port.DocumentStore.
-func (s *DocumentStore) QueryUserWritableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+func (s *Store) QueryUserWritableDocuments(ctx context.Context, userID model.UserID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
 	var (
 		documents []*Document
 		total     int64
@@ -486,7 +506,7 @@ func (s *DocumentStore) QueryUserWritableDocuments(ctx context.Context, userID m
 }
 
 // SaveDocuments implements port.DocumentStore.
-func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.OwnedDocument) error {
+func (s *Store) SaveDocuments(ctx context.Context, documents ...model.OwnedDocument) error {
 	for _, doc := range documents {
 		err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 			source := doc.Source()
@@ -563,7 +583,7 @@ func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.Ow
 }
 
 // QueryUserWritableCollections implements [port.DocumentStore].
-func (s *DocumentStore) QueryUserWritableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
+func (s *Store) QueryUserWritableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
 	var (
 		collections []*Collection
 		total       int64
@@ -622,7 +642,7 @@ func (s *DocumentStore) QueryUserWritableCollections(ctx context.Context, userID
 }
 
 // QueryUserReadableCollections implements [port.DocumentStore].
-func (s *DocumentStore) QueryUserReadableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
+func (s *Store) QueryUserReadableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error) {
 	var (
 		collections []*Collection
 		total       int64
@@ -683,7 +703,7 @@ func (s *DocumentStore) QueryUserReadableCollections(ctx context.Context, userID
 }
 
 // CanReadCollection implements [port.DocumentStore].
-func (s *DocumentStore) CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
+func (s *Store) CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
 	slog.DebugContext(ctx, "checking collection read permission",
 		slog.String("user_id", string(userID)),
 		slog.String("collection_id", string(collectionID)))
@@ -712,7 +732,7 @@ func (s *DocumentStore) CanReadCollection(ctx context.Context, userID model.User
 }
 
 // CanReadDocument implements [port.DocumentStore].
-func (s *DocumentStore) CanReadDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
+func (s *Store) CanReadDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
 	slog.DebugContext(ctx, "checking document read permission",
 		slog.String("user_id", string(userID)),
 		slog.String("document_id", string(documentID)))
@@ -741,7 +761,7 @@ func (s *DocumentStore) CanReadDocument(ctx context.Context, userID model.UserID
 }
 
 // CanWriteCollection implements [port.DocumentStore].
-func (s *DocumentStore) CanWriteCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
+func (s *Store) CanWriteCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
 	slog.DebugContext(ctx, "checking collection write permission",
 		slog.String("user_id", string(userID)),
 		slog.String("collection_id", string(collectionID)))
@@ -770,7 +790,7 @@ func (s *DocumentStore) CanWriteCollection(ctx context.Context, userID model.Use
 }
 
 // CanWriteDocument implements [port.DocumentStore].
-func (s *DocumentStore) CanWriteDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
+func (s *Store) CanWriteDocument(ctx context.Context, userID model.UserID, documentID model.DocumentID) (bool, error) {
 	slog.DebugContext(ctx, "checking document write permission",
 		slog.String("user_id", string(userID)),
 		slog.String("document_id", string(documentID)))
@@ -797,55 +817,3 @@ func (s *DocumentStore) CanWriteDocument(ctx context.Context, userID model.UserI
 	slog.DebugContext(ctx, "document write permission result", slog.Bool("can_write", canWrite))
 	return canWrite, nil
 }
-
-func (s *DocumentStore) withRetry(ctx context.Context, fn func(ctx context.Context, db *gorm.DB) error, codes ...sqlite3.ErrorCode) error {
-	db, err := s.getDatabase(ctx)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	backoff := 500 * time.Millisecond
-	maxRetries := 10
-	retries := 0
-
-	for {
-		err := db.Transaction(func(tx *gorm.DB) error {
-			if err := fn(ctx, tx); err != nil {
-				return errors.WithStack(err)
-			}
-
-			return nil
-		})
-		if err != nil {
-			if retries >= maxRetries {
-				return errors.WithStack(err)
-			}
-
-			var sqliteErr *sqlite3.Error
-			if errors.As(err, &sqliteErr) {
-				if !slices.Contains(codes, sqliteErr.Code()) {
-					return errors.WithStack(err)
-				}
-
-				slog.DebugContext(ctx, "transaction failed, will retry", slog.Int("retries", retries), slog.Duration("backoff", backoff), slog.Any("error", errors.WithStack(err)))
-
-				retries++
-				time.Sleep(backoff)
-				backoff *= 2
-				continue
-			}
-
-			return errors.WithStack(err)
-		}
-
-		return nil
-	}
-}
-
-func NewDocumentStore(db *gorm.DB) *DocumentStore {
-	return &DocumentStore{
-		getDatabase: createGetDatabase(db, &Document{}, &Section{}),
-	}
-}
-
-var _ port.DocumentStore = &DocumentStore{}

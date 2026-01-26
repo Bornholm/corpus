@@ -3,7 +3,6 @@ package setup
 import (
 	"context"
 
-	gormAdapter "github.com/bornholm/corpus/internal/adapter/gorm"
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/pkg/errors"
@@ -12,10 +11,10 @@ import (
 )
 
 var getUserStoreFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.UserStore, error) {
-	db, err := getGormDatabaseFromConfig(ctx, conf)
+	store, err := getGormStoreFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return gormAdapter.NewUserStore(db), nil
+	return store, nil
 })
