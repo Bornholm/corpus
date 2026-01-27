@@ -16,6 +16,7 @@ import (
 	"github.com/urfave/cli/v2/altsrc"
 
 	"github.com/bornholm/corpus/internal/command/common"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/filesystem"
 	"github.com/bornholm/corpus/internal/filesystem/backend"
 	"github.com/bornholm/corpus/internal/log"
@@ -94,7 +95,7 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", dsn)
 				}
 
-				go func(b filesystem.Backend, dsn *url.URL, collections []string, source *url.URL, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType) {
+				go func(b filesystem.Backend, dsn *url.URL, collections []model.CollectionID, source *url.URL, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType) {
 					defer wg.Done()
 					defer sharedCancel()
 
@@ -126,14 +127,16 @@ const (
 	paramCorpusCollections = "corpusCollections"
 )
 
-func getCorpusCollections(dsn *url.URL) ([]string, error) {
+func getCorpusCollections(dsn *url.URL) ([]model.CollectionID, error) {
 	query := dsn.Query()
 
-	collections := make([]string, 0)
+	collections := make([]model.CollectionID, 0)
 
 	if rawCollections := query.Get(paramCorpusCollections); rawCollections != "" {
 		colls := strings.Split(rawCollections, ",")
-		collections = append(collections, colls...)
+		for _, c := range colls {
+			collections = append(collections, model.CollectionID(c))
+		}
 		query.Del(paramCorpusCollections)
 	}
 

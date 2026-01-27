@@ -6,6 +6,7 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
+	"github.com/bornholm/corpus/internal/http/handler/webui/admin"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask"
 	"github.com/bornholm/corpus/internal/http/handler/webui/collection"
 	"github.com/bornholm/corpus/internal/http/handler/webui/profile"
@@ -22,12 +23,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner, userStore port.UserStore) *Handler {
+func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner, userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore) *Handler {
 	mux := http.NewServeMux()
 
 	mount(mux, "/", ask.NewHandler(documentManager, llm, taskRunner))
 	mount(mux, "/collections/", collection.NewHandler(documentManager))
 	mount(mux, "/profile/", profile.NewHandler(userStore))
+	mount(mux, "/admin/", admin.NewHandler(userStore, documentStore, publicShareStore))
 	mount(mux, "/docs/", swagger.NewHandler())
 
 	h := &Handler{

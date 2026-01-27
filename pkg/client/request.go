@@ -46,10 +46,10 @@ func (c *Client) request(ctx context.Context, method string, path string, header
 
 	req = req.WithContext(ctx)
 
-	if header != nil {
-		for k, v := range header {
-			req.Header[k] = v
-		}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+
+	for k, v := range header {
+		req.Header[k] = v
 	}
 
 	res, err := c.httpClient.Do(req)

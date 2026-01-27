@@ -85,6 +85,30 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if !tokenForm.IsValid(ctx) {
+		tokens, err := h.userStore.GetUserAuthTokens(ctx, user.ID())
+		if err != nil {
+			slog.ErrorContext(ctx, "could not fetch user auth tokens", slogx.Error(err))
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
+
+		vmodel := component.ProfilePageVModel{
+			User:         user,
+			AuthTokens:   tokens,
+			TokenForm:    tokenForm,
+			CreatedToken: "",
+			DeletedToken: false,
+			Navbar: &common.NavbarVModel{
+				User: user,
+			},
+		}
+
+		profilePage := component.ProfilePage(vmodel)
+		templ.Handler(profilePage).ServeHTTP(w, r)
+		return
+	}
+
 	// Generate secure token
 	tokenValue, err := crypto.GenerateSecureToken()
 	if err != nil {
@@ -93,8 +117,10 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	label, _ := tokenForm.GetFieldValue("label")
+
 	// Create auth token
-	authToken := model.NewAuthToken(user.ID(), tokenForm.Values["label"], tokenValue)
+	authToken := model.NewAuthToken(user.ID(), label, tokenValue)
 	if err := h.userStore.CreateAuthToken(ctx, authToken); err != nil {
 		slog.ErrorContext(ctx, "could not create auth token", slogx.Error(err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

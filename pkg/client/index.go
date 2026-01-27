@@ -10,19 +10,20 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/http/handler/api"
 	"github.com/pkg/errors"
 )
 
 type IndexOptions struct {
-	Collections []string
+	Collections []model.CollectionID
 	ETag        string
 	Source      *url.URL
 }
 
 type IndexOptionFunc func(opts *IndexOptions)
 
-func WithIndexCollections(collections ...string) IndexOptionFunc {
+func WithIndexCollections(collections ...model.CollectionID) IndexOptionFunc {
 	return func(opts *IndexOptions) {
 		opts.Collections = collections
 	}
@@ -42,7 +43,7 @@ func WithIndexETag(etag string) IndexOptionFunc {
 
 func NewIndexOptions(funcs ...IndexOptionFunc) *IndexOptions {
 	opts := &IndexOptions{
-		Collections: make([]string, 0),
+		Collections: make([]model.CollectionID, 0),
 	}
 
 	for _, fn := range funcs {
@@ -68,7 +69,7 @@ func (c *Client) Index(ctx context.Context, filename string, r io.Reader, funcs 
 	}
 
 	for _, c := range opts.Collections {
-		if err := form.WriteField("collection", c); err != nil {
+		if err := form.WriteField("collection", string(c)); err != nil {
 			return nil, errors.WithStack(err)
 		}
 	}

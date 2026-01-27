@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/filesystem"
 	"github.com/bornholm/corpus/internal/log"
@@ -30,7 +31,7 @@ const (
 
 type filesystemIndexer struct {
 	client              *client.Client
-	collections         []string
+	collections         []model.CollectionID
 	backend             filesystem.Backend
 	fs                  afero.Fs
 	indexFileDebouncers syncx.Map[string, func(fn func())]

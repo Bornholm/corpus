@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	paramServer = "server"
+	paramServer    = "server"
+	paramAuthToken = "auth-token"
 )
 
 var (
@@ -20,16 +21,24 @@ var (
 		Value:   "http://localhost:3002",
 		Usage:   "Corpus server base url",
 	})
+	flagAuthToken = altsrc.NewStringFlag(&cli.StringFlag{
+		Name:    paramAuthToken,
+		Aliases: []string{"t"},
+		Value:   "",
+		Usage:   "Corpus auth token",
+	})
 )
 
 func WithCommonFlags(flags ...cli.Flag) []cli.Flag {
 	return append([]cli.Flag{
 		flagServer,
+		flagAuthToken,
 	}, flags...)
 }
 
 func GetCorpusClient(ctx *cli.Context) (*client.Client, error) {
 	rawServerURL := ctx.String(paramServer)
+	authToken := ctx.String(paramAuthToken)
 
 	serverURL, err := url.Parse(rawServerURL)
 	if err != nil {
@@ -37,6 +46,7 @@ func GetCorpusClient(ctx *cli.Context) (*client.Client, error) {
 	}
 
 	return client.New(
+		authToken,
 		client.WithBaseURL(serverURL),
 	), nil
 }

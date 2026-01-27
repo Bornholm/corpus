@@ -75,16 +75,22 @@ func (h *Handler) handleNewServer(w http.ResponseWriter, r *http.Request) {
 
 	serverID := xid.New().String()
 
-	if err := keyring.Set(keyringService, serverID, serverForm.Values["token"]); err != nil {
+	token, _ := serverForm.GetFieldValue("token")
+
+	if err := keyring.Set(keyringService, serverID, token); err != nil {
 		common.HandleError(w, r, err)
 		return
 	}
 
+	url, _ := serverForm.GetFieldValue("url")
+	label, _ := serverForm.GetFieldValue("label")
+	rawPreferred, _ := serverForm.GetFieldValue("preferred")
+
 	st.Servers = append(st.Servers, settings.Server{
 		ID:        serverID,
-		URL:       serverForm.Values["url"],
-		Label:     serverForm.Values["label"],
-		Preferred: serverForm.Values["preferred"] == "on",
+		URL:       url,
+		Label:     label,
+		Preferred: rawPreferred == "on",
 	})
 
 	if err := h.store.Save(st); err != nil {
@@ -186,15 +192,18 @@ func (h *Handler) handleEditServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isPreferred := serverForm.Values["preferred"] == "on"
+	url, _ := serverForm.GetFieldValue("url")
+	label, _ := serverForm.GetFieldValue("label")
+	rawPreferred, _ := serverForm.GetFieldValue("preferred")
+	isPreferred := rawPreferred == "on"
 
 	st.Servers = slices.Collect(func(yield func(settings.Server) bool) {
 		for _, s := range st.Servers {
 			if s.ID == server.ID {
 				s = settings.Server{
 					ID:        s.ID,
-					URL:       serverForm.Values["url"],
-					Label:     serverForm.Values["label"],
+					URL:       url,
+					Label:     label,
 					Preferred: isPreferred,
 				}
 			} else if isPreferred {
@@ -212,7 +221,7 @@ func (h *Handler) handleEditServer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if token := serverForm.Values["token"]; token != dummyToken {
+	if token, exists := serverForm.GetFieldValue("token"); exists && token != dummyToken {
 		if err := keyring.Set(keyringService, server.ID, token); err != nil {
 			common.HandleError(w, r, err)
 			return
@@ -229,10 +238,10 @@ const dummyToken string = "*************************************"
 func (h *Handler) fillEditServerPageVModel(server *settings.Server) *component.EditServerPageVModel {
 	form := newServerForm()
 
-	form.Values["token"] = dummyToken
-	form.Values["label"] = server.Label
-	form.Values["url"] = server.URL
-	form.Values["preferred"] = strconv.FormatBool(server.Preferred)
+	form.SetFieldValues("token", dummyToken)
+	form.SetFieldValues("label", server.Label)
+	form.SetFieldValues("url", server.URL)
+	form.SetFieldValues("preferred", strconv.FormatBool(server.Preferred))
 
 	return &component.EditServerPageVModel{
 		Form:   form,

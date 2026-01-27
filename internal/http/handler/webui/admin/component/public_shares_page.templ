@@ -1,0 +1,122 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
+)
+
+type PublicSharesPageVModel struct {
+	Navbar       commonComp.NavbarVModel
+	PublicShares []model.PersistedPublicShare
+	CurrentPage  int
+	PageSize     int
+}
+
+templ PublicSharesPage(vmodel PublicSharesPageVModel) {
+	@AdminPage(vmodel.Navbar, "public-shares", commonComp.WithTitle("Partages publics")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<h1 class="title is-size-3">Partages publics</h1>
+				</div>
+			</div>
+			<div class="level-right">
+				<div class="level-item">
+					<a href="/admin/public-shares/new" class="button is-primary">
+						<span class="icon">
+							<i class="fas fa-plus"></i>
+						</span>
+						<span>Nouveau partage</span>
+					</a>
+				</div>
+			</div>
+		</div>
+		if len(vmodel.PublicShares) == 0 {
+			<div class="notification is-info is-light">
+				<p>Aucun partage public configuré.</p>
+				<p>Les partages publics permettent de donner accès à des collections spécifiques sans authentification.</p>
+			</div>
+		} else {
+			<div class="table-container">
+				<table class="table is-fullwidth is-striped">
+					<thead>
+						<tr>
+							<th>Titre</th>
+							<th>Collections</th>
+							<th>Créé le</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, share := range vmodel.PublicShares {
+							<tr>
+								<td>{ share.Title() }</td>
+								<td>
+									<div class="tags">
+										for _, collection := range share.Collections() {
+											<span class="tag is-light">{ collection.Label() }</span>
+										}
+									</div>
+								</td>
+								<td>{ share.CreatedAt().Format("02/01/2006 15:04") }</td>
+								<td>
+									<div class="buttons">
+										<a href={ templ.SafeURL("/admin/public-shares/" + string(share.ID()) + "/edit") } class="button is-primary is-small">
+											<span class="icon">
+												<i class="fas fa-edit"></i>
+											</span>
+											<span>Modifier</span>
+										</a>
+										<button class="button is-info is-small" data-share-url={ commonComp.BaseURL(ctx, commonComp.WithPath("/shares", share.Token())) } onclick="copyShareURL(this)">
+											<span class="icon">
+												<i class="fas fa-copy"></i>
+											</span>
+											<span>Copier URL</span>
+										</button>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<!-- Pagination -->
+			if vmodel.CurrentPage > 1 || len(vmodel.PublicShares) == vmodel.PageSize {
+				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
+					if vmodel.CurrentPage > 1 {
+						<a class="pagination-previous" href={ templ.SafeURL("/admin/public-shares?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+					}
+					if len(vmodel.PublicShares) == vmodel.PageSize {
+						<a class="pagination-next" href={ templ.SafeURL("/admin/public-shares?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
+					}
+					<ul class="pagination-list">
+						<li>
+							<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) }</span>
+						</li>
+					</ul>
+				</nav>
+			}
+		}
+		<script>
+			function copyShareURL(button) {
+				const shareURL = button.getAttribute('data-share-url');
+				navigator.clipboard.writeText(shareURL).then(() => {
+					// Show success feedback
+					const originalHTML = button.innerHTML;
+					button.innerHTML = '<span class="icon"><i class="fas fa-check"></i></span><span>Copié!</span>';
+					button.classList.remove('is-info');
+					button.classList.add('is-success');
+					
+					setTimeout(() => {
+						button.innerHTML = originalHTML;
+						button.classList.remove('is-success');
+						button.classList.add('is-info');
+					}, 2000);
+				}).catch(() => {
+					alert('Erreur lors de la copie de l\'URL');
+				});
+			}
+		</script>
+	}
+}

@@ -19,6 +19,8 @@ type Collection struct {
 	Description string
 
 	Documents []*Document `gorm:"many2many:documents_collections;constraint:OnDelete:CASCADE"`
+
+	PublicShares []*PublicShare `gorm:"many2many:public_shares_collections;"`
 }
 
 type wrappedCollection struct {

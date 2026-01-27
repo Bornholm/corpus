@@ -1,0 +1,50 @@
+package component
+
+import (
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/go-x/templx/form"
+)
+
+type NewPublicSharePageVModel struct {
+	Navbar          commonComp.NavbarVModel
+	PublicShareForm *form.Form
+}
+
+templ NewPublicSharePage(vmodel NewPublicSharePageVModel) {
+	@AdminPage(vmodel.Navbar, "public-shares", commonComp.WithTitle("Nouveau partage public")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<a href="/admin/public-shares" class="button is-text mr-3 is-medium" style="text-decoration:none">
+						<span class="icon">
+							<i class="fas fa-arrow-left"></i>
+						</span>
+					</a>
+					<h2 class="title is-size-3">
+						Nouveau partage public
+					</h2>
+				</div>
+			</div>
+			<div class="level-right"></div>
+		</div>
+		<div class="columns">
+			<div class="column">
+				@form.FormWrapper(vmodel.PublicShareForm, commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares")), "POST") {
+					<div class="field is-grouped">
+						<div class="control">
+							<button type="submit" class="button is-primary">
+								<span class="icon">
+									<i class="fas fa-plus"></i>
+								</span>
+								<span>Créer le partage</span>
+							</button>
+						</div>
+						<div class="control">
+							<a href="/admin/public-shares" class="button is-light">Annuler</a>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	}
+}

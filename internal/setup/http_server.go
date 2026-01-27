@@ -9,6 +9,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/metrics"
 	"github.com/bornholm/corpus/internal/http/handler/webui"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
+	"github.com/bornholm/corpus/internal/http/handler/webui/pubshare"
 	"github.com/bornholm/corpus/internal/http/middleware/authn"
 	"github.com/pkg/errors"
 
@@ -56,10 +57,18 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		return nil, errors.Wrap(err, "could not create index from config")
 	}
 
+	publicShareStore, err := getPublicShareStoreFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create public share store from config")
+	}
+
+	pubshare := pubshare.NewHandler(documentManager, publicShareStore)
+
 	options := []http.OptionFunc{
 		http.WithAddress(conf.HTTP.Address),
 		http.WithBaseURL(conf.HTTP.BaseURL),
 		http.WithMount("/assets/", assets),
+		http.WithMount("/shares/", pubshare),
 		http.WithMount("/auth/oidc/", oidcAuthn),
 		http.WithMount("/auth/token/", tokenAuthn),
 		http.WithMount("/api/v1/", authChain(api)),
@@ -82,7 +91,12 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		return nil, errors.Wrap(err, "could not create user store from config")
 	}
 
-	webui := webui.NewHandler(documentManager, llm, taskRunner, userStore)
+	documentStore, err := getDocumentStoreFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create document store from config")
+	}
+
+	webui := webui.NewHandler(documentManager, llm, taskRunner, userStore, documentStore, publicShareStore)
 
 	options = append(options, http.WithMount("/", authChain(webui)))
 

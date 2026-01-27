@@ -64,14 +64,17 @@ func NewStore(db *gorm.DB) *Store {
 	return &Store{
 		getDatabase: createGetDatabase(db,
 			// Document store
-			&Document{}, &Section{},
+			&Document{}, &Section{}, &Collection{},
 			// User store
 			&User{}, &AuthToken{}, &UserRole{},
+			// Public share store
+			&PublicShare{},
 		),
 	}
 }
 
 var (
-	_ port.DocumentStore = &Store{}
-	_ port.UserStore     = &Store{}
+	_ port.DocumentStore    = &Store{}
+	_ port.UserStore        = &Store{}
+	_ port.PublicShareStore = &Store{}
 )
