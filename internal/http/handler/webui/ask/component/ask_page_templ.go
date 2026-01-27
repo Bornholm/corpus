@@ -81,7 +81,7 @@ func AskPage(vmodel AskPageVModel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if common.AssertUser(ctx, authz.Has(authz.RoleUser)) {
+			if common.AssertUser(ctx, authz.OneOf(authz.Has(authz.RoleUser), authz.Has(authz.RoleAdmin))) {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<a class=\"button is-outlined is-link\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err

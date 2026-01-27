@@ -38,7 +38,7 @@ templ AskPage(vmodel AskPageVModel) {
 		<div class="level is-mobile">
 			<div class="level-left"></div>
 			<div class="level-right">
-				if common.AssertUser(ctx, authz.Has(authz.RoleUser)) {
+				if common.AssertUser(ctx, authz.OneOf(authz.Has(authz.RoleUser), authz.Has(authz.RoleAdmin))) {
 					<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
 				}
 			</div>
