@@ -5,12 +5,13 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
+	"github.com/bornholm/corpus/internal/core/service/backup"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
 )
 
 type Handler struct {
 	documentManager *service.DocumentManager
-	backupManager   *service.BackupManager
+	backupManager   *backup.Manager
 	taskRunner      port.TaskRunner
 	mux             *http.ServeMux
 }
@@ -20,7 +21,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager, backupManager *service.BackupManager, taskRunner port.TaskRunner) *Handler {
+func NewHandler(documentManager *service.DocumentManager, backupManager *backup.Manager, taskRunner port.TaskRunner) *Handler {
 	h := &Handler{
 		documentManager: documentManager,
 		backupManager:   backupManager,

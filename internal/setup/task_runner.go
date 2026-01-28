@@ -7,7 +7,9 @@ import (
 
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/core/service/backup"
 	"github.com/bornholm/corpus/internal/metrics"
+	indexTask "github.com/bornholm/corpus/internal/task/index"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -70,3 +72,28 @@ var getTaskRunner = createFromConfigOnce(func(ctx context.Context, conf *config.
 
 	return taskRunner, nil
 })
+
+func setupTaskHandlers(ctx context.Context, conf *config.Config, taskRunner port.TaskRunner) error {
+	indexFileHandler, err := getIndexFileTaskHandler(ctx, conf)
+	if err != nil {
+		return errors.Wrap(err, "could not create index file task handler from config")
+	}
+
+	taskRunner.Register(indexTask.TaskTypeIndexFile, indexFileHandler)
+
+	restoreBackupHandler, err := getRestoreBackupTaskHandler(ctx, conf)
+	if err != nil {
+		return errors.Wrap(err, "could not create index file task handler from config")
+	}
+
+	taskRunner.Register(backup.TaskTypeRestoreBackup, restoreBackupHandler)
+
+	cleanupIndexHandler, err := getCleanupIndexTaskHandler(ctx, conf)
+	if err != nil {
+		return errors.Wrap(err, "could not cleanup index task handler from config")
+	}
+
+	taskRunner.Register(indexTask.TaskTypeCleanupIndex, cleanupIndexHandler)
+
+	return nil
+}

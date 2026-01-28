@@ -68,7 +68,7 @@ func (h *Handler) handleCollectionDelete(w http.ResponseWriter, r *http.Request)
 
 	// Schedule index cleanup to remove orphaned entries
 	// This is done asynchronously to avoid blocking the user
-	if _, err := h.documentManager.CleanupIndex(ctx); err != nil {
+	if _, err := h.documentManager.CleanupIndex(ctx, user); err != nil {
 		slog.ErrorContext(ctx, "failed to schedule index cleanup after collection deletion",
 			slog.String("collection_id", string(collectionID)),
 			slog.Any("error", err))

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/service"
+	"github.com/bornholm/corpus/internal/core/service/backup"
 	"github.com/pkg/errors"
 )
 
@@ -41,4 +41,4 @@ func (i *Index) RestoreDocuments(ctx context.Context, documents []model.Document
 	return nil
 }
 
-var _ service.Restorable = &Index{}
+var _ backup.Restorable = &Index{}

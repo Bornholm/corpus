@@ -7,23 +7,19 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
-	"github.com/bornholm/corpus/internal/markdown"
 	"github.com/bornholm/corpus/internal/metrics"
+	"github.com/bornholm/corpus/internal/task/index"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/corpus/internal/util"
-	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/genai/llm/prompt"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 )
-
-const snapshotBoundary = "corpus-snapshot-v1"
 
 type DocumentManagerOptions struct {
 	MaxWordPerSection int
@@ -285,7 +281,7 @@ func NewDocumentManagerIndexFileOptions(funcs ...DocumentManagerIndexFileOptionF
 	return opts
 }
 
-func (m *DocumentManager) IndexFile(ctx context.Context, ownerID model.UserID, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (port.TaskID, error) {
+func (m *DocumentManager) IndexFile(ctx context.Context, owner model.User, filename string, r io.Reader, funcs ...DocumentManagerIndexFileOptionFunc) (model.TaskID, error) {
 	metrics.TotalIndexRequests.Add(1)
 
 	opts := NewDocumentManagerIndexFileOptions(funcs...)
@@ -307,15 +303,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, ownerID model.UserID, f
 		return "", errors.WithStack(err)
 	}
 
-	taskID := port.NewTaskID()
-
-	indexFileTask := &indexFileTask{
-		id:           taskID,
-		path:         path,
-		ownerID:      ownerID,
-		originalName: filename,
-		opts:         opts,
-	}
+	indexFileTask := index.NewIndexFileTask(owner, path, filename, opts.ETag, opts.Source, opts.Collections)
 
 	taskCtx := log.WithAttrs(context.Background(), slog.String("filename", filename), slog.String("filepath", path))
 
@@ -323,258 +311,19 @@ func (m *DocumentManager) IndexFile(ctx context.Context, ownerID model.UserID, f
 		return "", errors.WithStack(err)
 	}
 
-	return taskID, nil
+	return indexFileTask.ID(), nil
 }
 
-var ErrNotSupported = errors.New("not supported")
+func (m *DocumentManager) CleanupIndex(ctx context.Context, owner model.User, collections ...model.CollectionID) (model.TaskID, error) {
+	taskID := model.NewTaskID()
 
-func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
-	indexFileTask, ok := task.(*indexFileTask)
-	if !ok {
-		return errors.Errorf("unexpected task type '%T'", task)
-	}
-
-	defer func() {
-		if err := os.Remove(indexFileTask.path); err != nil && !errors.Is(err, os.ErrNotExist) {
-			slog.ErrorContext(ctx, "could not remove file", slog.Any("error", errors.WithStack(err)))
-		}
-	}()
-
-	var (
-		document model.OwnedDocument
-	)
-
-	var reader io.ReadCloser
-
-	wf := workflow.New(
-		workflow.StepFunc(
-			func(ctx context.Context) error {
-				file, err := os.Open(indexFileTask.path)
-				if err != nil {
-					return errors.WithStack(err)
-				}
-
-				ext := filepath.Ext(indexFileTask.originalName)
-				if ext == ".md" || m.fileConverter == nil {
-					reader = file
-					events <- port.NewTaskEvent(port.WithTaskProgress(0.05))
-					return nil
-				}
-
-				supportedExtensions := m.fileConverter.SupportedExtensions()
-
-				if supported := slices.Contains(supportedExtensions, ext); !supported {
-					return errors.Wrapf(ErrNotSupported, "file extension '%s' is not supported by the file converter", ext)
-				}
-
-				events <- port.NewTaskEvent(port.WithTaskMessage("converting document"), port.WithTaskProgress(0.01))
-
-				readCloser, err := m.fileConverter.Convert(ctx, indexFileTask.originalName, file)
-				if err != nil {
-					return errors.WithStack(err)
-				}
-
-				reader = readCloser
-
-				events <- port.NewTaskEvent(port.WithTaskProgress(0.05))
-
-				return nil
-			},
-			nil,
-		),
-		workflow.StepFunc(
-			func(ctx context.Context) error {
-				defer reader.Close()
-
-				data, err := io.ReadAll(reader)
-				if err != nil {
-					return errors.WithStack(err)
-				}
-
-				events <- port.NewTaskEvent(port.WithTaskMessage("parsing document"))
-
-				doc, err := markdown.Parse(
-					data,
-					markdown.WithMaxWordPerSection(m.maxWordPerSection),
-				)
-				if err != nil {
-					return errors.Wrap(err, "could not parse document")
-				}
-
-				events <- port.NewTaskEvent(port.WithTaskMessage("document parsed"))
-
-				if indexFileTask.opts.Source != nil {
-					doc.SetSource(indexFileTask.opts.Source)
-				}
-
-				if doc.Source() == nil {
-					return errors.New("document source missing")
-				}
-
-				if indexFileTask.opts.ETag != "" {
-					doc.SetETag(indexFileTask.opts.ETag)
-				}
-
-				writableCollections, _, err := m.DocumentStore.QueryUserWritableCollections(ctx, indexFileTask.ownerID, port.QueryCollectionsOptions{})
-				if err != nil {
-					return errors.Wrap(err, "could not retrieve user writable collections")
-				}
-
-				if len(indexFileTask.opts.Collections) == 0 {
-					return errors.New("no specified target collections")
-				}
-
-				for _, collectionID := range indexFileTask.opts.Collections {
-					isWritable := slices.ContainsFunc(writableCollections, func(c model.PersistedCollection) bool {
-						return collectionID == c.ID()
-					})
-
-					if !isWritable {
-						return errors.Errorf("collection '%s' is not writable to the user '%s'", collectionID, indexFileTask.ownerID)
-					}
-
-					coll, err := m.DocumentStore.GetCollectionByID(ctx, collectionID)
-					if err != nil {
-						return errors.WithStack(err)
-					}
-
-					doc.AddCollection(coll)
-				}
-
-				user, err := m.userStore.GetUserByID(ctx, indexFileTask.ownerID)
-				if err != nil {
-					return errors.Wrap(err, "could not retrieve task owner")
-				}
-
-				document = model.AsOwnedDocument(doc, user)
-
-				events <- port.NewTaskEvent(port.WithTaskProgress(0.1))
-
-				return nil
-			},
-			nil,
-		),
-		workflow.StepFunc(
-			func(ctx context.Context) error {
-				events <- port.NewTaskEvent(port.WithTaskMessage("saving document"))
-
-				if err := m.SaveDocuments(ctx, document); err != nil {
-					return errors.WithStack(err)
-				}
-
-				events <- port.NewTaskEvent(port.WithTaskProgress(0.2), port.WithTaskMessage("document saved"))
-
-				return nil
-			},
-			func(ctx context.Context) error {
-				if err := m.DeleteDocumentBySource(ctx, indexFileTask.ownerID, document.Source()); err != nil {
-					return errors.WithStack(err)
-				}
-
-				return nil
-			},
-		),
-		workflow.StepFunc(
-			func(ctx context.Context) error {
-				onProgress := func(p float32) {
-					events <- port.NewTaskEvent(port.WithTaskProgress(0.2 + (0.7 * p)))
-				}
-
-				events <- port.NewTaskEvent(port.WithTaskMessage("indexing document"))
-
-				if err := m.index.Index(ctx, document, port.WithIndexOnProgress(onProgress)); err != nil {
-					return errors.WithStack(err)
-				}
-
-				events <- port.NewTaskEvent(port.WithTaskMessage("document indexed"))
-
-				return nil
-			},
-			func(ctx context.Context) error {
-				if err := m.index.DeleteBySource(ctx, document.Source()); err != nil {
-					return errors.WithStack(err)
-				}
-
-				return nil
-			},
-		),
-	)
-	if err := wf.Execute(ctx); err != nil {
-		return errors.WithStack(err)
-	}
-
-	events <- port.NewTaskEvent(port.WithTaskProgress(1), port.WithTaskMessage("done"))
-
-	return nil
-}
-
-func (m *DocumentManager) CleanupIndex(ctx context.Context) (port.TaskID, error) {
-	taskID := port.NewTaskID()
-
-	cleanupIndexTask := &cleanupIndexTask{
-		id: taskID,
-	}
+	cleanupIndexTask := index.NewCleanupIndexTask(owner, collections)
 
 	if err := m.taskRunner.Schedule(ctx, cleanupIndexTask); err != nil {
 		return "", errors.WithStack(err)
 	}
 
 	return taskID, nil
-}
-
-func (m *DocumentManager) handleCleanupIndexTask(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
-	if _, ok := task.(*cleanupIndexTask); !ok {
-		return errors.Errorf("unexpected task type '%T'", task)
-	}
-
-	slog.DebugContext(ctx, "checking obsolete sections")
-
-	count := 0
-	batchSize := 5000
-	toDelete := make([]model.SectionID, 0, batchSize)
-
-	deleteCurrentBatch := func() {
-		slog.InfoContext(ctx, "deleting obsolete sections from index")
-
-		if err := m.index.DeleteByID(ctx, toDelete...); err != nil {
-			slog.ErrorContext(ctx, "could not delete obsolete sections", slog.Any("error", errors.WithStack(err)))
-		}
-
-		slog.InfoContext(ctx, "obsolete sections deleted")
-
-		toDelete = make([]model.SectionID, 0, batchSize)
-	}
-	err := m.index.All(ctx, func(id model.SectionID) bool {
-		count++
-		exists, err := m.DocumentStore.SectionExists(ctx, id)
-		if err != nil {
-			slog.ErrorContext(ctx, "could not check if section exists", slog.Any("error", errors.WithStack(err)))
-			return true
-		}
-
-		if exists {
-			return true
-		}
-
-		toDelete = append(toDelete, id)
-
-		if len(toDelete) >= batchSize {
-			deleteCurrentBatch()
-		}
-
-		return true
-	})
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	if len(toDelete) > 0 {
-		deleteCurrentBatch()
-	}
-
-	slog.DebugContext(ctx, "all sections checked", slog.Int64("total", int64(count)))
-
-	return nil
 }
 
 func NewDocumentManager(store port.DocumentStore, index port.Index, taskRunner port.TaskRunner, llm llm.Client, funcs ...DocumentManagerOptionFunc) *DocumentManager {
@@ -589,52 +338,5 @@ func NewDocumentManager(store port.DocumentStore, index port.Index, taskRunner p
 		llm:               llm,
 	}
 
-	taskRunner.Register(indexFileTaskType, port.TaskHandlerFunc(documentManager.handleIndexFileTask))
-	taskRunner.Register(cleanupIndexTaskType, port.TaskHandlerFunc(documentManager.handleCleanupIndexTask))
-
 	return documentManager
-}
-
-const indexFileTaskType port.TaskType = "indexFile"
-
-type indexFileTask struct {
-	id           port.TaskID
-	ownerID      model.UserID
-	path         string
-	originalName string
-	opts         *DocumentManagerIndexFileOptions
-}
-
-// ID implements port.Task.
-func (i *indexFileTask) ID() port.TaskID {
-	return i.id
-}
-
-// Type implements port.Task.
-func (i *indexFileTask) Type() port.TaskType {
-	return indexFileTaskType
-}
-
-var _ port.Task = &indexFileTask{}
-
-const cleanupIndexTaskType port.TaskType = "cleanupIndex"
-
-type cleanupIndexTask struct {
-	id port.TaskID
-}
-
-// ID implements port.Task.
-func (i *cleanupIndexTask) ID() port.TaskID {
-	return i.id
-}
-
-// Type implements port.Task.
-func (i *cleanupIndexTask) Type() port.TaskType {
-	return cleanupIndexTaskType
-}
-
-var _ port.Task = &indexFileTask{}
-
-type Restorable interface {
-	RestoreDocuments(ctx context.Context, documents []model.Document) error
 }

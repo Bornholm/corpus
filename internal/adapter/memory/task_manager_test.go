@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/pkg/errors"
 )
@@ -15,7 +16,7 @@ func TestTaskManager(t *testing.T) {
 
 	var executed atomic.Int64
 
-	tr.Register("dummy", port.TaskHandlerFunc(func(ctx context.Context, task port.Task, events chan port.TaskEvent) error {
+	tr.Register("dummy", port.TaskHandlerFunc(func(ctx context.Context, task model.Task, events chan port.TaskEvent) error {
 		t.Logf("[%s] start", task.ID())
 		events <- port.NewTaskEvent(port.WithTaskProgress(0.1))
 		events <- port.NewTaskEvent(port.WithTaskProgress(0.5))
@@ -32,7 +33,7 @@ func TestTaskManager(t *testing.T) {
 
 	for range total {
 		task := &dummyTask{
-			id: port.NewTaskID(),
+			id: model.NewTaskID(),
 		}
 		t.Logf("Scheduling task %s", task.ID())
 		tr.Schedule(ctx, task)
@@ -70,17 +71,22 @@ func TestTaskManager(t *testing.T) {
 }
 
 type dummyTask struct {
-	id port.TaskID
+	id model.TaskID
+}
+
+// Owner implements [model.Task].
+func (d *dummyTask) Owner() model.User {
+	panic("unimplemented")
 }
 
 // ID implements port.Task.
-func (d *dummyTask) ID() port.TaskID {
+func (d *dummyTask) ID() model.TaskID {
 	return d.id
 }
 
 // Type implements port.Task.
-func (d *dummyTask) Type() port.TaskType {
+func (d *dummyTask) Type() model.TaskType {
 	return "dummy"
 }
 
-var _ port.Task = &dummyTask{}
+var _ model.Task = &dummyTask{}

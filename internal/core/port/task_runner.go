@@ -4,16 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/rs/xid"
+	"github.com/bornholm/corpus/internal/core/model"
 )
-
-type TaskID string
-
-func NewTaskID() TaskID {
-	return TaskID(xid.New().String())
-}
-
-type TaskType string
 
 type TaskStatus string
 
@@ -25,8 +17,8 @@ const (
 )
 
 type TaskStateHeader struct {
-	ID          TaskID
-	Type        TaskType
+	ID          model.TaskID
+	Type        model.TaskType
 	ScheduledAt time.Time
 	Status      TaskStatus
 }
@@ -66,25 +58,20 @@ func NewTaskEvent(funcs ...TaskEventFunc) TaskEvent {
 	return p
 }
 
-type Task interface {
-	ID() TaskID
-	Type() TaskType
-}
-
 type TaskHandler interface {
-	Handle(ctx context.Context, task Task, events chan TaskEvent) error
+	Handle(ctx context.Context, task model.Task, events chan TaskEvent) error
 }
 
-type TaskHandlerFunc func(ctx context.Context, task Task, events chan TaskEvent) error
+type TaskHandlerFunc func(ctx context.Context, task model.Task, events chan TaskEvent) error
 
-func (f TaskHandlerFunc) Handle(ctx context.Context, task Task, events chan TaskEvent) error {
+func (f TaskHandlerFunc) Handle(ctx context.Context, task model.Task, events chan TaskEvent) error {
 	return f(ctx, task, events)
 }
 
 type TaskRunner interface {
-	Schedule(ctx context.Context, task Task) error
-	State(ctx context.Context, id TaskID) (*TaskState, error)
+	Schedule(ctx context.Context, task model.Task) error
+	State(ctx context.Context, id model.TaskID) (*TaskState, error)
 	List(ctx context.Context) ([]TaskStateHeader, error)
-	Register(taskType TaskType, handler TaskHandler)
+	Register(taskType model.TaskType, handler TaskHandler)
 	Run(ctx context.Context) error
 }

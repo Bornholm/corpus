@@ -4,14 +4,15 @@ import commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common
 
 templ AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...commonComp.PageOptionFunc) {
 	@commonComp.NavbarPage(navbar, funcs...) {
-		<div class="columns">
-			<div class="column is-narrow">
-				<aside class="menu">
-					<p class="menu-label">
-						Administration
-					</p>
-					<ul class="menu-list">
-						/* <li>
+		<div class="container">
+			<div class="columns">
+				<div class="column is-narrow">
+					<aside class="menu">
+						<p class="menu-label">
+							Administration
+						</p>
+						<ul class="menu-list">
+							/* <li>
 							<a href="#" class="is-disabled">
 								<span class="icon">
 									<i class="fas fa-users"></i>
@@ -27,19 +28,26 @@ templ AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...co
 								<span>Collections</span>
 							</a>
 						</li> */
-						<li>
-							<a href="/admin/public-shares" class={ templ.KV("is-active", selectedItem == "public-shares") }>
-								<span class="icon">
-									<i class="fas fa-link"></i>
-								</span>
-								<span>Partages publics</span>
-							</a>
-						</li>
-					</ul>
-				</aside>
-			</div>
-			<div class="column">
-				<div class="container">
+							<li>
+								<a href="/admin/tasks" class={ templ.KV("is-active", selectedItem == "tasks") }>
+									<span class="icon">
+										<i class="fas fa-tasks"></i>
+									</span>
+									<span>Tâches</span>
+								</a>
+							</li>
+							<li>
+								<a href="/admin/public-shares" class={ templ.KV("is-active", selectedItem == "public-shares") }>
+									<span class="icon">
+										<i class="fas fa-link"></i>
+									</span>
+									<span>Partages publics</span>
+								</a>
+							</li>
+						</ul>
+					</aside>
+				</div>
+				<div class="column">
 					{ children... }
 				</div>
 			</div>

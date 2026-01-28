@@ -1,0 +1,150 @@
+package component
+
+import (
+	"fmt"
+	"github.com/bornholm/corpus/internal/core/port"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
+
+type TaskPageVModel struct {
+	Navbar commonComp.NavbarVModel
+	Task   *port.TaskState
+}
+
+templ TaskPage(vmodel TaskPageVModel) {
+	@AdminPage(vmodel.Navbar, "tasks", commonComp.WithTitle("Détails de la tâche")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<a href={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/tasks")) } class="button is-text mr-3 is-medium" style="text-decoration:none">
+						<span class="icon">
+							<i class="fas fa-arrow-left"></i>
+						</span>
+					</a>
+					<h2 class="title is-size-3">
+						Détails de la tâche
+					</h2>
+				</div>
+			</div>
+			<div class="level-right"></div>
+		</div>
+		if vmodel.Task != nil {
+			<div class="content">
+				<div class="field is-horizontal">
+					<div class="field-label is-normal">
+						<label class="label">ID</label>
+					</div>
+					<div class="field-body">
+						<div class="field">
+							<div class="control">
+								<code class="is-size-6">{ string(vmodel.Task.ID) }</code>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="field is-horizontal">
+					<div class="field-label is-normal">
+						<label class="label">Type</label>
+					</div>
+					<div class="field-body">
+						<div class="field">
+							<div class="control">
+								<span class="tag is-light">{ string(vmodel.Task.Type) }</span>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="field is-horizontal">
+					<div class="field-label is-normal">
+						<label class="label">Statut</label>
+					</div>
+					<div class="field-body">
+						<div class="field">
+							<div class="control">
+								@taskStatusBadge(vmodel.Task.Status)
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="field is-horizontal">
+					<div class="field-label is-normal">
+						<label class="label">Planifiée le</label>
+					</div>
+					<div class="field-body">
+						<div class="field">
+							<div class="control">
+								<span>{ vmodel.Task.ScheduledAt.Format("02/01/2006 15:04:05") }</span>
+							</div>
+						</div>
+					</div>
+				</div>
+				if !vmodel.Task.FinishedAt.IsZero() {
+					<div class="field is-horizontal">
+						<div class="field-label is-normal">
+							<label class="label">Terminée le</label>
+						</div>
+						<div class="field-body">
+							<div class="field">
+								<div class="control">
+									<span>{ vmodel.Task.FinishedAt.Format("02/01/2006 15:04:05") }</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				}
+				if vmodel.Task.Progress > 0 {
+					<div class="field is-horizontal">
+						<div class="field-label is-normal">
+							<label class="label">Progression</label>
+						</div>
+						<div class="field-body">
+							<div class="field">
+								<div class="control">
+									<progress class="progress is-info" value={ fmt.Sprintf("%.0f", vmodel.Task.Progress*100) } max="100">
+										{ fmt.Sprintf("%.1f%%", vmodel.Task.Progress*100) }
+									</progress>
+								</div>
+							</div>
+						</div>
+					</div>
+				}
+				if vmodel.Task.Message != "" {
+					<div class="field is-horizontal">
+						<div class="field-label is-normal">
+							<label class="label">Message</label>
+						</div>
+						<div class="field-body">
+							<div class="field">
+								<div class="control">
+									<div class="notification is-info is-light">
+										{ vmodel.Task.Message }
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				}
+				if vmodel.Task.Error != nil {
+					<div class="field is-horizontal">
+						<div class="field-label is-normal">
+							<label class="label">Erreur</label>
+						</div>
+						<div class="field-body">
+							<div class="field">
+								<div class="control">
+									<div class="notification is-danger is-light">
+										<pre>{ vmodel.Task.Error.Error() }</pre>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				}
+			</div>
+		} else {
+			<div class="notification is-danger">
+				<p>Tâche non trouvée.</p>
+			</div>
+		}
+	}
+}

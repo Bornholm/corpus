@@ -86,6 +86,10 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		return nil, errors.Wrap(err, "could not create task runner from config")
 	}
 
+	if err := setupTaskHandlers(ctx, conf, taskRunner); err != nil {
+		return nil, errors.Wrap(err, "could not setup task handlers from config")
+	}
+
 	userStore, err := getUserStoreFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create user store from config")

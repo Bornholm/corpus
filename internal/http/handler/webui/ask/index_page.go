@@ -68,7 +68,7 @@ func (h *Handler) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	user := httpCtx.User(ctx)
 
-	taskID, err := h.documentManager.IndexFile(ctx, user.ID(), fileHeader.Filename, file, options...)
+	taskID, err := h.documentManager.IndexFile(ctx, user, fileHeader.Filename, file, options...)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not index uploaded file", slogx.Error(err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

@@ -214,7 +214,7 @@ func (h *Handler) handleReindexDocument(w http.ResponseWriter, r *http.Request) 
 	user := httpCtx.User(ctx)
 
 	taskID, err := h.documentManager.IndexFile(
-		ctx, user.ID(), "file.md", bytes.NewBuffer(content),
+		ctx, user, "file.md", bytes.NewBuffer(content),
 		service.WithDocumentManagerIndexFileCollections(collections...),
 		service.WithDocumentManagerIndexFileSource(document.Source()),
 	)

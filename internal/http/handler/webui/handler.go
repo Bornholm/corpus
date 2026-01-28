@@ -29,7 +29,7 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRu
 	mount(mux, "/", ask.NewHandler(documentManager, llm, taskRunner))
 	mount(mux, "/collections/", collection.NewHandler(documentManager))
 	mount(mux, "/profile/", profile.NewHandler(userStore))
-	mount(mux, "/admin/", admin.NewHandler(userStore, documentStore, publicShareStore))
+	mount(mux, "/admin/", admin.NewHandler(userStore, documentStore, publicShareStore, taskRunner))
 	mount(mux, "/docs/", swagger.NewHandler())
 
 	h := &Handler{

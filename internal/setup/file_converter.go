@@ -13,7 +13,7 @@ import (
 
 var FileConverter = NewRegistry[port.FileConverter]()
 
-var getFileConverter = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.FileConverter, error) {
+var getFileConverterFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.FileConverter, error) {
 	fileConverters := make([]port.FileConverter, 0)
 	for _, uri := range conf.FileConverter.URI {
 		c, err := FileConverter.From(uri)

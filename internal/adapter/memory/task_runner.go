@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/pkg/errors"
@@ -17,8 +18,8 @@ type TaskRunner struct {
 	runningCond  sync.Cond
 	running      bool
 
-	tasks     syncx.Map[port.TaskID, port.TaskState]
-	handlers  syncx.Map[port.TaskType, port.TaskHandler]
+	tasks     syncx.Map[model.TaskID, port.TaskState]
+	handlers  syncx.Map[model.TaskType, port.TaskHandler]
 	semaphore chan struct{}
 
 	cleanupDelay    time.Duration
@@ -41,7 +42,7 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 			case <-ticker.C:
 				slog.DebugContext(ctx, "running task cleaner")
 
-				r.tasks.Range(func(id port.TaskID, state port.TaskState) bool {
+				r.tasks.Range(func(id model.TaskID, state port.TaskState) bool {
 					if state.FinishedAt.IsZero() || time.Now().After(state.FinishedAt.Add(r.cleanupDelay)) {
 						return true
 					}
@@ -68,7 +69,7 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 // List implements port.TaskRunner.
 func (r *TaskRunner) List(ctx context.Context) ([]port.TaskStateHeader, error) {
 	headers := make([]port.TaskStateHeader, 0)
-	r.tasks.Range(func(id port.TaskID, state port.TaskState) bool {
+	r.tasks.Range(func(id model.TaskID, state port.TaskState) bool {
 		headers = append(headers, state.TaskStateHeader)
 		return true
 	})
@@ -76,12 +77,12 @@ func (r *TaskRunner) List(ctx context.Context) ([]port.TaskStateHeader, error) {
 }
 
 // Register implements port.TaskRunner.
-func (r *TaskRunner) Register(taskType port.TaskType, handler port.TaskHandler) {
+func (r *TaskRunner) Register(taskType model.TaskType, handler port.TaskHandler) {
 	r.handlers.Store(taskType, handler)
 }
 
 // Schedule implements port.TaskRunner.
-func (r *TaskRunner) Schedule(ctx context.Context, task port.Task) error {
+func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 	taskID := task.ID()
 
 	ctx = log.WithAttrs(ctx,
@@ -181,7 +182,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task port.Task) error {
 	return nil
 }
 
-func (r *TaskRunner) updateState(taskID port.TaskID, fn func(s *port.TaskState)) {
+func (r *TaskRunner) updateState(taskID model.TaskID, fn func(s *port.TaskState)) {
 	state, _ := r.tasks.LoadOrStore(taskID, port.TaskState{
 		TaskStateHeader: port.TaskStateHeader{
 			ID: taskID,
@@ -194,7 +195,7 @@ func (r *TaskRunner) updateState(taskID port.TaskID, fn func(s *port.TaskState))
 }
 
 // State implements port.TaskRunner.
-func (r *TaskRunner) State(ctx context.Context, id port.TaskID) (*port.TaskState, error) {
+func (r *TaskRunner) State(ctx context.Context, id model.TaskID) (*port.TaskState, error) {
 	state, exists := r.tasks.Load(id)
 	if !exists {
 		return nil, errors.WithStack(port.ErrNotFound)
@@ -210,8 +211,8 @@ func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval 
 		runningCond:     *sync.NewCond(runningMutex),
 		running:         false,
 		semaphore:       make(chan struct{}, parallelism),
-		tasks:           syncx.Map[port.TaskID, port.TaskState]{},
-		handlers:        syncx.Map[port.TaskType, port.TaskHandler]{},
+		tasks:           syncx.Map[model.TaskID, port.TaskState]{},
+		handlers:        syncx.Map[model.TaskType, port.TaskHandler]{},
 		cleanupDelay:    cleanupDelay,
 		cleanupInterval: cleanupInterval,
 	}

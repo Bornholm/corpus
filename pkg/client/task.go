@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/http/handler/api"
 	"github.com/pkg/errors"
 )
@@ -34,7 +34,7 @@ func NewWaitForOptions(funcs ...WaitForOptionFunc) *WaitForOptions {
 	return opts
 }
 
-func (c *Client) WaitFor(ctx context.Context, taskID port.TaskID, funcs ...WaitForOptionFunc) (*Task, error) {
+func (c *Client) WaitFor(ctx context.Context, taskID model.TaskID, funcs ...WaitForOptionFunc) (*Task, error) {
 	opts := NewWaitForOptions(funcs...)
 
 	ticker := time.NewTicker(opts.PollInterval)

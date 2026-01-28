@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/pkg/errors"
@@ -18,10 +19,10 @@ type ListTasksResponse struct {
 }
 
 type TaskStateHeader struct {
-	ID          port.TaskID     `json:"id"`
+	ID          model.TaskID    `json:"id"`
 	ScheduledAt time.Time       `json:"scheduledAt"`
 	Status      port.TaskStatus `json:"status"`
-	Type        port.TaskType   `json:"type"`
+	Type        model.TaskType  `json:"type"`
 }
 
 func (h *Handler) listTasks(w http.ResponseWriter, r *http.Request) {
@@ -68,9 +69,9 @@ type ShowTaskResponse struct {
 }
 
 type Task struct {
-	ID          port.TaskID     `json:"id"`
+	ID          model.TaskID    `json:"id"`
 	Status      port.TaskStatus `json:"status"`
-	Type        port.TaskType   `json:"type"`
+	Type        model.TaskType  `json:"type"`
 	Progress    float32         `json:"progress"`
 	ScheduledAt time.Time       `json:"scheduledAt"`
 	FinishedAt  *time.Time      `json:"finishedAt,omitempty"`
@@ -79,11 +80,11 @@ type Task struct {
 }
 
 func (h *Handler) showTask(w http.ResponseWriter, r *http.Request) {
-	taskID := port.TaskID(r.PathValue("taskID"))
+	taskID := model.TaskID(r.PathValue("taskID"))
 	h.writeTask(r.Context(), w, taskID)
 }
 
-func (h *Handler) writeTask(ctx context.Context, w http.ResponseWriter, taskID port.TaskID) {
+func (h *Handler) writeTask(ctx context.Context, w http.ResponseWriter, taskID model.TaskID) {
 	taskState, err := h.taskRunner.State(ctx, taskID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {

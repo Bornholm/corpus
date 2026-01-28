@@ -4,11 +4,11 @@ import (
 	"context"
 
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/core/service"
+	"github.com/bornholm/corpus/internal/core/service/backup"
 	"github.com/pkg/errors"
 )
 
-var getBackupManager = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (*service.BackupManager, error) {
+var getBackupManager = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (*backup.Manager, error) {
 	store, err := getDocumentStoreFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create store from config")
@@ -24,7 +24,7 @@ var getBackupManager = createFromConfigOnce(func(ctx context.Context, conf *conf
 		return nil, errors.Wrap(err, "could not create task runner from config")
 	}
 
-	backupManager := service.NewBackupManager(index, store, taskRunner)
+	backupManager := backup.NewManager(index, store, taskRunner)
 
 	return backupManager, nil
 })

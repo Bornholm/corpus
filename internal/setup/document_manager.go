@@ -2,8 +2,6 @@ package setup
 
 import (
 	"context"
-	"log/slog"
-	"time"
 
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/core/service"
@@ -24,7 +22,7 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 	options := []service.DocumentManagerOptionFunc{}
 
 	if conf.FileConverter.Enabled {
-		fileConverter, err := getFileConverter(ctx, conf)
+		fileConverter, err := getFileConverterFromConfig(ctx, conf)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -43,18 +41,6 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 	}
 
 	documentManager := service.NewDocumentManager(store, index, taskRunner, llmClient, options...)
-
-	// Cleanup index every hour
-	go func() {
-		ticker := time.NewTicker(24 * time.Hour)
-		ctx := context.Background()
-		for {
-			<-ticker.C
-			if _, err := documentManager.CleanupIndex(ctx); err != nil {
-				slog.ErrorContext(ctx, "could not start index cleanup", slog.Any("error", errors.WithStack(err)))
-			}
-		}
-	}()
 
 	return documentManager, nil
 })

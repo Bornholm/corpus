@@ -76,7 +76,9 @@ func (h *Handler) handleRestoreBackup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := h.backupManager.RestoreBackup(ctx, decompressed)
+	user := httpCtx.User(ctx)
+
+	taskID, err := h.backupManager.RestoreBackup(ctx, user, decompressed)
 	if err != nil {
 		slog.ErrorContext(ctx, "could not restore backup", slog.Any("error", errors.WithStack(err)))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

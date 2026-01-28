@@ -1,0 +1,131 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/port"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
+)
+
+type TasksPageVModel struct {
+	Navbar      commonComp.NavbarVModel
+	Tasks       []port.TaskStateHeader
+	CurrentPage int
+	PageSize    int
+	TotalTasks  int
+}
+
+templ TasksPage(vmodel TasksPageVModel) {
+	@AdminPage(vmodel.Navbar, "tasks", commonComp.WithTitle("Tâches")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<h1 class="title is-size-3">Tâches</h1>
+				</div>
+			</div>
+			<div class="level-right">
+				<div class="level-item">
+					<span class="tag is-info">
+						{ strconv.Itoa(vmodel.TotalTasks) } tâche(s) au total
+					</span>
+				</div>
+			</div>
+		</div>
+		if len(vmodel.Tasks) == 0 {
+			<div class="notification is-info is-light">
+				<p>Aucune tâche en cours ou récente.</p>
+				<p>Les tâches apparaissent ici lors de l'indexation de documents ou d'autres opérations en arrière-plan.</p>
+			</div>
+		} else {
+			<div class="table-container">
+				<table class="table is-fullwidth is-striped">
+					<thead>
+						<tr>
+							<th>ID</th>
+							<th>Type</th>
+							<th>Statut</th>
+							<th>Planifiée le</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, task := range vmodel.Tasks {
+							<tr>
+								<td>
+									<code class="is-size-7">{ string(task.ID) }</code>
+								</td>
+								<td>
+									<span class="tag is-light">{ string(task.Type) }</span>
+								</td>
+								<td>
+									@taskStatusBadge(task.Status)
+								</td>
+								<td>{ task.ScheduledAt.Format("02/01/2006 15:04:05") }</td>
+								<td>
+									<div class="buttons">
+										<a href={ templ.SafeURL("/admin/tasks/" + string(task.ID)) } class="button is-primary is-small">
+											<span class="icon">
+												<i class="fas fa-eye"></i>
+											</span>
+											<span>Voir</span>
+										</a>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<!-- Pagination -->
+			if vmodel.CurrentPage > 1 || len(vmodel.Tasks) == vmodel.PageSize {
+				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
+					if vmodel.CurrentPage > 1 {
+						<a class="pagination-previous" href={ templ.SafeURL("/admin/tasks?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+					}
+					if len(vmodel.Tasks) == vmodel.PageSize {
+						<a class="pagination-next" href={ templ.SafeURL("/admin/tasks?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
+					}
+					<ul class="pagination-list">
+						<li>
+							<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) }</span>
+						</li>
+					</ul>
+				</nav>
+			}
+		}
+	}
+}
+
+templ taskStatusBadge(status port.TaskStatus) {
+	switch status {
+		case port.TaskStatusPending:
+			<span class="tag is-warning">
+				<span class="icon">
+					<i class="fas fa-clock"></i>
+				</span>
+				<span>En attente</span>
+			</span>
+		case port.TaskStatusRunning:
+			<span class="tag is-info">
+				<span class="icon">
+					<i class="fas fa-spinner fa-spin"></i>
+				</span>
+				<span>En cours</span>
+			</span>
+		case port.TaskStatusSucceeded:
+			<span class="tag is-success">
+				<span class="icon">
+					<i class="fas fa-check"></i>
+				</span>
+				<span>Réussie</span>
+			</span>
+		case port.TaskStatusFailed:
+			<span class="tag is-danger">
+				<span class="icon">
+					<i class="fas fa-times"></i>
+				</span>
+				<span>Échouée</span>
+			</span>
+		default:
+			<span class="tag">{ string(status) }</span>
+	}
+}
