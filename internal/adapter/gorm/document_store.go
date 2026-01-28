@@ -206,14 +206,17 @@ func (s *Store) UpdateCollection(ctx context.Context, id model.CollectionID, upd
 func (s *Store) DeleteCollection(ctx context.Context, id model.CollectionID) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
 		var collection Collection
-		if err := db.First(&collection, "id = ?", id).Error; err != nil {
+		if err := db.Preload(clause.Associations).First(&collection, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
 			return errors.WithStack(err)
 		}
 
-		// Delete the collection with associations (documents relationship will be handled by CASCADE)
+		if err := db.Delete(&collection.Documents).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
 		if err := db.Select(clause.Associations).Delete(&collection).Error; err != nil {
 			return errors.WithStack(err)
 		}
