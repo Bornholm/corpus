@@ -51,33 +51,64 @@ func CollectionEditPage(vmodel CollectionEditPageVModel) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><a href=\"/collections/\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Modifier une collection</h2></div></div><div class=\"level-right\"></div></div><div class=\"columns\"><div class=\"column is-half\"><form method=\"post\"><div class=\"field\"><label class=\"label\" for=\"label\">Libellé</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"label\" name=\"label\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.Collection.Label())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/collection/component/collection_edit_page.templ`, Line: 36, Col: 97}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
+			var templ_7745c5c3_Var3 templ.SafeURL = common.BaseURL(ctx, common.WithPath("/collections/"))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var3)))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" required></div><p class=\"help\">Le libellé associé à la collection.</p></div><div class=\"field\"><label class=\"label\" for=\"description\">Description</label><div class=\"control\"><textarea class=\"textarea\" id=\"description\" name=\"description\" rows=\"4\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Modifier une collection</h2></div></div><div class=\"level-right\"><div class=\"level-item\"><button class=\"button is-danger\" hx-post=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.Collection.Description())
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "delete")))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/collection/component/collection_edit_page.templ`, Line: 43, Col: 112}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/collection/component/collection_edit_page.templ`, Line: 32, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</textarea></div><p class=\"help\">La description de la collection. Celle ci est utilisé par le LLM pour préparer le domaine métier des documents intégrés à cette collection.</p></div><div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Modifier</span></button></div><div class=\"control\"><a href=\"/collections/\" class=\"button is-light\">Annuler</a></div></div></form></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-confirm=\"Êtes-vous sûr de vouloir supprimer cette collection ? Cette action supprimera également tous les documents associés et ne peut pas être annulée.\" hx-target=\"body\"><span class=\"icon\"><i class=\"fas fa-trash\"></i></span> <span>Supprimer</span></button></div></div></div><div class=\"columns\"><div class=\"column\"><form method=\"post\"><div class=\"field\"><label class=\"label\" for=\"label\">Libellé</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"label\" name=\"label\" value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var5 string
+			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.Collection.Label())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/collection/component/collection_edit_page.templ`, Line: 50, Col: 97}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "\" required></div><p class=\"help\">Le libellé associé à la collection.</p></div><div class=\"field\"><label class=\"label\" for=\"description\">Description</label><div class=\"control\"><textarea class=\"textarea\" id=\"description\" name=\"description\" rows=\"4\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var6 string
+			templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(vmodel.Collection.Description())
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/collection/component/collection_edit_page.templ`, Line: 57, Col: 112}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</textarea></div><p class=\"help\">La description de la collection. Celle ci est utilisé par le LLM pour préparer le domaine métier des documents intégrés à cette collection.</p></div><div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Modifier</span></button></div><div class=\"control\"><a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var7 templ.SafeURL = common.BaseURL(ctx, common.WithPath("/collections/"))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var7)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\" class=\"button is-light\">Annuler</a></div></div></form></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -138,7 +138,8 @@ func (h *Handler) postEditPublicShare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Redirect to public shares list
-	http.Redirect(w, r, "/admin/public-shares", http.StatusSeeOther)
+	redirectURL := commonComp.BaseURL(r.Context(), commonComp.WithPath("/admin/public-shares"))
+	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
 }
 
 func (h *Handler) postPublicShare(w http.ResponseWriter, r *http.Request) {
@@ -220,7 +221,8 @@ func (h *Handler) postPublicShare(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Redirect to public shares list
-	http.Redirect(w, r, "/admin/public-shares", http.StatusSeeOther)
+	redirectURL := commonComp.BaseURL(r.Context(), commonComp.WithPath("/admin/public-shares"))
+	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
 }
 
 func (h *Handler) fillPublicSharesPageViewModel(r *http.Request) (*component.PublicSharesPageVModel, error) {

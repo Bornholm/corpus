@@ -81,7 +81,8 @@ func (h *Handler) handleCollectionCreate(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	http.Redirect(w, r, "/collections/", http.StatusSeeOther)
+	redirectURL := commonComp.BaseURL(r.Context(), commonComp.WithPath("/collections/"))
+	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
 }
 
 func (h *Handler) fillCollectionCreatePageViewModel(r *http.Request) (*component.CollectionCreatePageVModel, error) {

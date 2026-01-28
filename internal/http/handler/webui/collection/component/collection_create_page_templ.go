@@ -47,7 +47,25 @@ func CollectionCreatePage(vmodel CollectionCreatePageVModel) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><a href=\"/collections/\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Créer une collection</h2></div></div><div class=\"level-right\"></div></div><div class=\"columns\"><div class=\"column is-half\"><form method=\"post\"><div class=\"field\"><label class=\"label\" for=\"label\">Libellé</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"label\" name=\"label\" required></div><p class=\"help\">Le libellé associé à la collection.</p></div><div class=\"field\"><label class=\"label\" for=\"description\">Description</label><div class=\"control\"><textarea class=\"textarea\" id=\"description\" name=\"description\" rows=\"4\"></textarea></div><p class=\"help\">La description de la collection. Celle ci est utilisé par le LLM pour préparer le domaine métier des documents intégrés à cette collection.</p></div><div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Créer</span></button></div><div class=\"control\"><a href=\"/collections/\" class=\"button is-light\">Annuler</a></div></div></form></div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var3 templ.SafeURL = common.BaseURL(ctx, common.WithPath("/collections/"))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var3)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Créer une collection</h2></div></div><div class=\"level-right\"></div></div><div class=\"columns\"><div class=\"column\"><form method=\"post\"><div class=\"field\"><label class=\"label\" for=\"label\">Libellé</label><div class=\"control\"><input class=\"input\" type=\"text\" id=\"label\" name=\"label\" required></div><p class=\"help\">Le libellé associé à la collection.</p></div><div class=\"field\"><label class=\"label\" for=\"description\">Description</label><div class=\"control\"><textarea class=\"textarea\" id=\"description\" name=\"description\" rows=\"4\"></textarea></div><p class=\"help\">La description de la collection. Celle ci est utilisé par le LLM pour préparer le domaine métier des documents intégrés à cette collection.</p></div><div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Créer</span></button></div><div class=\"control\"><a href=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 templ.SafeURL = common.BaseURL(ctx, common.WithPath("/collections/"))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var4)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" class=\"button is-light\">Annuler</a></div></div></form></div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

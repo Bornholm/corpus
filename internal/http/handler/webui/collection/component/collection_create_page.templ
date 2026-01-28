@@ -11,7 +11,7 @@ templ CollectionCreatePage(vmodel CollectionCreatePageVModel) {
 		<div class="level is-mobile">
 			<div class="level-left">
 				<div class="level-item">
-					<a href="/collections/" class="button is-text mr-3 is-medium" style="text-decoration:none">
+					<a href={ common.BaseURL(ctx, common.WithPath("/collections/")) } class="button is-text mr-3 is-medium" style="text-decoration:none">
 						<span class="icon">
 							<i class="fas fa-arrow-left"></i>
 						</span>
@@ -24,7 +24,7 @@ templ CollectionCreatePage(vmodel CollectionCreatePageVModel) {
 			<div class="level-right"></div>
 		</div>
 		<div class="columns">
-			<div class="column is-half">
+			<div class="column">
 				<form method="post">
 					<div class="field">
 						<label class="label" for="label">Libellé</label>
@@ -50,7 +50,7 @@ templ CollectionCreatePage(vmodel CollectionCreatePageVModel) {
 							</button>
 						</div>
 						<div class="control">
-							<a href="/collections/" class="button is-light">Annuler</a>
+							<a href={ common.BaseURL(ctx, common.WithPath("/collections/")) } class="button is-light">Annuler</a>
 						</div>
 					</div>
 				</form>

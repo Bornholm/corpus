@@ -20,7 +20,7 @@ templ CollectionListPage(vmodel CollectionListPageVModel) {
 				<h2 class="title is-size-3">Collections</h2>
 			</div>
 			<div class="level-right">
-				<a href="/collections/new" class="button is-primary">
+				<a href={ common.BaseURL(ctx, common.WithPath("/collections/new")) } class="button is-primary">
 					<span class="icon">
 						<i class="fas fa-plus"></i>
 					</span>
@@ -33,7 +33,7 @@ templ CollectionListPage(vmodel CollectionListPageVModel) {
 				<i class="fas fa-folder-open fa-4x has-text-grey-light mb-4"></i>
 				<h3 class="title is-size-4">Aucune collection pour l'instant</h3>
 				<p class="subtitle">Créez votre première collection pour organiser vos documents.</p>
-				<a href="/collections/new" class="button is-primary">
+				<a href={ common.BaseURL(ctx, common.WithPath("/collections/new")) } class="button is-primary">
 					Créer une collection
 				</a>
 			</div>
@@ -86,7 +86,7 @@ templ CollectionCard(vmodel CollectionCardVModel) {
 			</div>
 			<footer class="card-footer">
 				<a
-					href={ templ.URL("/collections/" + string(vmodel.Collection.ID()) + "/edit") }
+					href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit")) }
 					class="card-footer-item"
 				>
 					<span class="icon">

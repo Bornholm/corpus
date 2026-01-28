@@ -15,7 +15,7 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 		<div class="level is-mobile">
 			<div class="level-left">
 				<div class="level-item">
-					<a href="/collections/" class="button is-text mr-3 is-medium" style="text-decoration:none">
+					<a href={ common.BaseURL(ctx, common.WithPath("/collections/")) } class="button is-text mr-3 is-medium" style="text-decoration:none">
 						<span class="icon">
 							<i class="fas fa-arrow-left"></i>
 						</span>
@@ -25,10 +25,24 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 					</h2>
 				</div>
 			</div>
-			<div class="level-right"></div>
+			<div class="level-right">
+				<div class="level-item">
+					<button
+						class="button is-danger"
+						hx-post={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "delete")) }
+						hx-confirm="Êtes-vous sûr de vouloir supprimer cette collection ? Cette action supprimera également tous les documents associés et ne peut pas être annulée."
+						hx-target="body"
+					>
+						<span class="icon">
+							<i class="fas fa-trash"></i>
+						</span>
+						<span>Supprimer</span>
+					</button>
+				</div>
+			</div>
 		</div>
 		<div class="columns">
-			<div class="column is-half">
+			<div class="column">
 				<form method="post">
 					<div class="field">
 						<label class="label" for="label">Libellé</label>
@@ -54,7 +68,7 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 							</button>
 						</div>
 						<div class="control">
-							<a href="/collections/" class="button is-light">Annuler</a>
+							<a href={ common.BaseURL(ctx, common.WithPath("/collections/")) } class="button is-light">Annuler</a>
 						</div>
 					</div>
 				</form>

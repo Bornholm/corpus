@@ -59,7 +59,8 @@ func (h *Handler) handleCollectionUpdate(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	http.Redirect(w, r, "/collections/", http.StatusSeeOther)
+	redirectURL := commonComp.BaseURL(r.Context(), commonComp.WithPath("/collections/"))
+	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
 }
 
 func (h *Handler) fillCollectionEditPageViewModel(r *http.Request) (*component.CollectionEditPageVModel, error) {
