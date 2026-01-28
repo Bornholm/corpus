@@ -225,6 +225,44 @@ func (h *Handler) postPublicShare(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
 }
 
+func (h *Handler) handlePublicShareDelete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	publicShareID := model.PublicShareID(r.PathValue("id"))
+	if publicShareID == "" {
+		common.HandleError(w, r, errors.New("public share ID is required"))
+		return
+	}
+
+	// Get the current user from context
+	user := httpCtx.User(ctx)
+	if user == nil {
+		common.HandleError(w, r, errors.New("could not retrieve user from context"))
+		return
+	}
+
+	// Verify the public share exists
+	_, err := h.publicShareStore.GetPublicShareByID(ctx, publicShareID)
+	if err != nil {
+		if errors.Is(err, port.ErrNotFound) {
+			common.HandleError(w, r, errors.New("public share not found"))
+			return
+		}
+		common.HandleError(w, r, errors.WithStack(err))
+		return
+	}
+
+	// Delete the public share
+	if err := h.publicShareStore.DeletePublicShare(ctx, publicShareID); err != nil {
+		common.HandleError(w, r, errors.WithStack(err))
+		return
+	}
+
+	// Redirect back to public shares list
+	redirectURL := commonComp.BaseURL(r.Context(), commonComp.WithPath("/admin/public-shares"))
+	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
+}
+
 func (h *Handler) fillPublicSharesPageViewModel(r *http.Request) (*component.PublicSharesPageVModel, error) {
 	vmodel := &component.PublicSharesPageVModel{}
 	ctx := r.Context()

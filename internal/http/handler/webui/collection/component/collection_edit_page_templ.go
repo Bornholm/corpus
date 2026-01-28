@@ -60,14 +60,14 @@ func CollectionEditPage(vmodel CollectionEditPageVModel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Modifier une collection</h2></div></div><div class=\"level-right\"><div class=\"level-item\"><button class=\"button is-danger\" hx-post=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Modifier une collection</h2></div></div><div class=\"level-right\"><div class=\"level-item\"><button class=\"button is-danger\" hx-delete=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var4 string
-			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "delete")))
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()))))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/collection/component/collection_edit_page.templ`, Line: 32, Col: 110}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/collection/component/collection_edit_page.templ`, Line: 32, Col: 102}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 			if templ_7745c5c3_Err != nil {

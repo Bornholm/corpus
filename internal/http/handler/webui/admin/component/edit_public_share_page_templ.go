@@ -53,11 +53,33 @@ func EditPublicSharePage(vmodel EditPublicSharePageVModel) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><a href=\"/admin/public-shares\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Modifier le partage public</h2></div></div><div class=\"level-right\"></div></div><div class=\"columns\"><div class=\"column\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"level is-mobile\"><div class=\"level-left\"><div class=\"level-item\"><a href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Var3 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+			var templ_7745c5c3_Var3 templ.SafeURL = commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares"))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var3)))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Modifier le partage public</h2></div></div><div class=\"level-right\"><div class=\"level-item\"><button class=\"button is-danger\" hx-delete=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var4 string
+			templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinStringErrs(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()))))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/http/handler/webui/admin/component/edit_public_share_page.templ`, Line: 34, Col: 119}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-confirm=\"Êtes-vous sûr de vouloir supprimer ce partage public ? Cette action ne peut pas être annulée.\" hx-target=\"body\"><span class=\"icon\"><i class=\"fas fa-trash\"></i></span> <span>Supprimer</span></button></div></div></div><div class=\"columns\"><div class=\"column\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Var5 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 				templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 				templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 				if !templ_7745c5c3_IsBuffer {
@@ -69,17 +91,26 @@ func EditPublicSharePage(vmodel EditPublicSharePageVModel) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "<div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Modifier le partage</span></button></div><div class=\"control\"><a href=\"/admin/public-shares\" class=\"button is-light\">Annuler</a></div></div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Modifier le partage</span></button></div><div class=\"control\"><a href=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var6 templ.SafeURL = commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares"))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(string(templ_7745c5c3_Var6)))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "\" class=\"button is-light\">Annuler</a></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				return nil
 			})
-			templ_7745c5c3_Err = form.FormWrapper(vmodel.PublicShareForm, commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()), "edit")), "POST").Render(templ.WithChildren(ctx, templ_7745c5c3_Var3), templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = form.FormWrapper(vmodel.PublicShareForm, commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()), "edit")), "POST").Render(templ.WithChildren(ctx, templ_7745c5c3_Var5), templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

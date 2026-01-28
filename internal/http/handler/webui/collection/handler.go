@@ -30,7 +30,7 @@ func NewHandler(documentManager *service.DocumentManager) *Handler {
 	h.mux.Handle("POST /new", assertUser(http.HandlerFunc(h.handleCollectionCreate)))
 	h.mux.Handle("GET /{id}/edit", assertUser(http.HandlerFunc(h.getCollectionEditPage)))
 	h.mux.Handle("POST /{id}/edit", assertUser(http.HandlerFunc(h.handleCollectionUpdate)))
-	h.mux.Handle("POST /{id}/delete", assertUser(http.HandlerFunc(h.handleCollectionDelete)))
+	h.mux.Handle("DELETE /{id}", assertUser(http.HandlerFunc(h.handleCollectionDelete)))
 
 	return h
 }
