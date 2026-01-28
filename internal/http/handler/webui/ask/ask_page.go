@@ -63,7 +63,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	searchOptions = append(searchOptions, service.WithDocumentManagerSearchCollections(collections...))
 
 	results, err := h.documentManager.Search(ctx, vmodel.Query, searchOptions...)
-	if err != nil {
+	if err != nil && !errors.Is(err, service.ErrNoResults) {
 		common.HandleError(w, r, errors.WithStack(err))
 		return
 	}
