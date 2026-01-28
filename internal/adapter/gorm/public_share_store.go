@@ -66,6 +66,7 @@ func fromPublicShare(ps model.OwnedPublicShare) *PublicShare {
 	publicShare := &PublicShare{
 		ID:          string(ps.ID()),
 		Owner:       fromUser(ps.Owner()),
+		OwnerID:     string(ps.Owner().ID()),
 		Token:       ps.Token(),
 		Title:       ps.Title(),
 		Description: ps.Description(),
@@ -231,7 +232,7 @@ func (s *Store) SavePublicShare(ctx context.Context, publicShare model.OwnedPubl
 			savedPublicShare = &existing
 		} else {
 			// Create new public share
-			if err := db.Create(ps).Error; err != nil {
+			if err := db.Model(ps).Omit("Owner.Roles").Create(ps).Error; err != nil {
 				return errors.WithStack(err)
 			}
 			savedPublicShare = ps
