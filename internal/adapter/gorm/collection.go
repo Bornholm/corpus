@@ -52,9 +52,9 @@ func (w *wrappedCollection) Label() string {
 	return w.c.Label
 }
 
-// Name implements model.Collection.
-func (w *wrappedCollection) OwnerID() model.UserID {
-	return model.UserID(w.c.OwnerID)
+// Owner implements model.OwnedCollection.
+func (w *wrappedCollection) Owner() model.User {
+	return &wrappedUser{w.c.Owner}
 }
 
 var _ model.PersistedCollection = &wrappedCollection{}
@@ -62,7 +62,7 @@ var _ model.PersistedCollection = &wrappedCollection{}
 func fromCollection(c model.OwnedCollection) *Collection {
 	collection := &Collection{
 		ID:          string(c.ID()),
-		OwnerID:     string(c.OwnerID()),
+		Owner:       fromUser(c.Owner()),
 		Label:       c.Label(),
 		Description: c.Description(),
 	}

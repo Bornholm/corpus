@@ -51,6 +51,8 @@ func NewDocumentManagerOptions(funcs ...DocumentManagerOptionFunc) *DocumentMana
 type DocumentManager struct {
 	port.DocumentStore
 
+	userStore port.UserStore
+
 	maxWordPerSection int
 	fileConverter     port.FileConverter
 	index             port.Index
@@ -339,7 +341,7 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 	}()
 
 	var (
-		document *markdown.Document
+		document model.OwnedDocument
 	)
 
 	var reader io.ReadCloser
@@ -399,8 +401,6 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					return errors.Wrap(err, "could not parse document")
 				}
 
-				doc.SetOwnerID(indexFileTask.ownerID)
-
 				events <- port.NewTaskEvent(port.WithTaskMessage("document parsed"))
 
 				if indexFileTask.opts.Source != nil {
@@ -441,7 +441,12 @@ func (m *DocumentManager) handleIndexFileTask(ctx context.Context, task port.Tas
 					doc.AddCollection(coll)
 				}
 
-				document = doc
+				user, err := m.userStore.GetUserByID(ctx, indexFileTask.ownerID)
+				if err != nil {
+					return errors.Wrap(err, "could not retrieve task owner")
+				}
+
+				document = model.AsOwnedDocument(doc, user)
 
 				events <- port.NewTaskEvent(port.WithTaskProgress(0.1))
 

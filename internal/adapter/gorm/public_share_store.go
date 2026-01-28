@@ -47,8 +47,8 @@ func (w *wrappedPublicShare) Description() string {
 }
 
 // OwnerID implements [model.OwnedPublicShare].
-func (w *wrappedPublicShare) OwnerID() model.UserID {
-	return model.UserID(w.ps.OwnerID)
+func (w *wrappedPublicShare) Owner() model.User {
+	return &wrappedUser{w.ps.Owner}
 }
 
 // Collections implements [model.PublicShare].
@@ -65,7 +65,7 @@ var _ model.PersistedPublicShare = &wrappedPublicShare{}
 func fromPublicShare(ps model.OwnedPublicShare) *PublicShare {
 	publicShare := &PublicShare{
 		ID:          string(ps.ID()),
-		OwnerID:     string(ps.OwnerID()),
+		Owner:       fromUser(ps.Owner()),
 		Token:       ps.Token(),
 		Title:       ps.Title(),
 		Description: ps.Description(),

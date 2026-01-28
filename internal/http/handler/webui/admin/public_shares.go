@@ -124,7 +124,7 @@ func (h *Handler) postEditPublicShare(w http.ResponseWriter, r *http.Request) {
 	// Update public share
 	updatedShare := &basePublicShare{
 		id:          existingShare.ID(),
-		ownerID:     existingShare.OwnerID(),
+		owner:       existingShare.Owner(),
 		token:       existingShare.Token(), // Keep existing token
 		title:       title,
 		description: description,
@@ -206,7 +206,7 @@ func (h *Handler) postPublicShare(w http.ResponseWriter, r *http.Request) {
 	// Create public share
 	publicShare := &basePublicShare{
 		id:          model.NewPublicShareID(),
-		ownerID:     user.ID(),
+		owner:       user,
 		token:       token,
 		title:       title,
 		description: description,
@@ -438,7 +438,7 @@ func (h *Handler) newPublicShareForm(collections []model.PersistedCollection) *f
 // basePublicShare implements model.OwnedPublicShare
 type basePublicShare struct {
 	id          model.PublicShareID
-	ownerID     model.UserID
+	owner       model.User
 	token       string
 	title       string
 	description string
@@ -449,8 +449,8 @@ func (ps *basePublicShare) ID() model.PublicShareID {
 	return ps.id
 }
 
-func (ps *basePublicShare) OwnerID() model.UserID {
-	return ps.ownerID
+func (ps *basePublicShare) Owner() model.User {
+	return ps.owner
 }
 
 func (ps *basePublicShare) Token() string {

@@ -71,9 +71,9 @@ func (s *Store) GenerateSnapshot(ctx context.Context) (io.ReadCloser, error) {
 					ownedCollections[i] = oc
 				}
 
-				owner, err := s.GetUserByID(ctx, d.OwnerID())
+				owner, err := s.GetUserByID(ctx, d.Owner().ID())
 				if err != nil {
-					w.CloseWithError(errors.Wrapf(err, "could not retrieve user '%s'", d.OwnerID()))
+					w.CloseWithError(errors.Wrapf(err, "could not retrieve user '%s'", d.Owner().ID()))
 					return
 				}
 
@@ -170,6 +170,42 @@ type SnapshottedUser struct {
 	Subject  string
 }
 
+type wrappedSnapshottedUser struct {
+	u SnapshottedUser
+}
+
+// DisplayName implements [model.User].
+func (w *wrappedSnapshottedUser) DisplayName() string {
+	return ""
+}
+
+// Email implements [model.User].
+func (w *wrappedSnapshottedUser) Email() string {
+	return ""
+}
+
+// ID implements [model.User].
+func (w *wrappedSnapshottedUser) ID() model.UserID {
+	return model.UserID(w.u.ID)
+}
+
+// Provider implements [model.User].
+func (w *wrappedSnapshottedUser) Provider() string {
+	return w.u.Provider
+}
+
+// Roles implements [model.User].
+func (w *wrappedSnapshottedUser) Roles() []string {
+	return []string{}
+}
+
+// Subject implements [model.User].
+func (w *wrappedSnapshottedUser) Subject() string {
+	return w.u.Subject
+}
+
+var _ model.User = &wrappedSnapshottedUser{}
+
 func toSnapshottedUser(user model.User) SnapshottedUser {
 	return SnapshottedUser{
 		ID:       string(user.ID()),
@@ -178,13 +214,17 @@ func toSnapshottedUser(user model.User) SnapshottedUser {
 	}
 }
 
+func fromSnapshottedUser(u SnapshottedUser) model.User {
+	return &wrappedSnapshottedUser{}
+}
+
 type snapshottedDocumentWrapper struct {
 	snapshot SnapshottedDocument
 }
 
 // OwnerID implements [model.Document].
-func (w *snapshottedDocumentWrapper) OwnerID() model.UserID {
-	return model.UserID(w.snapshot.Owner.ID)
+func (w *snapshottedDocumentWrapper) Owner() model.User {
+	return &wrappedSnapshottedUser{w.snapshot.Owner}
 }
 
 // ETag implements model.Document.
@@ -282,7 +322,7 @@ func toSnapshottedCollections(collections []model.OwnedCollection) []Snapshotted
 	for _, c := range collections {
 		snapshots = append(snapshots, SnapshottedCollection{
 			ID:          string(c.ID()),
-			OwnerID:     string(c.OwnerID()),
+			OwnerID:     string(c.Owner().ID()),
 			Label:       c.Label(),
 			Description: c.Description(),
 		})

@@ -10,20 +10,10 @@ import (
 type Document struct {
 	data        []byte
 	id          model.DocumentID
-	ownerID     model.UserID
 	etag        string
 	source      *url.URL
 	collections []model.Collection
 	sections    []*Section
-}
-
-// OwnerID implements [model.Document].
-func (d *Document) OwnerID() model.UserID {
-	return d.ownerID
-}
-
-func (d *Document) SetOwnerID(ownerID model.UserID) {
-	d.ownerID = ownerID
 }
 
 // ETag implements model.Document.

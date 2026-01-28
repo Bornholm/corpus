@@ -38,8 +38,8 @@ func (w *wrappedDocument) UpdatedAt() time.Time {
 }
 
 // OwnerID implements [model.Document].
-func (w *wrappedDocument) OwnerID() model.UserID {
-	return model.UserID(w.d.OwnerID)
+func (w *wrappedDocument) Owner() model.User {
+	return &wrappedUser{w.d.Owner}
 }
 
 // ETag implements model.Document.
@@ -105,7 +105,7 @@ func fromDocument(d model.OwnedDocument) (*Document, error) {
 
 	document := &Document{
 		ID:          string(d.ID()),
-		OwnerID:     string(d.OwnerID()),
+		Owner:       fromUser(d.Owner()),
 		ETag:        d.ETag(),
 		Source:      d.Source().String(),
 		Collections: make([]*Collection, 0, len(d.Collections())),

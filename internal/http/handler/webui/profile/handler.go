@@ -120,7 +120,7 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 	label, _ := tokenForm.GetFieldValue("label")
 
 	// Create auth token
-	authToken := model.NewAuthToken(user.ID(), label, tokenValue)
+	authToken := model.NewAuthToken(user, label, tokenValue)
 	if err := h.userStore.CreateAuthToken(ctx, authToken); err != nil {
 		slog.ErrorContext(ctx, "could not create auth token", slogx.Error(err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)

@@ -65,7 +65,7 @@ func (h *Handler) handleCollectionCreate(w http.ResponseWriter, r *http.Request)
 		// Find the newly created collection (it should be the last one with matching label and owner)
 		var newCollection model.Collection
 		for _, c := range collections {
-			if c.Label() == label && c.OwnerID() == user.ID() {
+			if c.Label() == label && c.Owner().ID() == user.ID() {
 				newCollection = c
 			}
 		}

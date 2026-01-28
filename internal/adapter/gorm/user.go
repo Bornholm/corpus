@@ -127,9 +127,9 @@ func (w *wrappedAuthToken) ID() model.AuthTokenID {
 	return model.AuthTokenID(w.t.ID)
 }
 
-// OwnerID implements model.AuthToken.
-func (w *wrappedAuthToken) OwnerID() model.UserID {
-	return model.UserID(w.t.OwnerID)
+// Owner implements model.AuthToken.
+func (w *wrappedAuthToken) Owner() model.User {
+	return &wrappedUser{w.t.Owner}
 }
 
 // Label implements model.AuthToken.

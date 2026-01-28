@@ -15,7 +15,7 @@ import (
 func fromAuthToken(t model.AuthToken) *AuthToken {
 	return &AuthToken{
 		ID:      string(t.ID()),
-		OwnerID: string(t.OwnerID()),
+		OwnerID: string(t.Owner().ID()),
 		Label:   t.Label(),
 		Value:   t.Value(),
 	}

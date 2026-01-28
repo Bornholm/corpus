@@ -113,10 +113,10 @@ type AuthToken interface {
 }
 
 type BaseAuthToken struct {
-	id     AuthTokenID
-	userID UserID
-	label  string
-	value  string
+	id    AuthTokenID
+	owner User
+	label string
+	value string
 }
 
 // ID implements AuthToken.
@@ -125,8 +125,8 @@ func (t *BaseAuthToken) ID() AuthTokenID {
 }
 
 // OwnerID implements AuthToken.
-func (t *BaseAuthToken) OwnerID() UserID {
-	return t.userID
+func (t *BaseAuthToken) Owner() User {
+	return t.owner
 }
 
 // Label implements AuthToken.
@@ -141,11 +141,11 @@ func (t *BaseAuthToken) Value() string {
 
 var _ AuthToken = &BaseAuthToken{}
 
-func NewAuthToken(userID UserID, label, value string) *BaseAuthToken {
+func NewAuthToken(owner User, label, value string) *BaseAuthToken {
 	return &BaseAuthToken{
-		id:     NewAuthTokenID(),
-		userID: userID,
-		label:  label,
-		value:  value,
+		id:    NewAuthTokenID(),
+		owner: owner,
+		label: label,
+		value: value,
 	}
 }

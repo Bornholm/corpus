@@ -1,13 +1,15 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type WithID[T ~string] interface {
 	ID() T
 }
 
 type WithOwner interface {
-	OwnerID() UserID
+	Owner() User
 }
 
 type WithLifecycle interface {

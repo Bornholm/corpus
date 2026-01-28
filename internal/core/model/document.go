@@ -33,6 +33,22 @@ type OwnedDocument interface {
 	WithOwner
 }
 
+type ownedDocument struct {
+	Document
+	owner User
+}
+
+func (d *ownedDocument) Owner() User {
+	return d.owner
+}
+
+func AsOwnedDocument(doc Document, owner User) OwnedDocument {
+	return &ownedDocument{
+		Document: doc,
+		owner:    owner,
+	}
+}
+
 type PersistedDocument interface {
 	OwnedDocument
 	WithLifecycle
