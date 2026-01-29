@@ -23,7 +23,7 @@ type PublicSharePageVModel struct {
 const defaultMaxCollections = 3
 
 templ PublicSharePage(vmodel PublicSharePageVModel) {
-	@common.Page(common.WithTitle(vmodel.PublicShare.Title())) {
+	@common.Page(common.WithTitle(vmodel.PublicShare.Title()), common.WithDescription(toMetaDescription(vmodel.PublicShare.Description()))) {
 		<section class="section">
 			<div class="container">
 				<div class="level">
@@ -149,4 +149,15 @@ templ PublicSharePage(vmodel PublicSharePageVModel) {
 			</div>
 		</section>
 	}
+}
+
+func toMetaDescription(str string) string {
+	parts := strings.SplitN(str, "\n", 2)
+
+	line := strings.ReplaceAll(parts[0], "#", "")
+	line = strings.ReplaceAll(line, "*", "")
+	line = strings.ReplaceAll(line, "_", "")
+	line = strings.TrimSpace(line)
+
+	return line
 }

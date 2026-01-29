@@ -253,12 +253,23 @@ func PublicSharePage(vmodel PublicSharePageVModel) templ.Component {
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = common.Page(common.WithTitle(vmodel.PublicShare.Title())).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = common.Page(common.WithTitle(vmodel.PublicShare.Title()), common.WithDescription(toMetaDescription(vmodel.PublicShare.Description()))).Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
+}
+
+func toMetaDescription(str string) string {
+	parts := strings.SplitN(str, "\n", 2)
+
+	line := strings.ReplaceAll(parts[0], "#", "")
+	line = strings.ReplaceAll(line, "*", "")
+	line = strings.ReplaceAll(line, "_", "")
+	line = strings.TrimSpace(line)
+
+	return line
 }
 
 var _ = templruntime.GeneratedTemplate

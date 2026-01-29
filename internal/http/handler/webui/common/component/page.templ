@@ -6,6 +6,7 @@ type PageOptions struct {
 	Title         string
 	IncludeFooter bool
 	Head          func() templ.Component
+	Description   string
 }
 
 type PageOptionFunc func(opts *PageOptions)
@@ -13,6 +14,12 @@ type PageOptionFunc func(opts *PageOptions)
 func WithTitle(title string) PageOptionFunc {
 	return func(opts *PageOptions) {
 		opts.Title = title
+	}
+}
+
+func WithDescription(description string) PageOptionFunc {
+	return func(opts *PageOptions) {
+		opts.Description = description
 	}
 }
 
@@ -55,6 +62,9 @@ templ Page(funcs ...PageOptionFunc) {
 					Corpus
 				}
 			</title>
+			if opts.Description != "" {
+				<meta name="description" content={ opts.Description }/>
+			}
 			<link rel="icon" type="image/png" href={ string(BaseURL(ctx, WithPath("/assets/favicon.png"))) }/>
 			<link rel="stylesheet" href={ string(BaseURL(ctx, WithPath("/assets/bulma.min.css"))) }/>
 			<link rel="stylesheet" href={ string(BaseURL(ctx, WithPath("/assets/fontawesome/css/all.min.css"))) }/>
