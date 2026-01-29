@@ -121,19 +121,15 @@ func (h *IndexFileHandler) Handle(ctx context.Context, task model.Task, events c
 					doc.SetETag(indexFileTask.etag)
 				}
 
-				writableCollections, _, err := h.documentStore.QueryUserWritableCollections(ctx, indexFileTask.Owner().ID(), port.QueryCollectionsOptions{})
-				if err != nil {
-					return errors.Wrap(err, "could not retrieve user writable collections")
-				}
-
 				if len(indexFileTask.collections) == 0 {
 					return errors.New("no specified target collections")
 				}
 
 				for _, collectionID := range indexFileTask.collections {
-					isWritable := slices.ContainsFunc(writableCollections, func(c model.PersistedCollection) bool {
-						return collectionID == c.ID()
-					})
+					isWritable, err := h.documentStore.CanWriteCollection(ctx, indexFileTask.owner.ID(), collectionID)
+					if err != nil {
+						return errors.Wrap(err, "could not check if collection is writable")
+					}
 
 					if !isWritable {
 						return errors.Errorf("collection '%s' is not writable to the user '%s'", collectionID, indexFileTask.Owner().ID())

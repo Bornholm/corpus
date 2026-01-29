@@ -204,6 +204,13 @@ func (s *Store) UpdateCollection(ctx context.Context, id model.CollectionID, upd
 // DeleteCollection implements [port.DocumentStore].
 func (s *Store) DeleteCollection(ctx context.Context, id model.CollectionID) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+
+		if err := db.Model(&Collection{
+			ID: string(id),
+		}).Association("PublicShares").Clear(); err != nil {
+			return errors.WithStack(err)
+		}
+
 		if err := db.Model(&Collection{}).Delete("id = ?", id).Error; err != nil {
 			return errors.WithStack(err)
 		}
