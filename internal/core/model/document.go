@@ -1,14 +1,9 @@
 package model
 
 import (
-	"errors"
 	"net/url"
 
 	"github.com/rs/xid"
-)
-
-var (
-	ErrOutOfRange = errors.New("out of range")
 )
 
 type DocumentID string

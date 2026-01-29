@@ -27,8 +27,12 @@ func (d *Document) SetETag(etag string) {
 
 // Chunk implements model.Document.
 func (d *Document) Chunk(start int, end int) ([]byte, error) {
-	if start < 0 || end > len(d.data) {
-		return nil, errors.New("out of range")
+	if start < 0 {
+		start = 0
+	}
+
+	if end > len(d.data) {
+		end = len(d.data)
 	}
 
 	return d.data[start:end], nil

@@ -2,6 +2,7 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"slices"
 	"strconv"
@@ -110,7 +111,7 @@ func (h *Handler) postEditPublicShare(w http.ResponseWriter, r *http.Request) {
 	var selectedCollections []model.Collection
 	for _, idStr := range collectionIDsStr {
 		collectionID := model.CollectionID(idStr)
-		collection, err := h.documentStore.GetCollectionByID(ctx, collectionID)
+		collection, err := h.documentStore.GetCollectionByID(ctx, collectionID, false)
 		if err != nil {
 			if errors.Is(err, port.ErrNotFound) {
 				continue // Skip invalid collection IDs
@@ -193,7 +194,7 @@ func (h *Handler) postPublicShare(w http.ResponseWriter, r *http.Request) {
 	var selectedCollections []model.Collection
 	for _, idStr := range collectionIDsStr {
 		collectionID := model.CollectionID(idStr)
-		collection, err := h.documentStore.GetCollectionByID(ctx, collectionID)
+		collection, err := h.documentStore.GetCollectionByID(ctx, collectionID, false)
 		if err != nil {
 			if errors.Is(err, port.ErrNotFound) {
 				continue // Skip invalid collection IDs
@@ -462,7 +463,7 @@ func (h *Handler) newPublicShareForm(collections []model.PersistedCollection) *f
 			formx.WithSelectOptions(slices.Collect(func(yield func(formx.SelectOption) bool) {
 				for _, c := range collections {
 					if !yield(formx.SelectOption{
-						Label: c.Label(),
+						Label: fmt.Sprintf("%s (%s)", c.Label(), c.Owner().DisplayName()),
 						Value: string(c.ID()),
 					}) {
 						return

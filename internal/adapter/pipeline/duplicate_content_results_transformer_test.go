@@ -125,7 +125,7 @@ func (d *dummyStore) CreateCollection(ctx context.Context, ownerID model.UserID,
 }
 
 // DeleteDocumentByID implements [port.DocumentStore].
-func (d *dummyStore) DeleteDocumentByID(ctx context.Context, id model.DocumentID) error {
+func (d *dummyStore) DeleteDocumentByID(ctx context.Context, ids ...model.DocumentID) error {
 	panic("unimplemented")
 }
 
@@ -135,7 +135,7 @@ func (d *dummyStore) DeleteDocumentBySource(ctx context.Context, ownerID model.U
 }
 
 // GetCollectionByID implements [port.DocumentStore].
-func (d *dummyStore) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.PersistedCollection, error) {
+func (d *dummyStore) GetCollectionByID(ctx context.Context, id model.CollectionID, full bool) (model.PersistedCollection, error) {
 	panic("unimplemented")
 }
 

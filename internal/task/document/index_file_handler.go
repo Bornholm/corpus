@@ -1,4 +1,4 @@
-package index
+package document
 
 import (
 	"context"
@@ -139,7 +139,7 @@ func (h *IndexFileHandler) Handle(ctx context.Context, task model.Task, events c
 						return errors.Errorf("collection '%s' is not writable to the user '%s'", collectionID, indexFileTask.Owner().ID())
 					}
 
-					coll, err := h.documentStore.GetCollectionByID(ctx, collectionID)
+					coll, err := h.documentStore.GetCollectionByID(ctx, collectionID, false)
 					if err != nil {
 						return errors.WithStack(err)
 					}

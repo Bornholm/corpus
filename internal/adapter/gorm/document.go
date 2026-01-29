@@ -49,8 +49,12 @@ func (w *wrappedDocument) ETag() string {
 
 // Chunk implements model.Document.
 func (w *wrappedDocument) Chunk(start int, end int) ([]byte, error) {
-	if start < 0 || end > len(w.d.Content) {
-		return nil, errors.WithStack(model.ErrOutOfRange)
+	if start < 0 {
+		start = 0
+	}
+
+	if end > len(w.d.Content) {
+		end = len(w.d.Content)
 	}
 
 	return w.d.Content[start:end], nil

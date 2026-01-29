@@ -4,12 +4,11 @@ import (
 	"context"
 
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/task/index"
-	indexTask "github.com/bornholm/corpus/internal/task/index"
+	documentTask "github.com/bornholm/corpus/internal/task/document"
 	"github.com/pkg/errors"
 )
 
-var getCleanupIndexTaskHandler = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (*index.CleanupIndexHandler, error) {
+var getCleanupTaskHandler = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (*documentTask.CleanupHandler, error) {
 	documentStore, err := getDocumentStoreFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create document store from config")
@@ -20,7 +19,7 @@ var getCleanupIndexTaskHandler = createFromConfigOnce(func(ctx context.Context, 
 		return nil, errors.Wrap(err, "could not create index from config")
 	}
 
-	handler := indexTask.NewCleanupIndexHandler(index, documentStore)
+	handler := documentTask.NewCleanupHandler(index, documentStore)
 
 	return handler, nil
 })

@@ -45,7 +45,7 @@ func (h *Handler) handleCollectionDelete(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Get the collection to verify it exists
-	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID)
+	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID, false)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			common.HandleError(w, r, errors.New("collection not found"))

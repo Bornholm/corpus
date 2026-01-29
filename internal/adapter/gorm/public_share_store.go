@@ -114,7 +114,7 @@ func (s *Store) FindPublicShareByToken(ctx context.Context, token string) (model
 	var publicShare PublicShare
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations).First(&publicShare, "token = ?", token).Error; err != nil {
+		if err := db.Preload(clause.Associations).Preload("Collections.Owner").First(&publicShare, "token = ?", token).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -135,7 +135,7 @@ func (s *Store) GetPublicShareByID(ctx context.Context, id model.PublicShareID) 
 	var publicShare PublicShare
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations).First(&publicShare, "id = ?", string(id)).Error; err != nil {
+		if err := db.Preload(clause.Associations).Preload("Collections.Owner").First(&publicShare, "id = ?", string(id)).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}

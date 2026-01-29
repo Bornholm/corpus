@@ -15,18 +15,13 @@ import (
 )
 
 // DeleteDocumentByID implements port.DocumentStore.
-func (s *Store) DeleteDocumentByID(ctx context.Context, id model.DocumentID) error {
+func (s *Store) DeleteDocumentByID(ctx context.Context, ids ...model.DocumentID) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		var doc Document
-		if err := db.First(&doc, "id = ?", id).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil
-			}
-
+		if err := db.Model(&Section{}).Delete("document_id in ?", ids).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
-		if err := db.Select(clause.Associations).Delete(&doc).Error; err != nil {
+		if err := db.Model(&Document{}).Delete("id in ?", ids).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -87,11 +82,15 @@ func (s *Store) GetDocumentByID(ctx context.Context, id model.DocumentID) (model
 }
 
 // GetCollectionByID implements [port.DocumentStore].
-func (s *Store) GetCollectionByID(ctx context.Context, id model.CollectionID) (model.PersistedCollection, error) {
+func (s *Store) GetCollectionByID(ctx context.Context, id model.CollectionID, full bool) (model.PersistedCollection, error) {
 	var collection Collection
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations).First(&collection, "id = ?", id).Error; err != nil {
+		query := db.Preload("Owner")
+		if full {
+			query = query.Preload(clause.Associations)
+		}
+		if err := query.First(&collection, "id = ?", id).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -205,19 +204,7 @@ func (s *Store) UpdateCollection(ctx context.Context, id model.CollectionID, upd
 // DeleteCollection implements [port.DocumentStore].
 func (s *Store) DeleteCollection(ctx context.Context, id model.CollectionID) error {
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		var collection Collection
-		if err := db.Preload(clause.Associations).First(&collection, "id = ?", id).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return errors.WithStack(port.ErrNotFound)
-			}
-			return errors.WithStack(err)
-		}
-
-		if err := db.Delete(&collection.Documents).Error; err != nil {
-			return errors.WithStack(err)
-		}
-
-		if err := db.Select(clause.Associations).Delete(&collection).Error; err != nil {
+		if err := db.Model(&Collection{}).Delete("id = ?", id).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -261,6 +248,10 @@ func (s *Store) QueryCollections(ctx context.Context, opts port.QueryCollections
 
 	if opts.Limit != nil {
 		query = query.Limit(*opts.Limit)
+	}
+
+	if !opts.HeaderOnly {
+		query = query.Preload(clause.Associations)
 	}
 
 	var collections []*Collection
@@ -378,6 +369,16 @@ func (s *Store) QueryDocuments(ctx context.Context, opts port.QueryDocumentsOpti
 			query = query.Where("source = ?", opts.MatchingSource.String())
 		}
 
+		if opts.Orphaned != nil {
+			if *opts.Orphaned {
+				// Find documents that have no collections attached
+				query = query.Where("id NOT IN (SELECT document_id FROM documents_collections)")
+			} else {
+				// Find documents that have at least one collection attached
+				query = query.Where("id IN (SELECT document_id FROM documents_collections)")
+			}
+		}
+
 		if err := query.Find(&documents).Error; err != nil {
 			return errors.WithStack(err)
 		}
@@ -410,6 +411,16 @@ func (s *Store) QueryUserReadableDocuments(ctx context.Context, userID model.Use
 
 		if opts.MatchingSource != nil {
 			query = query.Where("source = ?", opts.MatchingSource.String())
+		}
+
+		if opts.Orphaned != nil {
+			if *opts.Orphaned {
+				// Find documents that have no collections attached
+				query = query.Where("id NOT IN (SELECT document_id FROM documents_collections)")
+			} else {
+				// Find documents that have at least one collection attached
+				query = query.Where("id IN (SELECT document_id FROM documents_collections)")
+			}
 		}
 
 		if err := query.Count(&total).Error; err != nil {
@@ -466,6 +477,16 @@ func (s *Store) QueryUserWritableDocuments(ctx context.Context, userID model.Use
 
 		if opts.MatchingSource != nil {
 			query = query.Where("source = ?", opts.MatchingSource.String())
+		}
+
+		if opts.Orphaned != nil {
+			if *opts.Orphaned {
+				// Find documents that have no collections attached
+				query = query.Where("id NOT IN (SELECT document_id FROM documents_collections)")
+			} else {
+				// Find documents that have at least one collection attached
+				query = query.Where("id IN (SELECT document_id FROM documents_collections)")
+			}
 		}
 
 		if err := query.Count(&total).Error; err != nil {

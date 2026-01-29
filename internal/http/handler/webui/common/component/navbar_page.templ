@@ -5,7 +5,7 @@ templ NavbarPage(navbar NavbarVModel, funcs ...PageOptionFunc) {
 		{{ isDesktopApp := IsDesktopApp(ctx) }}
 		<div class={ "container", templ.KV("is-fluid", isDesktopApp) }>
 			@Navbar(navbar)
-			<section class="section pt-3 px-0">
+			<section class="section pt-3">
 				{ children... }
 			</section>
 		</div>

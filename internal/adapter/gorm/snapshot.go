@@ -234,8 +234,12 @@ func (w *snapshottedDocumentWrapper) ETag() string {
 
 // Chunk implements model.Document.
 func (w *snapshottedDocumentWrapper) Chunk(start int, end int) ([]byte, error) {
-	if start < 0 || end >= len(w.snapshot.Content) {
-		return nil, errors.WithStack(model.ErrOutOfRange)
+	if start < 0 {
+		start = 0
+	}
+
+	if end > len(w.snapshot.Content) {
+		end = len(w.snapshot.Content)
 	}
 
 	return w.snapshot.Content[start:end], nil

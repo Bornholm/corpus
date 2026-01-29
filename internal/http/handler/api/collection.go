@@ -88,7 +88,7 @@ func (h *Handler) handleGetCollection(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID)
+	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID, false)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
@@ -190,7 +190,7 @@ func (h *Handler) handleDeleteCollection(w http.ResponseWriter, r *http.Request)
 	ctx := r.Context()
 
 	// First check if collection exists
-	_, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID)
+	_, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID, false)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)

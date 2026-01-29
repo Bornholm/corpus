@@ -11,7 +11,7 @@ type DocumentStore interface {
 	GetDocumentByID(ctx context.Context, id model.DocumentID) (model.PersistedDocument, error)
 	SaveDocuments(ctx context.Context, documents ...model.OwnedDocument) error
 	DeleteDocumentBySource(ctx context.Context, ownerID model.UserID, source *url.URL) error
-	DeleteDocumentByID(ctx context.Context, id model.DocumentID) error
+	DeleteDocumentByID(ctx context.Context, ids ...model.DocumentID) error
 	QueryDocuments(ctx context.Context, opts QueryDocumentsOptions) ([]model.PersistedDocument, int64, error)
 
 	QueryUserReadableDocuments(ctx context.Context, userID model.UserID, opts QueryDocumentsOptions) ([]model.PersistedDocument, int64, error)
@@ -25,7 +25,7 @@ type DocumentStore interface {
 	GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error)
 	SectionExists(ctx context.Context, id model.SectionID) (bool, error)
 
-	GetCollectionByID(ctx context.Context, id model.CollectionID) (model.PersistedCollection, error)
+	GetCollectionByID(ctx context.Context, id model.CollectionID, full bool) (model.PersistedCollection, error)
 	QueryCollections(ctx context.Context, opts QueryCollectionsOptions) ([]model.PersistedCollection, error)
 	CreateCollection(ctx context.Context, ownerID model.UserID, label string) (model.PersistedCollection, error)
 	UpdateCollection(ctx context.Context, id model.CollectionID, updates CollectionUpdates) (model.PersistedCollection, error)
@@ -44,15 +44,28 @@ type QueryDocumentsOptions struct {
 	Page  *int
 	Limit *int
 
+	// Do not retrieve associations
 	HeaderOnly bool
 
+	// Filters
+
+	// Documents matching the given source
 	MatchingSource *url.URL
+
+	// Documents without parent collection
+	Orphaned *bool
 }
 
 type QueryCollectionsOptions struct {
 	Page  *int
 	Limit *int
 
+	// Do not retrieve associations
+	HeaderOnly bool
+
+	// Filters
+
+	// Collections with these ids
 	IDs []model.CollectionID
 }
 

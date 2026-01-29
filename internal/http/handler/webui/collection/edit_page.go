@@ -89,7 +89,7 @@ func (h *Handler) fillCollectionEditPageViewModel(r *http.Request) (*component.C
 func (h *Handler) fillCollectionEditPageVModelCollection(ctx context.Context, vmodel *component.CollectionEditPageVModel, r *http.Request) error {
 	collectionID := model.CollectionID(r.PathValue("id"))
 
-	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID)
+	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID, false)
 	if err != nil {
 		return errors.WithStack(err)
 	}

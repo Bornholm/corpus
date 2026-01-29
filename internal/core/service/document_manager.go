@@ -12,7 +12,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/metrics"
-	"github.com/bornholm/corpus/internal/task/index"
+	documentTask "github.com/bornholm/corpus/internal/task/document"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/corpus/internal/util"
 	"github.com/bornholm/genai/llm"
@@ -94,7 +94,7 @@ func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...Doc
 
 	collections := make([]model.CollectionID, 0)
 	for _, c := range opts.Collections {
-		coll, err := m.DocumentStore.GetCollectionByID(ctx, c)
+		coll, err := m.DocumentStore.GetCollectionByID(ctx, c, false)
 		if err != nil {
 			return nil, errors.WithStack(err)
 		}
@@ -303,7 +303,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, owner model.User, filen
 		return "", errors.WithStack(err)
 	}
 
-	indexFileTask := index.NewIndexFileTask(owner, path, filename, opts.ETag, opts.Source, opts.Collections)
+	indexFileTask := documentTask.NewIndexFileTask(owner, path, filename, opts.ETag, opts.Source, opts.Collections)
 
 	taskCtx := log.WithAttrs(context.Background(), slog.String("filename", filename), slog.String("filepath", path))
 
@@ -317,7 +317,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, owner model.User, filen
 func (m *DocumentManager) CleanupIndex(ctx context.Context, owner model.User, collections ...model.CollectionID) (model.TaskID, error) {
 	taskID := model.NewTaskID()
 
-	cleanupIndexTask := index.NewCleanupIndexTask(owner, collections)
+	cleanupIndexTask := documentTask.NewCleanupTask(owner, collections)
 
 	if err := m.taskRunner.Schedule(ctx, cleanupIndexTask); err != nil {
 		return "", errors.WithStack(err)
