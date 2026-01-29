@@ -1,0 +1,95 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
+)
+
+type UsersPageVModel struct {
+	Navbar      commonComp.NavbarVModel
+	Users       []model.User
+	CurrentPage int
+	PageSize    int
+}
+
+templ UsersPage(vmodel UsersPageVModel) {
+	@AdminPage(vmodel.Navbar, "users", commonComp.WithTitle("Utilisateurs")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<h1 class="title is-size-3">Utilisateurs</h1>
+				</div>
+			</div>
+		</div>
+		if len(vmodel.Users) == 0 {
+			<div class="notification is-info is-light">
+				<p>Aucun utilisateur trouvé.</p>
+			</div>
+		} else {
+			<div class="table-container">
+				<table class="table is-fullwidth is-striped">
+					<thead>
+						<tr>
+							<th>Nom d'affichage</th>
+							<th>Email</th>
+							<th>Fournisseur</th>
+							<th>Rôles</th>
+							<th>Statut</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, user := range vmodel.Users {
+							<tr>
+								<td>{ user.DisplayName() }</td>
+								<td>{ user.Email() }</td>
+								<td>{ user.Provider() }</td>
+								<td>
+									<div class="tags">
+										for _, role := range user.Roles() {
+											<span class="tag is-light">{ role }</span>
+										}
+									</div>
+								</td>
+								<td>
+									if user.Active() {
+										<span class="tag is-success">Actif</span>
+									} else {
+										<span class="tag is-danger">Inactif</span>
+									}
+								</td>
+								<td>
+									<div class="buttons">
+										<a href={ templ.SafeURL("/admin/users/" + string(user.ID()) + "/edit") } class="button is-primary is-small">
+											<span class="icon">
+												<i class="fas fa-edit"></i>
+											</span>
+											<span>Modifier</span>
+										</a>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<!-- Pagination -->
+			if vmodel.CurrentPage > 1 || len(vmodel.Users) == vmodel.PageSize {
+				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
+					if vmodel.CurrentPage > 1 {
+						<a class="pagination-previous" href={ templ.SafeURL("/admin/users?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+					}
+					if len(vmodel.Users) == vmodel.PageSize {
+						<a class="pagination-next" href={ templ.SafeURL("/admin/users?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
+					}
+					<ul class="pagination-list">
+						<li>
+							<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) }</span>
+						</li>
+					</ul>
+				</nav>
+			}
+		}
+	}
+}

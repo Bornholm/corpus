@@ -21,6 +21,8 @@ type User interface {
 	DisplayName() string
 
 	Roles() []string
+
+	Active() bool
 }
 
 type BaseUser struct {
@@ -30,6 +32,12 @@ type BaseUser struct {
 	subject     string
 	provider    string
 	roles       []string
+	active      bool
+}
+
+// Active implements [User].
+func (u *BaseUser) Active() bool {
+	return u.active
 }
 
 // Email implements [User].
@@ -75,7 +83,7 @@ func CopyUser(user User) *BaseUser {
 	}
 }
 
-func NewUser(provider, subject, email string, displayName string, roles ...string) *BaseUser {
+func NewUser(provider, subject, email string, displayName string, active bool, roles ...string) *BaseUser {
 	return &BaseUser{
 		id:          NewUserID(),
 		displayName: displayName,
@@ -83,11 +91,16 @@ func NewUser(provider, subject, email string, displayName string, roles ...strin
 		subject:     subject,
 		provider:    provider,
 		roles:       roles,
+		active:      active,
 	}
 }
 
 func (u *BaseUser) SetDisplayName(displayName string) {
 	u.displayName = displayName
+}
+
+func (u *BaseUser) SetActive(active bool) {
+	u.active = active
 }
 
 func (u *BaseUser) SetEmail(email string) {

@@ -29,6 +29,12 @@ func Has(role string) AssertFunc {
 	}
 }
 
+func Active() AssertFunc {
+	return func(ctx context.Context, user model.User) (bool, error) {
+		return user != nil && user.Active(), nil
+	}
+}
+
 func OneOf(funcs ...AssertFunc) AssertFunc {
 	return func(ctx context.Context, user model.User) (bool, error) {
 		for _, fn := range funcs {

@@ -15,7 +15,7 @@ func getBridgeMiddlewareFromConfig(ctx context.Context, conf *config.Config) (fu
 		return nil, errors.WithStack(err)
 	}
 
-	bridgeMiddleware := bridge.Middleware(userStore, conf.HTTP.Authn.DefaultAdmins...)
+	bridgeMiddleware := bridge.Middleware(userStore, conf.HTTP.Authn.ActiveByDefault, conf.HTTP.Authn.DefaultAdmins...)
 
 	return bridgeMiddleware, nil
 }

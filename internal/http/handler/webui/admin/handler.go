@@ -33,6 +33,12 @@ func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publ
 	assertAdmin := authz.Middleware(http.HandlerFunc(h.getForbiddenPage), authz.Has(authz.RoleAdmin))
 
 	h.mux.Handle("GET /", assertAdmin(http.HandlerFunc(h.getIndexPage)))
+
+	// User routes
+	h.mux.Handle("GET /users", assertAdmin(http.HandlerFunc(h.getUsersPage)))
+	h.mux.Handle("GET /users/{id}/edit", assertAdmin(http.HandlerFunc(h.getEditUserPage)))
+	h.mux.Handle("POST /users/{id}/edit", assertAdmin(http.HandlerFunc(h.postEditUser)))
+
 	h.mux.Handle("GET /public-shares", assertAdmin(http.HandlerFunc(h.getPublicSharesPage)))
 	h.mux.Handle("GET /public-shares/new", assertAdmin(http.HandlerFunc(h.getNewPublicSharePage)))
 	h.mux.Handle("POST /public-shares", assertAdmin(http.HandlerFunc(h.postPublicShare)))

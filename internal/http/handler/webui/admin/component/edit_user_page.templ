@@ -1,0 +1,79 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/go-x/templx/form"
+)
+
+type EditUserPageVModel struct {
+	Navbar   commonComp.NavbarVModel
+	User     model.User
+	UserForm *form.Form
+}
+
+templ EditUserPage(vmodel EditUserPageVModel) {
+	@AdminPage(vmodel.Navbar, "users", commonComp.WithTitle("Modifier l'utilisateur")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<a href="/admin/users" class="button is-text mr-3 is-medium" style="text-decoration:none">
+						<span class="icon">
+							<i class="fas fa-arrow-left"></i>
+						</span>
+					</a>
+					<h2 class="title is-size-3">
+						Modifier l'utilisateur
+					</h2>
+				</div>
+			</div>
+		</div>
+		<div class="columns">
+			<div class="column is-half">
+				<h3 class="title is-size-5">Informations utilisateur (lecture seule)</h3>
+				<div class="field">
+					<label class="label">Nom d'affichage</label>
+					<div class="control">
+						<input class="input" type="text" value={ vmodel.User.DisplayName() } readonly/>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label">Email</label>
+					<div class="control">
+						<input class="input" type="email" value={ vmodel.User.Email() } readonly/>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label">Fournisseur</label>
+					<div class="control">
+						<input class="input" type="text" value={ vmodel.User.Provider() } readonly/>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label">Sujet</label>
+					<div class="control">
+						<input class="input" type="text" value={ vmodel.User.Subject() } readonly/>
+					</div>
+				</div>
+			</div>
+			<div class="column is-half">
+				<h3 class="title is-size-5">Paramètres modifiables</h3>
+				@form.FormWrapper(vmodel.UserForm, templ.SafeURL("/admin/users/"+string(vmodel.User.ID())+"/edit"), "POST") {
+					<div class="field is-grouped">
+						<div class="control">
+							<button type="submit" class="button is-primary">
+								<span class="icon">
+									<i class="fas fa-save"></i>
+								</span>
+								<span>Enregistrer</span>
+							</button>
+						</div>
+						<div class="control">
+							<a href="/admin/users" class="button is-light">Annuler</a>
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+	}
+}

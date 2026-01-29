@@ -174,6 +174,11 @@ type wrappedSnapshottedUser struct {
 	u SnapshottedUser
 }
 
+// Active implements [model.User].
+func (w *wrappedSnapshottedUser) Active() bool {
+	return false
+}
+
 // DisplayName implements [model.User].
 func (w *wrappedSnapshottedUser) DisplayName() string {
 	return ""
@@ -212,10 +217,6 @@ func toSnapshottedUser(user model.User) SnapshottedUser {
 		Provider: user.Provider(),
 		Subject:  user.Subject(),
 	}
-}
-
-func fromSnapshottedUser(u SnapshottedUser) model.User {
-	return &wrappedSnapshottedUser{}
 }
 
 type snapshottedDocumentWrapper struct {

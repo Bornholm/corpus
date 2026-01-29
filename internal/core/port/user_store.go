@@ -14,6 +14,9 @@ type UserStore interface {
 	// GetUserByID finds a user by its ID, or returns ErrNotFound if not found
 	GetUserByID(ctx context.Context, userID model.UserID) (model.User, error)
 
+	// QueryUsers returns a paginated list of users
+	QueryUsers(ctx context.Context, opts QueryUsersOptions) ([]model.User, error)
+
 	// SaveUser saves a user in the store
 	SaveUser(ctx context.Context, user model.User) error
 
@@ -28,4 +31,17 @@ type UserStore interface {
 
 	// DeleteAuthToken deletes an AuthToken by its ID
 	DeleteAuthToken(ctx context.Context, tokenID model.AuthTokenID) error
+}
+
+type QueryUsersOptions struct {
+	Page  *int
+	Limit *int
+
+	// Filters
+
+	// Users with specific roles
+	Roles []string
+
+	// Active/inactive users
+	Active *bool
 }

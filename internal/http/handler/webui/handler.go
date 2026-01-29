@@ -11,6 +11,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/collection"
 	"github.com/bornholm/corpus/internal/http/handler/webui/profile"
 	"github.com/bornholm/corpus/internal/http/handler/webui/swagger"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/bornholm/genai/llm"
 )
 
@@ -24,17 +25,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner, userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore) *Handler {
-	mux := http.NewServeMux()
-
-	mount(mux, "/", ask.NewHandler(documentManager, llm, taskRunner))
-	mount(mux, "/collections/", collection.NewHandler(documentManager))
-	mount(mux, "/profile/", profile.NewHandler(userStore))
-	mount(mux, "/admin/", admin.NewHandler(userStore, documentStore, publicShareStore, taskRunner))
-	mount(mux, "/docs/", swagger.NewHandler())
 
 	h := &Handler{
-		mux: mux,
+		mux: http.NewServeMux(),
 	}
+
+	isActive := authz.Middleware(http.HandlerFunc(h.getInactiveUserPage), authz.Active())
+
+	mount(h.mux, "/", isActive(ask.NewHandler(documentManager, llm, taskRunner)))
+	mount(h.mux, "/collections/", isActive(collection.NewHandler(documentManager)))
+	mount(h.mux, "/profile/", isActive((profile.NewHandler(userStore))))
+	mount(h.mux, "/admin/", isActive(admin.NewHandler(userStore, documentStore, publicShareStore, taskRunner)))
+	mount(h.mux, "/docs/", swagger.NewHandler())
 
 	return h
 }

@@ -36,7 +36,7 @@ func fromUser(u model.User) *User {
 		Provider:    u.Provider(),
 		DisplayName: u.DisplayName(),
 		Email:       u.Email(),
-		Active:      true, // Default to active
+		Active:      u.Active(),
 	}
 
 	for _, r := range u.Roles() {
@@ -77,6 +77,11 @@ type UserRole struct {
 // wrappedUser implements the model.User interface
 type wrappedUser struct {
 	u *User
+}
+
+// Active implements [model.User].
+func (w *wrappedUser) Active() bool {
+	return w.u.Active
 }
 
 // ID implements model.User.

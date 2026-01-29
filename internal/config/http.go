@@ -9,8 +9,9 @@ type HTTP struct {
 	Session Session `envPrefix:"SESSION_"`
 }
 type Authn struct {
-	Providers     AuthProviders `envPrefix:"PROVIDERS_"`
-	DefaultAdmins []string      `env:"DEFAULT_ADMINS" envSeparator:","`
+	Providers       AuthProviders `envPrefix:"PROVIDERS_"`
+	DefaultAdmins   []string      `env:"DEFAULT_ADMINS" envSeparator:","`
+	ActiveByDefault bool          `env:"ACTIVE_BY_DEFAULT" envDefault:"false"`
 }
 
 type Session struct {

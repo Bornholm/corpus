@@ -13,7 +13,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
 )
 
-func Middleware(userStore port.UserStore, defaultAdmins ...string) func(http.Handler) http.Handler {
+func Middleware(userStore port.UserStore, activeByDefault bool, defaultAdmins ...string) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		var fn http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
@@ -26,7 +26,7 @@ func Middleware(userStore port.UserStore, defaultAdmins ...string) func(http.Han
 			user, err := userStore.FindOrCreateUser(ctx, authnUser.Provider, authnUser.Subject)
 			if err != nil {
 				if errors.Is(err, port.ErrNotFound) {
-					user = model.NewUser(authnUser.Provider, authnUser.Subject, authnUser.Email, authnUser.DisplayName, authz.RoleUser)
+					user = model.NewUser(authnUser.Provider, authnUser.Subject, authnUser.Email, authnUser.DisplayName, activeByDefault, authz.RoleUser)
 
 					if err := userStore.SaveUser(ctx, user); err != nil {
 						common.HandleError(w, r, err)
@@ -56,6 +56,7 @@ func Middleware(userStore port.UserStore, defaultAdmins ...string) func(http.Han
 				if shouldBeAdmin {
 					newRoles := append(user.Roles(), authz.RoleAdmin)
 					updatable.SetRoles(newRoles...)
+					updatable.SetActive(true)
 				}
 
 				if err := userStore.SaveUser(ctx, updatable); err != nil {

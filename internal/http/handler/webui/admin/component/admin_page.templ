@@ -12,28 +12,12 @@ templ AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...co
 							Administration
 						</p>
 						<ul class="menu-list">
-							/* <li>
-							<a href="#" class="is-disabled">
-								<span class="icon">
-									<i class="fas fa-users"></i>
-								</span>
-								<span>Utilisateurs</span>
-							</a>
-						</li>
-						<li>
-							<a href="#" class="is-disabled">
-								<span class="icon">
-									<i class="fas fa-folder-open"></i>
-								</span>
-								<span>Collections</span>
-							</a>
-						</li> */
 							<li>
-								<a href="/admin/tasks" class={ templ.KV("is-active", selectedItem == "tasks") }>
+								<a href="/admin/users" class={ templ.KV("is-active", selectedItem == "users") }>
 									<span class="icon">
-										<i class="fas fa-tasks"></i>
+										<i class="fas fa-users"></i>
 									</span>
-									<span>Tâches</span>
+									<span>Utilisateurs</span>
 								</a>
 							</li>
 							<li>
@@ -42,6 +26,14 @@ templ AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...co
 										<i class="fas fa-link"></i>
 									</span>
 									<span>Partages publics</span>
+								</a>
+							</li>
+							<li>
+								<a href="/admin/tasks" class={ templ.KV("is-active", selectedItem == "tasks") }>
+									<span class="icon">
+										<i class="fas fa-tasks"></i>
+									</span>
+									<span>Tâches</span>
 								</a>
 							</li>
 						</ul>

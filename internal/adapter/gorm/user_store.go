@@ -55,7 +55,7 @@ func (s *Store) GetUserByID(ctx context.Context, userID model.UserID) (model.Use
 	var user User
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.First(&user, "id = ?", string(userID)).Error; err != nil {
+		if err := db.Preload(clause.Associations).First(&user, "id = ?", string(userID)).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -83,7 +83,13 @@ func (s *Store) SaveUser(ctx context.Context, user model.User) error {
 			return errors.WithStack(err)
 		}
 
-		for _, r := range gormUser.Roles {
+		newRoles := gormUser.Roles[:]
+
+		if err := db.Model(gormUser).Association("Roles").Clear(); err != nil {
+			return errors.WithStack(err)
+		}
+
+		for _, r := range newRoles {
 			err := db.
 				Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "user_id"}, {Name: "role"}},
@@ -183,4 +189,58 @@ func (s *Store) DeleteAuthToken(ctx context.Context, tokenID model.AuthTokenID) 
 	}
 
 	return nil
+}
+
+// QueryUsers implements port.UserStore.
+func (s *Store) QueryUsers(ctx context.Context, opts port.QueryUsersOptions) ([]model.User, error) {
+	var users []*User
+
+	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+		query := db.Model(&User{}).Preload("Roles")
+
+		// Apply role filtering if specified
+		if len(opts.Roles) > 0 {
+			// Join with user_roles table to filter by roles
+			query = query.Joins("JOIN user_roles ON users.id = user_roles.user_id").
+				Where("user_roles.role IN ?", opts.Roles).
+				Distinct()
+		}
+
+		// Apply active/inactive filtering if specified
+		if opts.Active != nil {
+			query = query.Where("active = ?", *opts.Active)
+		}
+
+		// Apply pagination
+		if opts.Page != nil {
+			limit := 10
+			if opts.Limit != nil {
+				limit = *opts.Limit
+			}
+			query = query.Offset(*opts.Page * limit)
+		}
+
+		if opts.Limit != nil {
+			query = query.Limit(*opts.Limit)
+		}
+
+		// Order by display name for consistent results
+		query = query.Order("display_name ASC")
+
+		if err := query.Find(&users).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	wrappedUsers := make([]model.User, 0, len(users))
+	for _, u := range users {
+		wrappedUsers = append(wrappedUsers, &wrappedUser{u})
+	}
+
+	return wrappedUsers, nil
 }

@@ -24,6 +24,8 @@ templ ErrorPage(vmodel ErrorPageVModel) {
 						<p class="has-text-centered mt-5">
 							if !isDesktopApp {
 								<a href={ BaseURL(ctx) }>Retour à la page d'accueil</a>
+								<span>| </span>
+								<a href={ BaseURL(ctx, WithPath("/auth/oidc/logout")) }>Se déconnecter</a>
 							}
 							for _, l := range vmodel.Links {
 								<span>| </span>
