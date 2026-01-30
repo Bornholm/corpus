@@ -31,45 +31,51 @@ func isHighPriority(ctx context.Context) bool {
 }
 
 type PriorizedClient struct {
-	chatCompletionLimiter *PriorityLimiter
-	embeddingsLimiter     *PriorityLimiter
-	client                llm.Client
+	limiter *PriorityLimiter
+	client  llm.Client
 }
 
 // ChatCompletion implements llm.Client.
 func (c *PriorizedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (llm.ChatCompletionResponse, error) {
-	if !c.allow(ctx, c.chatCompletionLimiter) {
-		return nil, errors.WithStack(llm.ErrRateLimit)
+	if err := c.wait(ctx); err != nil {
+		return nil, errors.WithStack(err)
 	}
+
 	return c.client.ChatCompletion(ctx, funcs...)
 }
 
 // ChatCompletionStream implements llm.Client.
 func (c *PriorizedClient) ChatCompletionStream(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (<-chan llm.StreamChunk, error) {
-	if !c.allow(ctx, c.chatCompletionLimiter) {
-		return nil, errors.WithStack(llm.ErrRateLimit)
+	if err := c.wait(ctx); err != nil {
+		return nil, errors.WithStack(err)
 	}
+
 	return c.client.ChatCompletionStream(ctx, funcs...)
 }
 
 // Embeddings implements llm.Client.
 func (c *PriorizedClient) Embeddings(ctx context.Context, input string, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
-	if !c.allow(ctx, c.embeddingsLimiter) {
-		return nil, errors.WithStack(llm.ErrRateLimit)
+	if err := c.wait(ctx); err != nil {
+		return nil, errors.WithStack(err)
 	}
+
 	return c.client.Embeddings(ctx, input, funcs...)
 }
 
-func (c *PriorizedClient) allow(ctx context.Context, limiter *PriorityLimiter) bool {
+func (c *PriorizedClient) wait(ctx context.Context) error {
 	isHighPriority := isHighPriority(ctx)
-	return limiter.Allow(isHighPriority)
+
+	if err := c.limiter.Wait(ctx, 1, isHighPriority); err != nil {
+		return errors.WithStack(err)
+	}
+
+	return nil
 }
 
-func NewPriorizedClient(client llm.Client, chatCompletionMinInterval time.Duration, chatCompletionMaxBurst int, chatCompletionThreshold float64, embeddingsMinInterval time.Duration, embeddingsMaxBurst int, embeddingsThreshold float64) *PriorizedClient {
+func NewPriorizedClient(client llm.Client, minInterval time.Duration, maxBurst int, lowPriorityThreshold float64) *PriorizedClient {
 	return &PriorizedClient{
-		chatCompletionLimiter: NewPriorityLimiter(rate.Every(chatCompletionMinInterval), chatCompletionMaxBurst, chatCompletionThreshold),
-		embeddingsLimiter:     NewPriorityLimiter(rate.Every(embeddingsMinInterval), embeddingsMaxBurst, embeddingsThreshold),
-		client:                client,
+		limiter: NewPriorityLimiter(rate.Every(minInterval), maxBurst, lowPriorityThreshold),
+		client:  client,
 	}
 }
 

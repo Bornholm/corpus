@@ -39,8 +39,7 @@ var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf
 		slog.DebugContext(ctx, "using rate limited llm client", "rate_limit", conf.LLM.Provider.RateLimit)
 		client = corpusLLM.NewPriorizedClient(
 			client,
-			conf.LLM.Provider.RateLimit.ChatCompletion.MinInterval, conf.LLM.Provider.RateLimit.ChatCompletion.MaxBurst, conf.LLM.Provider.RateLimit.ChatCompletion.LowPriorityThreshold,
-			conf.LLM.Provider.RateLimit.Embeddings.MinInterval, conf.LLM.Provider.RateLimit.Embeddings.MaxBurst, conf.LLM.Provider.RateLimit.Embeddings.LowPriorityThreshold,
+			conf.LLM.Provider.RateLimit.MinInterval, conf.LLM.Provider.RateLimit.MaxBurst, conf.LLM.Provider.RateLimit.LowPriorityThreshold,
 		)
 	}
 
