@@ -15,6 +15,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/llm"
 	"github.com/pkg/errors"
 )
 
@@ -51,6 +52,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := r.Context()
+
+	ctx = llm.WithHighPriority(ctx)
 
 	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
 

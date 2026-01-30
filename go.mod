@@ -48,6 +48,7 @@ require (
 	github.com/zserge/lorca v0.0.0-00010101000000-000000000000
 	gitlab.com/wpetit/goweb v0.0.0-20240226160244-6b2826c79f88
 	golang.org/x/crypto v0.47.0
+	golang.org/x/time v0.14.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.25.12
 )
@@ -159,7 +160,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/term v0.39.0 // indirect
-	golang.org/x/time v0.14.0 // indirect
 	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )

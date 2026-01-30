@@ -9,6 +9,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
+	"github.com/bornholm/corpus/internal/llm"
 	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 )
@@ -65,6 +66,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) doAsk(ctx context.Context, query string, collections []model.CollectionID) (*AskResponse, error) {
 	slog.DebugContext(ctx, "executing ask query", slog.String("query", query), slog.Any("collections", collections))
+
+	ctx = llm.WithHighPriority(ctx)
 
 	results, err := h.documentManager.Search(ctx, query,
 		service.WithDocumentManagerSearchCollections(collections...),
