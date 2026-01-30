@@ -9,7 +9,8 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
-	"github.com/bornholm/corpus/internal/llm"
+	corpusLLM "github.com/bornholm/corpus/internal/llm"
+	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 )
@@ -49,6 +50,11 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if errors.Is(err, llm.ErrRateLimit) {
+			common.HandleError(w, r, common.NewHTTPError(http.StatusServiceUnavailable))
+			return
+		}
+
 		slog.ErrorContext(ctx, "could not ask documents", slogx.Error(err))
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -67,7 +73,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) doAsk(ctx context.Context, query string, collections []model.CollectionID) (*AskResponse, error) {
 	slog.DebugContext(ctx, "executing ask query", slog.String("query", query), slog.Any("collections", collections))
 
-	ctx = llm.WithHighPriority(ctx)
+	ctx = corpusLLM.WithHighPriority(ctx)
 
 	results, err := h.documentManager.Search(ctx, query,
 		service.WithDocumentManagerSearchCollections(collections...),

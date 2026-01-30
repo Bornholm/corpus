@@ -12,7 +12,8 @@ import (
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/bornholm/corpus/internal/http/handler/webui/pubshare/component"
-	"github.com/bornholm/corpus/internal/llm"
+	corpusLLM "github.com/bornholm/corpus/internal/llm"
+	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
 )
 
@@ -50,7 +51,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	ctx = llm.WithHighPriority(ctx)
+	ctx = corpusLLM.WithHighPriority(ctx)
 
 	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
 
@@ -66,6 +67,11 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	results, err := h.documentManager.Search(ctx, vmodel.Query, searchOptions...)
 	if err != nil && !errors.Is(err, service.ErrNoResults) {
+		if errors.Is(err, llm.ErrRateLimit) {
+			common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
+			return
+		}
+
 		common.HandleError(w, r, errors.WithStack(err))
 		return
 	}
@@ -75,6 +81,11 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if len(results) > 0 {
 		response, contents, err := h.documentManager.Ask(ctx, vmodel.Query, results)
 		if err != nil {
+			if errors.Is(err, llm.ErrRateLimit) {
+				common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
+				return
+			}
+
 			common.HandleError(w, r, errors.WithStack(err))
 			return
 		}
