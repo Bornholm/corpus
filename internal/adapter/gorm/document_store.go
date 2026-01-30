@@ -561,7 +561,7 @@ func (s *Store) SaveDocuments(ctx context.Context, documents ...model.OwnedDocum
 				return errors.WithStack(err)
 			}
 
-			if res := db.Omit("Sections").Create(document); res.Error != nil {
+			if res := db.Omit("Sections", "Owner.Roles").Create(document); res.Error != nil {
 				return errors.WithStack(res.Error)
 			}
 
