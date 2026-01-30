@@ -174,7 +174,7 @@ func (m *DocumentManager) Ask(ctx context.Context, query string, results []*port
 
 	response, contents, err := m.generateResponse(ctx, systemPromptTemplate, query, results)
 	if err != nil {
-		return "", nil, errors.WithStack(ErrNoResults)
+		return "", nil, errors.WithStack(err)
 	}
 
 	return response, contents, nil
