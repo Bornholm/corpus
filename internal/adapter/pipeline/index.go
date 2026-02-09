@@ -12,7 +12,7 @@ import (
 	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/corpus/internal/log"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 )
 
@@ -166,6 +166,10 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 
 	aggregatedErr := NewAggregatedError()
 
+	ctx = slogx.WithAttrs(ctx, slog.String("documentID", string(document.ID())))
+
+	slog.DebugContext(ctx, "indexing document")
+
 	for index := range i.indexes {
 		go func(index *IdentifiedIndex) {
 			defer func() {
@@ -179,9 +183,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 			}()
 			defer wg.Done()
 
-			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index.Index())), slog.String("documentID", string(document.ID())))
-
-			slog.DebugContext(indexCtx, "indexing document")
+			indexCtx := slogx.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index.Index())))
 
 			indexOptions := []port.IndexOptionFunc{}
 
@@ -200,8 +202,6 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 				defer opts.OnProgress(1)
 			}
 
-			slog.DebugContext(indexCtx, "indexing document")
-
 			if err := index.Index().Index(indexCtx, document, indexOptions...); err != nil {
 				err = errors.WithStack(err)
 				slog.ErrorContext(indexCtx, "could not index document", slog.Any("error", err))
@@ -209,8 +209,6 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 				cancel()
 				return
 			}
-
-			slog.DebugContext(indexCtx, "document indexed")
 
 			errs <- nil
 		}(index)
@@ -235,6 +233,8 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 	if aggregatedErr.Len() > 0 {
 		return errors.WithStack(aggregatedErr.OrOnlyOne())
 	}
+
+	slog.DebugContext(ctx, "document indexed")
 
 	return nil
 }
@@ -285,7 +285,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 			}()
 			defer wg.Done()
 
-			indexCtx := log.WithAttrs(ctx, slog.String("indexType", fmt.Sprintf("%T", index.Index())))
+			indexCtx := slogx.WithAttrs(ctx, slog.String("index_type", fmt.Sprintf("%T", index.Index())))
 
 			results, err := index.Index().Search(indexCtx, query, port.IndexSearchOptions{
 				MaxResults:  maxResults * 2,

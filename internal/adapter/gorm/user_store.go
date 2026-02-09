@@ -28,7 +28,7 @@ func (s *Store) FindOrCreateUser(ctx context.Context, provider, subject string) 
 		var u User
 
 		err := db.Where("provider = ? AND subject = ?", provider, subject).
-			Preload(clause.Associations).
+			Preload("Roles").
 			Attrs(&User{
 				ID:       string(model.NewUserID()),
 				Provider: provider,
@@ -55,7 +55,7 @@ func (s *Store) GetUserByID(ctx context.Context, userID model.UserID) (model.Use
 	var user User
 
 	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload(clause.Associations).First(&user, "id = ?", string(userID)).Error; err != nil {
+		if err := db.Preload("Roles").First(&user, "id = ?", string(userID)).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}

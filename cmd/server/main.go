@@ -7,8 +7,8 @@ import (
 	"os/signal"
 
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/setup"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 
 	// Adapters
@@ -31,7 +31,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := slog.New(log.ContextHandler{
+	logger := slog.New(slogx.ContextHandler{
 		Handler: slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level:     slog.Level(conf.Logger.Level),
 			AddSource: true,

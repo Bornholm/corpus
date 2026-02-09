@@ -8,10 +8,10 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/genai/llm/prompt"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 )
 
@@ -57,7 +57,7 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 		return nil, errors.WithStack(err)
 	}
 
-	ctx = log.WithAttrs(ctx, slog.Int("seed", seed))
+	ctx = slogx.WithAttrs(ctx, slog.Int("seed", seed))
 
 	completion, err := t.llm.ChatCompletion(ctx,
 		llm.WithJSONResponse(

@@ -12,7 +12,6 @@ import (
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/genai/llm"
 	"github.com/ncruces/go-sqlite3"
 	"github.com/pkg/errors"
@@ -106,118 +105,201 @@ func (i *Index) deleteBySource(ctx context.Context, conn *sqlite3.Conn, source *
 	return nil
 }
 
+type indexableChunk struct {
+	Section  model.Section
+	Text     string
+	ChunkIdx int
+}
+
+func estimateTokens(text string) int {
+	return len(text) / charsPerToken
+}
+
+const (
+	charsPerToken = 4
+
+	maxBatchItemCount = 100
+
+	targetBatchTokens = 6000
+
+	overlapChars = 200
+)
+
 // Index implements port.Index.
 func (i *Index) Index(ctx context.Context, document model.Document, funcs ...port.IndexOptionFunc) error {
 	opts := port.NewIndexOptions(funcs...)
 
-	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
-		source := document.Source()
+	var chunksToProcess []*indexableChunk
 
-		if err := i.deleteBySource(ctx, conn, source); err != nil {
+	limitChars := i.maxWords * 6
+
+	var collect func(s model.Section) error
+	collect = func(s model.Section) error {
+		content, err := s.Content()
+		if err != nil {
+			return err
+		}
+		textStr := string(content)
+		textLen := len(textStr)
+
+		if textLen <= limitChars {
+			if textLen > 0 { // On ignore les sections vides
+				chunksToProcess = append(chunksToProcess, &indexableChunk{
+					Section:  s,
+					Text:     textStr,
+					ChunkIdx: 0,
+				})
+			}
+		} else {
+			runes := []rune(textStr)
+			runesLen := len(runes)
+
+			limitRunes := limitChars
+			overlapRunes := overlapChars
+
+			currentChunkIdx := 0
+			for start := 0; start < runesLen; {
+				end := start + limitRunes
+				if end > runesLen {
+					end = runesLen
+				}
+
+				chunkText := string(runes[start:end])
+
+				chunksToProcess = append(chunksToProcess, &indexableChunk{
+					Section:  s,
+					Text:     chunkText,
+					ChunkIdx: currentChunkIdx,
+				})
+				currentChunkIdx++
+
+				if end == runesLen {
+					break
+				}
+
+				start += (limitRunes - overlapRunes)
+			}
+		}
+
+		for _, child := range s.Sections() {
+			if err := collect(child); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+		return nil
+	}
+
+	for _, s := range document.Sections() {
+		if err := collect(s); err != nil {
 			return errors.WithStack(err)
 		}
+	}
 
-		totalSections := model.CountSections(document)
+	defer func() {
+		if opts.OnProgress != nil {
+			opts.OnProgress(1.0)
+		}
+	}()
 
-		slog.DebugContext(ctx, "total sections", slog.Int("total", totalSections))
+	if len(chunksToProcess) == 0 {
+		return nil
+	}
 
-		totalIndexed := 0
-		onSectionIndexed := func() {
-			if opts.OnProgress == nil {
-				return
+	return i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
+		stmt, _, err := conn.Prepare(`
+			INSERT INTO embeddings (source, section_id, chunk_index, embeddings) 
+			VALUES (?, ?, ?, vec_normalize(vec_slice(?, 0, 256)))
+			RETURNING id;
+		`)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer stmt.Close()
+
+		var batchItems []*indexableChunk
+		var batchTexts []string
+		currentBatchTokens := 0
+
+		flushBatch := func() error {
+			if len(batchItems) == 0 {
+				return nil
 			}
 
-			totalIndexed++
-			progress := float32(totalIndexed) / float32(totalSections)
-			opts.OnProgress(progress)
+			res, err := i.llm.Embeddings(ctx, batchTexts)
+			if err != nil {
+				return errors.Wrap(err, "generation failed")
+			}
+
+			embeddings := res.Embeddings()
+
+			if len(embeddings) != len(batchItems) {
+				return errors.New("vector count mismatch")
+			}
+
+			for idx, item := range batchItems {
+				vecBlob, err := sqlite_vec.SerializeFloat32(toFloat32(embeddings[idx]))
+				if err != nil {
+					return err
+				}
+
+				if err := stmt.BindText(1, item.Section.Document().Source().String()); err != nil {
+					return err
+				}
+				if err := stmt.BindText(2, string(item.Section.ID())); err != nil {
+					return err
+				}
+				if err := stmt.BindInt64(3, int64(item.ChunkIdx)); err != nil {
+					return err
+				}
+
+				if err := stmt.BindBlob(4, vecBlob); err != nil {
+					return err
+				}
+
+				if hasRow := stmt.Step(); !hasRow {
+					return errors.New("no id returned")
+				}
+
+				embeddingsID := stmt.ColumnInt(0)
+				stmt.Reset()
+
+				for _, coll := range item.Section.Document().Collections() {
+					if err := i.insertCollection(ctx, conn, embeddingsID, coll.ID()); err != nil {
+						return errors.WithStack(err)
+					}
+				}
+			}
+			return nil
 		}
 
-		for _, s := range document.Sections() {
-			if err := i.indexSection(ctx, conn, s, onSectionIndexed); err != nil {
-				return errors.WithStack(err)
+		for _, chunk := range chunksToProcess {
+			tokenEst := estimateTokens(chunk.Text)
+
+			isBatchFull := (len(batchItems) >= maxBatchItemCount) ||
+				(currentBatchTokens+tokenEst >= targetBatchTokens)
+
+			if isBatchFull {
+				if err := flushBatch(); err != nil {
+					return err
+				}
+				batchItems = nil
+				batchTexts = nil
+				currentBatchTokens = 0
+			}
+
+			batchItems = append(batchItems, chunk)
+			batchTexts = append(batchTexts, chunk.Text)
+			currentBatchTokens += tokenEst
+		}
+
+		if len(batchItems) > 0 {
+			if err := flushBatch(); err != nil {
+				return err
 			}
 		}
 
 		return nil
 	}, sqlite3.BUSY, sqlite3.LOCKED)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	return nil
-}
-
-func (i *Index) indexSection(ctx context.Context, conn *sqlite3.Conn, section model.Section, onSectionIndexed func()) (err error) {
-	content, err := section.Content()
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	truncated := text.MiddleOut(string(content), i.maxWords, "")
-
-	if len(truncated) == 0 {
-		slog.DebugContext(ctx, "ignoring empty section", slog.String("sectionID", string(section.ID())))
-		return nil
-	}
-
-	slog.DebugContext(ctx, "indexing section", slog.String("sectionID", string(section.ID())), slog.Int("sectionSize", len(truncated)))
-
-	res, err := i.llm.Embeddings(ctx, truncated)
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	stmt, _, err := conn.Prepare("INSERT INTO embeddings ( source, section_id, embeddings ) VALUES (?, ?, vec_normalize(vec_slice(?, 0, 256))) RETURNING id;")
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	defer stmt.Close()
-
-	if err := stmt.BindText(1, section.Document().Source().String()); err != nil {
-		return errors.WithStack(err)
-	}
-
-	if err := stmt.BindText(2, string(section.ID())); err != nil {
-		return errors.WithStack(err)
-	}
-
-	embeddings, err := sqlite_vec.SerializeFloat32(toFloat32(res.Embeddings()[0]))
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	if err := stmt.BindBlob(3, embeddings); err != nil {
-		return errors.WithStack(err)
-	}
-
-	stmt.Step()
-
-	if err := stmt.Err(); err != nil {
-		return errors.WithStack(err)
-	}
-
-	embeddingsID := stmt.ColumnInt(0)
-
-	if err := stmt.Close(); err != nil {
-		return errors.WithStack(err)
-	}
-
-	for _, coll := range section.Document().Collections() {
-		if err := i.insertCollection(ctx, conn, embeddingsID, coll.ID()); err != nil {
-			return errors.WithStack(err)
-		}
-	}
-
-	defer onSectionIndexed()
-
-	for _, s := range section.Sections() {
-		if err := i.indexSection(ctx, conn, s, onSectionIndexed); err != nil {
-			return errors.WithStack(err)
-		}
-	}
-
-	return nil
 }
 
 func (i *Index) insertCollection(ctx context.Context, conn *sqlite3.Conn, embeddingsID int, collectionID model.CollectionID) error {
@@ -268,7 +350,7 @@ func (i *Index) insertCollection(ctx context.Context, conn *sqlite3.Conn, embedd
 func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
 	var searchResults []*port.IndexSearchResult
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
-		res, err := i.llm.Embeddings(ctx, query)
+		res, err := i.llm.Embeddings(ctx, []string{query})
 		if err != nil {
 			return errors.WithStack(err)
 		}

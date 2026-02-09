@@ -11,12 +11,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Bornholm/amatl/pkg/log"
 	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/filesystem"
-	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/pkg/client"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 	"github.com/progrium/watcher"
 	"github.com/spf13/afero"
@@ -87,7 +88,7 @@ func (i *filesystemIndexer) Handle(ctx context.Context, w *watcher.Watcher, even
 		<-i.semaphore
 	}()
 
-	ctx = log.WithAttrs(ctx, slog.String("file", event.Path), slog.String("oldPath", event.OldPath))
+	ctx = slogx.WithAttrs(ctx, slog.String("file", event.Path), slog.String("oldPath", event.OldPath))
 
 	switch event.Op {
 	case watcher.Create:

@@ -17,6 +17,7 @@ import (
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	corpusLLM "github.com/bornholm/corpus/internal/llm"
 	"github.com/bornholm/genai/llm"
+	"github.com/bornholm/go-x/slogx"
 
 	"github.com/pkg/errors"
 )
@@ -56,6 +57,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	ctx = corpusLLM.WithHighPriority(ctx)
+
+	ctx = slogx.WithAttrs(ctx, slog.String("origin", "webui"))
 
 	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
 

@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -16,24 +17,11 @@ type PriorityLimiter struct {
 	lowPrioMutex sync.Mutex
 }
 
-func NewPriorityLimiter(r rate.Limit, b int, threshold float64) *PriorityLimiter {
+func NewPriorityLimiter(r rate.Limit, b int, lowPrioThreshold float64) *PriorityLimiter {
 	return &PriorityLimiter{
 		limiter:          rate.NewLimiter(r, b),
-		lowPrioThreshold: threshold,
+		lowPrioThreshold: lowPrioThreshold,
 	}
-}
-
-func (pl *PriorityLimiter) Allow(isHighPriority bool) bool {
-	currentTokens := pl.limiter.Tokens()
-	maxBurst := float64(pl.limiter.Burst())
-
-	if !isHighPriority {
-		if currentTokens < (maxBurst * pl.lowPrioThreshold) {
-			return false
-		}
-	}
-
-	return pl.limiter.Allow()
 }
 
 func (pl *PriorityLimiter) Wait(ctx context.Context, n int, isHighPriority bool) error {
@@ -41,13 +29,8 @@ func (pl *PriorityLimiter) Wait(ctx context.Context, n int, isHighPriority bool)
 		return pl.limiter.WaitN(ctx, n)
 	}
 
-	// We lock here to prevent "Thundering Herd" race conditions where
-	// 5 indexers all see the bucket is full and drain it instantly.
-	pl.lowPrioMutex.Lock()
-	defer pl.lowPrioMutex.Unlock()
-
-	burst := float64(pl.limiter.Burst())
-	requiredTokens := (burst * pl.lowPrioThreshold) + float64(n)
+	threshold := float64(pl.limiter.Burst()) * pl.lowPrioThreshold
+	requiredTokens := float64(n) + threshold
 
 	for {
 		select {
@@ -57,12 +40,15 @@ func (pl *PriorityLimiter) Wait(ctx context.Context, n int, isHighPriority bool)
 		}
 
 		currentTokens := pl.limiter.Tokens()
+
+		slog.DebugContext(ctx, "waiting for slot", slog.Int("burst", pl.limiter.Burst()), slog.Float64("current_tokens", currentTokens), slog.Float64("required_tokens", requiredTokens))
+
 		if currentTokens < requiredTokens {
 			missing := requiredTokens - currentTokens
-			waitDuration := time.Duration(float64(time.Second) * (missing / float64(pl.limiter.Limit())))
+			waitDuration := time.Duration(missing / float64(pl.limiter.Limit()) * float64(time.Second))
 
-			if waitDuration < 10*time.Millisecond {
-				waitDuration = 10 * time.Millisecond
+			if waitDuration < 100*time.Millisecond {
+				waitDuration = 100 * time.Millisecond
 			}
 
 			select {
@@ -74,22 +60,21 @@ func (pl *PriorityLimiter) Wait(ctx context.Context, n int, isHighPriority bool)
 		}
 
 		r := pl.limiter.ReserveN(time.Now(), n)
+
 		if !r.OK() {
 			return fmt.Errorf("request exceeds limiter burst")
 		}
 
 		if r.Delay() > 0 {
 			r.Cancel()
-
 			select {
-			case <-time.After(100 * time.Millisecond): // Backoff
+			case <-time.After(250 * time.Millisecond):
 				continue
 			case <-ctx.Done():
 				return ctx.Err()
 			}
 		}
 
-		time.Sleep(r.Delay())
 		return nil
 	}
 }

@@ -11,7 +11,6 @@ import (
 
 	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/desktop"
-	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/setup"
 	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
@@ -56,7 +55,7 @@ func main() {
 		}
 	}
 
-	logger := slog.New(log.ContextHandler{
+	logger := slog.New(slogx.ContextHandler{
 		Handler: slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 			Level:     slog.Level(logLevel),
 			AddSource: true,

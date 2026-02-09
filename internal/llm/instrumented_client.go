@@ -87,8 +87,8 @@ func (c *InstrumentedClient) ChatCompletion(ctx context.Context, funcs ...llm.Ch
 }
 
 // Embeddings implements llm.Client.
-func (c *InstrumentedClient) Embeddings(ctx context.Context, input string, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
-	res, err := c.client.Embeddings(ctx, input, funcs...)
+func (c *InstrumentedClient) Embeddings(ctx context.Context, inputs []string, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
+	res, err := c.client.Embeddings(ctx, inputs, funcs...)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

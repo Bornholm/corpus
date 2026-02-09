@@ -11,8 +11,8 @@ import (
 	"github.com/bornholm/corpus/internal/backup"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/util"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 )
@@ -57,7 +57,7 @@ func (m *Manager) RestoreBackup(ctx context.Context, owner model.User, r io.Read
 
 	restoreBackup := NewRestoreBackupTask(owner, path)
 
-	taskCtx := log.WithAttrs(context.Background(), slog.String("path", path))
+	taskCtx := slogx.WithAttrs(context.Background(), slog.String("path", path))
 
 	if err := m.taskRunner.Schedule(taskCtx, restoreBackup); err != nil {
 		return "", errors.WithStack(err)

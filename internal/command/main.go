@@ -7,7 +7,7 @@ import (
 	"sort"
 
 	"github.com/bornholm/corpus/internal/build"
-	"github.com/bornholm/corpus/internal/log"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 )
@@ -41,7 +41,7 @@ func Main(name string, usage string, commands ...*cli.Command) {
 				slogLevel = slog.LevelError
 			}
 
-			logger := slog.New(log.ContextHandler{
+			logger := slog.New(slogx.ContextHandler{
 				Handler: slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
 					Level:     slog.Level(slogLevel),
 					AddSource: true,

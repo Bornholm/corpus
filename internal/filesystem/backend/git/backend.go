@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/bornholm/corpus/internal/filesystem"
-	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/util"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/pkg/errors"
@@ -26,14 +26,11 @@ type Backend struct {
 
 // Mount implements fs.Backend.
 func (b *Backend) Mount(ctx context.Context, fn func(ctx context.Context, fs afero.Fs) error) error {
-	slog.DebugContext(ctx, "cloning repository")
 
 	path, err := b.getRepoPath()
 	if err != nil {
 		return errors.WithStack(err)
 	}
-
-	ctx = log.WithAttrs(ctx, slog.String("repoPath", path))
 
 	var ref plumbing.ReferenceName
 
@@ -42,6 +39,10 @@ func (b *Backend) Mount(ctx context.Context, fn func(ctx context.Context, fs afe
 	} else {
 		ref = plumbing.HEAD
 	}
+
+	ctx = slogx.WithAttrs(ctx, slog.String("ref", ref.String()))
+
+	slog.DebugContext(ctx, "cloning repository", slog.String("local_path", path))
 
 	repo, err := git.PlainCloneContext(ctx, path, false, &git.CloneOptions{
 		URL:           b.repoURL,
@@ -64,6 +65,8 @@ func (b *Backend) Mount(ctx context.Context, fn func(ctx context.Context, fs afe
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	slog.DebugContext(ctx, "pulling repository")
 
 	err = worktree.PullContext(ctx, &git.PullOptions{
 		Force:         true,

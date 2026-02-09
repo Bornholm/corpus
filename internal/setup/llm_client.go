@@ -45,9 +45,11 @@ var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf
 
 	if conf.LLM.Provider.MaxRetries != 0 {
 		slog.DebugContext(ctx, "using llm client with retry", "max_retries", conf.LLM.Provider.MaxRetries, "base_backoff", conf.LLM.Provider.BaseBackoff)
-
 		client = retry.Wrap(client, conf.LLM.Provider.BaseBackoff, conf.LLM.Provider.MaxRetries)
 	}
 
-	return corpusLLM.NewInstrumentedClient(client, conf.LLM.Provider.ChatCompletionModel, conf.LLM.Provider.EmbeddingsModel), nil
+	client = corpusLLM.NewInstrumentedClient(client, conf.LLM.Provider.ChatCompletionModel, conf.LLM.Provider.EmbeddingsModel)
+	client = corpusLLM.NewLoggerClient(client)
+
+	return client, nil
 })

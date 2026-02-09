@@ -19,7 +19,7 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/filesystem"
 	"github.com/bornholm/corpus/internal/filesystem/backend"
-	"github.com/bornholm/corpus/internal/log"
+	"github.com/bornholm/go-x/slogx"
 
 	// Filesystem backends
 
@@ -99,7 +99,7 @@ func Command() *cli.Command {
 					defer wg.Done()
 					defer sharedCancel()
 
-					watchCtx := log.WithAttrs(sharedCtx, slog.String("filesystem", scrubbedURL(dsn)))
+					watchCtx := slogx.WithAttrs(sharedCtx, slog.String("filesystem", scrubbedURL(dsn)))
 
 					indexer := &filesystemIndexer{
 						collections: collections,

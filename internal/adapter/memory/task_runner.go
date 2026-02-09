@@ -9,7 +9,7 @@ import (
 	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/corpus/internal/log"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 )
 
@@ -85,7 +85,7 @@ func (r *TaskRunner) Register(taskType model.TaskType, handler port.TaskHandler)
 func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 	taskID := task.ID()
 
-	ctx = log.WithAttrs(ctx,
+	ctx = slogx.WithAttrs(ctx,
 		slog.String("taskID", string(taskID)),
 		slog.String("taskType", string(task.Type())),
 	)

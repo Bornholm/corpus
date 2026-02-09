@@ -2,9 +2,11 @@ package llm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/bornholm/genai/llm"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 )
@@ -37,7 +39,8 @@ type PriorizedClient struct {
 
 // ChatCompletion implements llm.Client.
 func (c *PriorizedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (llm.ChatCompletionResponse, error) {
-	if err := c.wait(ctx); err != nil {
+	ctx, err := c.wait(ctx)
+	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -46,7 +49,8 @@ func (c *PriorizedClient) ChatCompletion(ctx context.Context, funcs ...llm.ChatC
 
 // ChatCompletionStream implements llm.Client.
 func (c *PriorizedClient) ChatCompletionStream(ctx context.Context, funcs ...llm.ChatCompletionOptionFunc) (<-chan llm.StreamChunk, error) {
-	if err := c.wait(ctx); err != nil {
+	ctx, err := c.wait(ctx)
+	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -54,22 +58,29 @@ func (c *PriorizedClient) ChatCompletionStream(ctx context.Context, funcs ...llm
 }
 
 // Embeddings implements llm.Client.
-func (c *PriorizedClient) Embeddings(ctx context.Context, input string, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
-	if err := c.wait(ctx); err != nil {
+func (c *PriorizedClient) Embeddings(ctx context.Context, inputs []string, funcs ...llm.EmbeddingsOptionFunc) (llm.EmbeddingsResponse, error) {
+	ctx, err := c.wait(ctx)
+	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return c.client.Embeddings(ctx, input, funcs...)
+	return c.client.Embeddings(ctx, inputs, funcs...)
 }
 
-func (c *PriorizedClient) wait(ctx context.Context) error {
+func (c *PriorizedClient) wait(ctx context.Context) (context.Context, error) {
 	isHighPriority := isHighPriority(ctx)
 
+	ctx = slogx.WithAttrs(ctx, slog.Bool("high_priority", isHighPriority))
+
+	slog.DebugContext(ctx, "waiting for next available slot")
+
 	if err := c.limiter.Wait(ctx, 1, isHighPriority); err != nil {
-		return errors.WithStack(err)
+		return ctx, errors.WithStack(err)
 	}
 
-	return nil
+	slog.DebugContext(ctx, "slot acquired")
+
+	return ctx, nil
 }
 
 func NewPriorizedClient(client llm.Client, minInterval time.Duration, maxBurst int, lowPriorityThreshold float64) *PriorizedClient {

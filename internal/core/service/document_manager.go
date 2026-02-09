@@ -8,15 +8,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Bornholm/amatl/pkg/log"
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
-	"github.com/bornholm/corpus/internal/log"
 	"github.com/bornholm/corpus/internal/metrics"
 	documentTask "github.com/bornholm/corpus/internal/task/document"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/corpus/internal/util"
 	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/genai/llm/prompt"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
 	"github.com/rs/xid"
 )
@@ -225,7 +226,7 @@ func (m *DocumentManager) generateResponse(ctx context.Context, systemPromptTemp
 		return "", contents, errors.WithStack(err)
 	}
 
-	ctx = log.WithAttrs(ctx, slog.Int("seed", seed))
+	ctx = slogx.WithAttrs(ctx, slog.Int("seed", seed))
 
 	res, err := m.llm.ChatCompletion(
 		ctx,
