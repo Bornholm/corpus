@@ -87,7 +87,7 @@ func fromPublicShare(ps model.OwnedPublicShare) *PublicShare {
 
 // DeletePublicShare implements [port.PublicShareStore].
 func (s *Store) DeletePublicShare(ctx context.Context, id model.PublicShareID) error {
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
 		var publicShare PublicShare
 		if err := db.First(&publicShare, "id = ?", string(id)).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -113,7 +113,7 @@ func (s *Store) DeletePublicShare(ctx context.Context, id model.PublicShareID) e
 func (s *Store) FindPublicShareByToken(ctx context.Context, token string) (model.PersistedPublicShare, error) {
 	var publicShare PublicShare
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
 		if err := db.Preload(clause.Associations).Preload("Collections.Owner").First(&publicShare, "token = ?", token).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
@@ -134,7 +134,7 @@ func (s *Store) FindPublicShareByToken(ctx context.Context, token string) (model
 func (s *Store) GetPublicShareByID(ctx context.Context, id model.PublicShareID) (model.PersistedPublicShare, error) {
 	var publicShare PublicShare
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
 		if err := db.Preload(clause.Associations).Preload("Collections.Owner").First(&publicShare, "id = ?", string(id)).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
@@ -155,7 +155,7 @@ func (s *Store) GetPublicShareByID(ctx context.Context, id model.PublicShareID) 
 func (s *Store) QueryPublicShares(ctx context.Context, opts port.QueryPublicSharesOptions) ([]model.PersistedPublicShare, error) {
 	var publicShares []*PublicShare
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
 		query := db.Model(&PublicShare{})
 
 		// Apply pagination
@@ -198,7 +198,7 @@ func (s *Store) QueryPublicShares(ctx context.Context, opts port.QueryPublicShar
 func (s *Store) SavePublicShare(ctx context.Context, publicShare model.OwnedPublicShare) (model.PersistedPublicShare, error) {
 	var savedPublicShare *PublicShare
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
 		ps := fromPublicShare(publicShare)
 
 		// Check if public share already exists

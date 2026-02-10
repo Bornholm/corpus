@@ -359,7 +359,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 		SELECT
 			source,
 			section_id,
-			vec_distance_L2(embeddings, vec_normalize(vec_slice(?, 0, 256))) as distance
+			vec_distance_L2(vec_normalize(vec_slice(embeddings, 0, 256)), vec_normalize(vec_slice(?, 0, 256))) as distance
 		FROM embeddings
 	`
 

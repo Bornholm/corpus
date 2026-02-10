@@ -24,7 +24,7 @@ func fromAuthToken(t model.AuthToken) *AuthToken {
 // FindOrCreateUser implements port.UserStore.
 func (s *Store) FindOrCreateUser(ctx context.Context, provider, subject string) (model.User, error) {
 	var user model.User
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
 		var u User
 
 		err := db.Where("provider = ? AND subject = ?", provider, subject).
@@ -54,7 +54,7 @@ func (s *Store) FindOrCreateUser(ctx context.Context, provider, subject string) 
 func (s *Store) GetUserByID(ctx context.Context, userID model.UserID) (model.User, error) {
 	var user User
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
 		if err := db.Preload("Roles").First(&user, "id = ?", string(userID)).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
@@ -72,7 +72,7 @@ func (s *Store) GetUserByID(ctx context.Context, userID model.UserID) (model.Use
 
 // SaveUser implements port.UserStore.
 func (s *Store) SaveUser(ctx context.Context, user model.User) error {
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
 		gormUser := fromUser(user)
 
 		// Use Clauses with OnConflict to handle upsert
@@ -114,7 +114,7 @@ func (s *Store) SaveUser(ctx context.Context, user model.User) error {
 func (s *Store) FindAuthToken(ctx context.Context, token string) (model.AuthToken, error) {
 	var authToken AuthToken
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
 		if err := db.Preload("Owner").First(&authToken, "value = ?", token).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
@@ -134,7 +134,7 @@ func (s *Store) FindAuthToken(ctx context.Context, token string) (model.AuthToke
 func (s *Store) GetUserAuthTokens(ctx context.Context, userID model.UserID) ([]model.AuthToken, error) {
 	var authTokens []*AuthToken
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
 		if err := db.Where("owner_id = ?", string(userID)).Find(&authTokens).Error; err != nil {
 			return errors.WithStack(err)
 		}
@@ -154,7 +154,7 @@ func (s *Store) GetUserAuthTokens(ctx context.Context, userID model.UserID) ([]m
 
 // CreateAuthToken implements port.UserStore.
 func (s *Store) CreateAuthToken(ctx context.Context, token model.AuthToken) error {
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
 		gormToken := fromAuthToken(token)
 
 		if err := db.Create(gormToken).Error; err != nil {
@@ -172,7 +172,7 @@ func (s *Store) CreateAuthToken(ctx context.Context, token model.AuthToken) erro
 
 // DeleteAuthToken implements port.UserStore.
 func (s *Store) DeleteAuthToken(ctx context.Context, tokenID model.AuthTokenID) error {
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
 		result := db.Delete(&AuthToken{}, "id = ?", string(tokenID))
 		if result.Error != nil {
 			return errors.WithStack(result.Error)
@@ -195,7 +195,7 @@ func (s *Store) DeleteAuthToken(ctx context.Context, tokenID model.AuthTokenID) 
 func (s *Store) QueryUsers(ctx context.Context, opts port.QueryUsersOptions) ([]model.User, error) {
 	var users []*User
 
-	err := s.withRetry(ctx, func(ctx context.Context, db *gorm.DB) error {
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
 		query := db.Model(&User{}).Preload("Roles")
 
 		// Apply role filtering if specified

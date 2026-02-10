@@ -16,7 +16,7 @@ type Store struct {
 	getDatabase func(ctx context.Context) (*gorm.DB, error)
 }
 
-func (s *Store) withRetry(ctx context.Context, fn func(ctx context.Context, db *gorm.DB) error, codes ...sqlite3.ErrorCode) error {
+func (s *Store) withRetry(ctx context.Context, withTx bool, fn func(ctx context.Context, db *gorm.DB) error, codes ...sqlite3.ErrorCode) error {
 	db, err := s.getDatabase(ctx)
 	if err != nil {
 		return errors.WithStack(err)
@@ -27,13 +27,19 @@ func (s *Store) withRetry(ctx context.Context, fn func(ctx context.Context, db *
 	retries := 0
 
 	for {
-		err := db.Transaction(func(tx *gorm.DB) error {
-			if err := fn(ctx, tx); err != nil {
-				return errors.WithStack(err)
-			}
+		var err error
+		if withTx {
+			err = db.Transaction(func(tx *gorm.DB) error {
+				if err := fn(ctx, tx); err != nil {
+					return errors.WithStack(err)
+				}
 
-			return nil
-		})
+				return nil
+			})
+		} else {
+			err = fn(ctx, db)
+		}
+
 		if err != nil {
 			if retries >= maxRetries {
 				return errors.WithStack(err)
