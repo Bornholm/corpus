@@ -19,6 +19,11 @@ type UserFacingError interface {
 	UserMessage() string
 }
 
+type WithErrorLinks interface {
+	error
+	Links() []component.LinkItem
+}
+
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	vmodel := component.ErrorPageVModel{}
 
@@ -36,6 +41,11 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 		vmodel.Message = userFacingErr.UserMessage()
 	} else {
 		vmodel.Message = http.StatusText(statusCode)
+	}
+
+	var errLinks WithErrorLinks
+	if errors.As(err, &errLinks) {
+		vmodel.Links = errLinks.Links()
 	}
 
 	if httpErr == nil && userFacingErr == nil {

@@ -59,7 +59,7 @@ func (m *Manager) RestoreBackup(ctx context.Context, owner model.User, r io.Read
 
 	taskCtx := slogx.WithAttrs(context.Background(), slog.String("path", path))
 
-	if err := m.taskRunner.Schedule(taskCtx, restoreBackup); err != nil {
+	if err := m.taskRunner.ScheduleTask(taskCtx, restoreBackup); err != nil {
 		return "", errors.WithStack(err)
 	}
 

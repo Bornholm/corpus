@@ -13,6 +13,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+var mistralOCRFileExtensions = []string{
+	".pdf", ".jpg", ".jpeg",
+	".docx", ".png", ".pptx", ".avif",
+	".txt", ".tiff", ".epub", ".gif",
+	".xml", ".heic", ".heif",
+	".rtf", ".bmp",
+	".odt", ".webp",
+	".bib", ".fb2",
+	".ipynb",
+	".tex",
+	".1", ".man",
+}
+
 const (
 	ParamExtensions = "extensions"
 )
@@ -34,12 +47,16 @@ func createFileConverter(u *url.URL) (port.FileConverter, error) {
 		dsn.RawQuery = query.Encode()
 	}
 
-	client, err := provider.Create(
+	client, provider, err := provider.Create(
 		context.Background(),
 		provider.WithTextClientDSN(u.String()),
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
+	}
+
+	if provider == mistral.Name && len(extensions) == 0 {
+		extensions = append(extensions, mistralOCRFileExtensions...)
 	}
 
 	return NewFileConverter(client, extensions...), nil

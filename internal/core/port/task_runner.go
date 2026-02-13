@@ -69,9 +69,10 @@ func (f TaskHandlerFunc) Handle(ctx context.Context, task model.Task, events cha
 }
 
 type TaskRunner interface {
-	Schedule(ctx context.Context, task model.Task) error
-	State(ctx context.Context, id model.TaskID) (*TaskState, error)
-	List(ctx context.Context) ([]TaskStateHeader, error)
-	Register(taskType model.TaskType, handler TaskHandler)
+	ScheduleTask(ctx context.Context, task model.Task) error
+	GetTaskState(ctx context.Context, id model.TaskID) (*TaskState, error)
+	GetTask(ctx context.Context, id model.TaskID) (model.Task, error)
+	ListTasks(ctx context.Context) ([]TaskStateHeader, error)
+	RegisterTask(taskType model.TaskType, handler TaskHandler)
 	Run(ctx context.Context) error
 }

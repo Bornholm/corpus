@@ -11,6 +11,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/bornholm/corpus/internal/http/handler/webui/pubshare"
 	"github.com/bornholm/corpus/internal/http/middleware/authn"
+	"github.com/bornholm/corpus/internal/http/middleware/ratelimit"
 	"github.com/pkg/errors"
 
 	gohttp "net/http"
@@ -62,18 +63,26 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		return nil, errors.Wrap(err, "could not create public share store from config")
 	}
 
+	rateLimiter := ratelimit.Middleware(
+		conf.HTTP.RateLimit.TrustHeaders,
+		conf.HTTP.RateLimit.RequestInterval,
+		conf.HTTP.RateLimit.RequestMaxBurst,
+		conf.HTTP.RateLimit.CacheSize,
+		conf.HTTP.RateLimit.CacheTTL,
+	)
+
 	pubshare := pubshare.NewHandler(documentManager, publicShareStore)
 
 	options := []http.OptionFunc{
 		http.WithAddress(conf.HTTP.Address),
 		http.WithBaseURL(conf.HTTP.BaseURL),
 		http.WithMount("/assets/", assets),
-		http.WithMount("/shares/", pubshare),
-		http.WithMount("/auth/oidc/", oidcAuthn),
-		http.WithMount("/auth/token/", tokenAuthn),
-		http.WithMount("/api/v1/", authChain(api)),
-		http.WithMount("/metrics/", authChain(metrics.NewHandler())),
-		http.WithMount("/mcp/", authChain(mcp.NewHandler(conf.HTTP.BaseURL, "/mcp", documentManager))),
+		http.WithMount("/shares/", rateLimiter(pubshare)),
+		http.WithMount("/auth/oidc/", rateLimiter(oidcAuthn)),
+		http.WithMount("/auth/token/", rateLimiter(tokenAuthn)),
+		http.WithMount("/api/v1/", rateLimiter(authChain(api))),
+		http.WithMount("/metrics/", rateLimiter(authChain(metrics.NewHandler()))),
+		http.WithMount("/mcp/", rateLimiter(authChain(mcp.NewHandler(conf.HTTP.BaseURL, "/mcp", documentManager)))),
 	}
 
 	llm, err := getLLMClientFromConfig(ctx, conf)

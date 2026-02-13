@@ -2,12 +2,10 @@ package setup
 
 import (
 	"context"
-	"io"
-	"path/filepath"
-	"slices"
 
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/internal/fileconverter"
 	"github.com/pkg/errors"
 )
 
@@ -24,48 +22,15 @@ var getFileConverterFromConfig = createFromConfigOnce(func(ctx context.Context, 
 		fileConverters = append(fileConverters, c)
 	}
 
-	return NewRoutedFileConverter(fileConverters...), nil
+	var fileConverter port.FileConverter = fileconverter.NewRoutedFileConverter(fileConverters...)
+
+	if conf.FileConverter.RateLimit.Enabled {
+		fileConverter = fileconverter.NewRateLimitedFileConverter(fileConverter, conf.FileConverter.RateLimit.RequestInterval, conf.FileConverter.RateLimit.RequestMaxBurst)
+	}
+
+	if conf.FileConverter.MaxRetries != 0 {
+		fileConverter = fileconverter.NewRetryFileConverter(fileConverter, conf.FileConverter.BaseBackoff, conf.FileConverter.MaxRetries)
+	}
+
+	return fileConverter, nil
 })
-
-type RoutedFileConverter struct {
-	supportedExtensions []string
-	converters          []port.FileConverter
-}
-
-// Convert implements port.FileConverter.
-func (c *RoutedFileConverter) Convert(ctx context.Context, filename string, r io.Reader) (io.ReadCloser, error) {
-	ext := filepath.Ext(filename)
-	for _, c := range c.converters {
-		if !slices.Contains(c.SupportedExtensions(), ext) {
-			continue
-		}
-
-		readCloser, err := c.Convert(ctx, filename, r)
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		return readCloser, nil
-	}
-
-	return nil, errors.WithStack(port.ErrNotSupported)
-}
-
-// SupportedExtensions implements port.FileConverter.
-func (c *RoutedFileConverter) SupportedExtensions() []string {
-	return c.supportedExtensions
-}
-
-func NewRoutedFileConverter(converters ...port.FileConverter) *RoutedFileConverter {
-	supportedExtensions := make([]string, 0)
-	for _, c := range converters {
-		supportedExtensions = append(supportedExtensions, c.SupportedExtensions()...)
-	}
-
-	return &RoutedFileConverter{
-		supportedExtensions: supportedExtensions,
-		converters:          converters,
-	}
-}
-
-var _ port.FileConverter = &RoutedFileConverter{}

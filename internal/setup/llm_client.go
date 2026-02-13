@@ -13,6 +13,8 @@ import (
 	"github.com/bornholm/genai/llm/retry"
 
 	corpusLLM "github.com/bornholm/corpus/internal/llm"
+
+	"github.com/bornholm/genai/llm/tokenlimit"
 )
 
 var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (llm.Client, error) {
@@ -39,13 +41,19 @@ var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf
 		slog.DebugContext(ctx, "using rate limited llm client", "rate_limit", conf.LLM.Provider.RateLimit)
 		client = corpusLLM.NewPriorizedClient(
 			client,
-			conf.LLM.Provider.RateLimit.MinInterval, conf.LLM.Provider.RateLimit.MaxBurst, conf.LLM.Provider.RateLimit.LowPriorityThreshold,
+			conf.LLM.Provider.RateLimit.RequestInterval, conf.LLM.Provider.RateLimit.RequestMaxBurst, conf.LLM.Provider.RateLimit.RequestLowPriorityThreshold,
+		)
+
+		client = tokenlimit.NewClient(
+			client,
+			tokenlimit.WithChatCompletionLimit(conf.LLM.Provider.RateLimit.ChatCompletionTokenMaxBurst, conf.LLM.Provider.RateLimit.ChatCompletionTokenInterval),
+			tokenlimit.WithChatCompletionLimit(conf.LLM.Provider.RateLimit.EmbeddingsTokenMaxBurst, conf.LLM.Provider.RateLimit.EmbeddingsTokenInterval),
 		)
 	}
 
 	if conf.LLM.Provider.MaxRetries != 0 {
 		slog.DebugContext(ctx, "using llm client with retry", "max_retries", conf.LLM.Provider.MaxRetries, "base_backoff", conf.LLM.Provider.BaseBackoff)
-		client = retry.Wrap(client, conf.LLM.Provider.BaseBackoff, conf.LLM.Provider.MaxRetries)
+		client = retry.NewClient(client, conf.LLM.Provider.BaseBackoff, conf.LLM.Provider.MaxRetries)
 	}
 
 	client = corpusLLM.NewInstrumentedClient(client, conf.LLM.Provider.ChatCompletionModel, conf.LLM.Provider.EmbeddingsModel)

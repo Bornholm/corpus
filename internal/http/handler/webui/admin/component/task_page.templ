@@ -1,14 +1,17 @@
 package component
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 )
 
 type TaskPageVModel struct {
 	Navbar commonComp.NavbarVModel
-	Task   *port.TaskState
+	State  *port.TaskState
+	Task   model.Task
 }
 
 templ TaskPage(vmodel TaskPageVModel) {
@@ -28,7 +31,7 @@ templ TaskPage(vmodel TaskPageVModel) {
 			</div>
 			<div class="level-right"></div>
 		</div>
-		if vmodel.Task != nil {
+		if vmodel.State != nil && vmodel.Task != nil {
 			<div class="content">
 				<div class="field is-horizontal">
 					<div class="field-label is-normal">
@@ -37,7 +40,7 @@ templ TaskPage(vmodel TaskPageVModel) {
 					<div class="field-body">
 						<div class="field">
 							<div class="control">
-								<code class="is-size-6">{ string(vmodel.Task.ID) }</code>
+								<code class="is-size-6">{ string(vmodel.State.ID) }</code>
 							</div>
 						</div>
 					</div>
@@ -49,7 +52,7 @@ templ TaskPage(vmodel TaskPageVModel) {
 					<div class="field-body">
 						<div class="field">
 							<div class="control">
-								<span class="tag is-light">{ string(vmodel.Task.Type) }</span>
+								<span class="tag is-light">{ string(vmodel.State.Type) }</span>
 							</div>
 						</div>
 					</div>
@@ -61,7 +64,7 @@ templ TaskPage(vmodel TaskPageVModel) {
 					<div class="field-body">
 						<div class="field">
 							<div class="control">
-								@taskStatusBadge(vmodel.Task.Status)
+								@taskStatusBadge(vmodel.State.Status)
 							</div>
 						</div>
 					</div>
@@ -73,12 +76,12 @@ templ TaskPage(vmodel TaskPageVModel) {
 					<div class="field-body">
 						<div class="field">
 							<div class="control">
-								<span>{ vmodel.Task.ScheduledAt.Format("02/01/2006 15:04:05") }</span>
+								<span>{ vmodel.State.ScheduledAt.Format("02/01/2006 15:04:05") }</span>
 							</div>
 						</div>
 					</div>
 				</div>
-				if !vmodel.Task.FinishedAt.IsZero() {
+				if !vmodel.State.FinishedAt.IsZero() {
 					<div class="field is-horizontal">
 						<div class="field-label is-normal">
 							<label class="label">Terminée le</label>
@@ -86,13 +89,13 @@ templ TaskPage(vmodel TaskPageVModel) {
 						<div class="field-body">
 							<div class="field">
 								<div class="control">
-									<span>{ vmodel.Task.FinishedAt.Format("02/01/2006 15:04:05") }</span>
+									<span>{ vmodel.State.FinishedAt.Format("02/01/2006 15:04:05") }</span>
 								</div>
 							</div>
 						</div>
 					</div>
 				}
-				if vmodel.Task.Progress > 0 {
+				if vmodel.State.Progress > 0 {
 					<div class="field is-horizontal">
 						<div class="field-label is-normal">
 							<label class="label">Progression</label>
@@ -100,15 +103,15 @@ templ TaskPage(vmodel TaskPageVModel) {
 						<div class="field-body">
 							<div class="field">
 								<div class="control">
-									<progress class="progress is-info" value={ fmt.Sprintf("%.0f", vmodel.Task.Progress*100) } max="100">
-										{ fmt.Sprintf("%.1f%%", vmodel.Task.Progress*100) }
+									<progress class="progress is-info" value={ fmt.Sprintf("%.0f", vmodel.State.Progress*100) } max="100">
+										{ fmt.Sprintf("%.1f%%", vmodel.State.Progress*100) }
 									</progress>
 								</div>
 							</div>
 						</div>
 					</div>
 				}
-				if vmodel.Task.Message != "" {
+				if vmodel.State.Message != "" {
 					<div class="field is-horizontal">
 						<div class="field-label is-normal">
 							<label class="label">Message</label>
@@ -117,14 +120,14 @@ templ TaskPage(vmodel TaskPageVModel) {
 							<div class="field">
 								<div class="control">
 									<div class="notification is-info is-light">
-										{ vmodel.Task.Message }
+										{ vmodel.State.Message }
 									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 				}
-				if vmodel.Task.Error != nil {
+				if vmodel.State.Error != nil {
 					<div class="field is-horizontal">
 						<div class="field-label is-normal">
 							<label class="label">Erreur</label>
@@ -133,13 +136,33 @@ templ TaskPage(vmodel TaskPageVModel) {
 							<div class="field">
 								<div class="control">
 									<div class="notification is-danger is-light">
-										<pre>{ vmodel.Task.Error.Error() }</pre>
+										<pre>{ vmodel.State.Error.Error() }</pre>
 									</div>
 								</div>
 							</div>
 						</div>
 					</div>
 				}
+				<div class="field is-horizontal">
+					<div class="field-label is-normal">
+						<label class="label">Données</label>
+					</div>
+					<div class="field-body">
+						<div class="field">
+							<div class="control">
+								{{ payload, err := json.MarshalIndent(vmodel.Task, "", " ") }}
+								if err != nil {
+									<div class="notification is-danger is-light">
+										Erreur lors de la sérialisation des données:
+										<code>{ err.Error() }</code>
+									</div>
+								} else {
+									<pre><code>{ string(payload	) }</code></pre>
+								}
+							</div>
+						</div>
+					</div>
+				</div>
 			</div>
 		} else {
 			<div class="notification is-danger">

@@ -39,6 +39,10 @@ func NewOptions(funcs ...OptionFunc) *Options {
 		},
 		HTTPClient: &http.Client{
 			Timeout: 0,
+			Transport: &RateLimitTransport{
+				Base:       http.DefaultTransport,
+				MaxRetries: 3,
+			},
 		},
 		Parallelism: 5,
 	}

@@ -1,13 +1,49 @@
 package backup
 
-import "github.com/bornholm/corpus/internal/core/model"
+import (
+	"encoding/json"
+
+	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/pkg/errors"
+)
 
 const TaskTypeRestoreBackup model.TaskType = "restore_backup"
+
+type restoreBackupTaskPayload struct {
+	Path string `json:"path"`
+}
 
 type RestoreBackupTask struct {
 	id    model.TaskID
 	owner model.User
 	path  string
+}
+
+// MarshalJSON implements [model.Task].
+func (i *RestoreBackupTask) MarshalJSON() ([]byte, error) {
+	payload := restoreBackupTaskPayload{
+		Path: i.path,
+	}
+
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return data, nil
+}
+
+// UnmarshalJSON implements [model.Task].
+func (i *RestoreBackupTask) UnmarshalJSON(data []byte) error {
+	var payload restoreBackupTaskPayload
+
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return errors.WithStack(err)
+	}
+
+	i.path = payload.Path
+
+	return nil
 }
 
 // Owner implements [model.Task].

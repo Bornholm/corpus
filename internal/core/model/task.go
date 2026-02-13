@@ -1,6 +1,8 @@
 package model
 
 import (
+	"encoding/json"
+
 	"github.com/rs/xid"
 )
 
@@ -12,6 +14,9 @@ func NewTaskID() TaskID {
 
 type Task interface {
 	WithOwner
+
+	json.Marshaler
+	json.Unmarshaler
 
 	ID() TaskID
 	Type() TaskType

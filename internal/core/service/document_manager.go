@@ -308,7 +308,7 @@ func (m *DocumentManager) IndexFile(ctx context.Context, owner model.User, filen
 
 	taskCtx := log.WithAttrs(context.Background(), slog.String("filename", filename), slog.String("filepath", path))
 
-	if err := m.taskRunner.Schedule(taskCtx, indexFileTask); err != nil {
+	if err := m.taskRunner.ScheduleTask(taskCtx, indexFileTask); err != nil {
 		return "", errors.WithStack(err)
 	}
 
@@ -320,7 +320,7 @@ func (m *DocumentManager) CleanupIndex(ctx context.Context, owner model.User, co
 
 	cleanupIndexTask := documentTask.NewCleanupTask(owner, collections)
 
-	if err := m.taskRunner.Schedule(ctx, cleanupIndexTask); err != nil {
+	if err := m.taskRunner.ScheduleTask(ctx, cleanupIndexTask); err != nil {
 		return "", errors.WithStack(err)
 	}
 

@@ -13,17 +13,33 @@ import (
 	"github.com/pkg/errors"
 )
 
+type taskEntry struct {
+	Task  model.Task
+	State port.TaskState
+}
+
 type TaskRunner struct {
 	runningMutex *sync.Mutex
 	runningCond  sync.Cond
 	running      bool
 
-	tasks     syncx.Map[model.TaskID, port.TaskState]
+	tasks syncx.Map[model.TaskID, taskEntry]
+
 	handlers  syncx.Map[model.TaskType, port.TaskHandler]
 	semaphore chan struct{}
 
 	cleanupDelay    time.Duration
 	cleanupInterval time.Duration
+}
+
+// GetTask implements [port.TaskRunner].
+func (r *TaskRunner) GetTask(ctx context.Context, id model.TaskID) (model.Task, error) {
+	entry, exists := r.tasks.Load(id)
+	if !exists {
+		return nil, errors.WithStack(port.ErrNotFound)
+	}
+
+	return entry.Task, nil
 }
 
 // Run implements port.TaskRunner.
@@ -42,8 +58,8 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 			case <-ticker.C:
 				slog.DebugContext(ctx, "running task cleaner")
 
-				r.tasks.Range(func(id model.TaskID, state port.TaskState) bool {
-					if state.FinishedAt.IsZero() || time.Now().After(state.FinishedAt.Add(r.cleanupDelay)) {
+				r.tasks.Range(func(id model.TaskID, entry taskEntry) bool {
+					if entry.State.FinishedAt.IsZero() || time.Now().After(entry.State.FinishedAt.Add(r.cleanupDelay)) {
 						return true
 					}
 
@@ -66,23 +82,23 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 	return nil
 }
 
-// List implements port.TaskRunner.
-func (r *TaskRunner) List(ctx context.Context) ([]port.TaskStateHeader, error) {
+// ListTasks implements port.TaskRunner.
+func (r *TaskRunner) ListTasks(ctx context.Context) ([]port.TaskStateHeader, error) {
 	headers := make([]port.TaskStateHeader, 0)
-	r.tasks.Range(func(id model.TaskID, state port.TaskState) bool {
-		headers = append(headers, state.TaskStateHeader)
+	r.tasks.Range(func(id model.TaskID, entry taskEntry) bool {
+		headers = append(headers, entry.State.TaskStateHeader)
 		return true
 	})
 	return headers, nil
 }
 
-// Register implements port.TaskRunner.
-func (r *TaskRunner) Register(taskType model.TaskType, handler port.TaskHandler) {
+// RegisterTask implements port.TaskRunner.
+func (r *TaskRunner) RegisterTask(taskType model.TaskType, handler port.TaskHandler) {
 	r.handlers.Store(taskType, handler)
 }
 
-// Schedule implements port.TaskRunner.
-func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
+// ScheduleTask implements port.TaskRunner.
+func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 	taskID := task.ID()
 
 	ctx = slogx.WithAttrs(ctx,
@@ -90,7 +106,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 		slog.String("taskType", string(task.Type())),
 	)
 
-	r.updateState(taskID, func(s *port.TaskState) {
+	r.updateState(task, func(s *port.TaskState) {
 		s.ID = taskID
 		s.ScheduledAt = time.Now()
 		s.Status = port.TaskStatusPending
@@ -107,7 +123,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 
 				slog.ErrorContext(ctx, "recovered panic while running task", slog.Any("error", errors.WithStack(err)))
 
-				r.updateState(taskID, func(s *port.TaskState) {
+				r.updateState(task, func(s *port.TaskState) {
 					s.Error = errors.WithStack(err)
 					s.Status = port.TaskStatusFailed
 				})
@@ -127,7 +143,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 
 		handler, exists := r.handlers.Load(task.Type())
 		if !exists {
-			r.updateState(taskID, func(s *port.TaskState) {
+			r.updateState(task, func(s *port.TaskState) {
 				s.Error = errors.Errorf("no handler registered for task type '%s'", task.Type())
 				s.Status = port.TaskStatusFailed
 			})
@@ -135,7 +151,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 			return
 		}
 
-		r.updateState(taskID, func(s *port.TaskState) {
+		r.updateState(task, func(s *port.TaskState) {
 			s.Status = port.TaskStatusRunning
 		})
 
@@ -144,7 +160,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 
 		go func() {
 			for e := range events {
-				r.updateState(taskID, func(s *port.TaskState) {
+				r.updateState(task, func(s *port.TaskState) {
 					if e.Progress != nil {
 						s.Progress = float32(max(min(*e.Progress, 1), 0))
 					}
@@ -163,7 +179,7 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 			err = errors.WithStack(err)
 			slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
 
-			r.updateState(taskID, func(s *port.TaskState) {
+			r.updateState(task, func(s *port.TaskState) {
 				s.Error = err
 				s.Status = port.TaskStatusFailed
 				s.FinishedAt = time.Now()
@@ -171,9 +187,9 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 			return
 		}
 
-		slog.DebugContext(ctx, "task finished", slog.Duration("duration", time.Now().Sub(start)))
+		slog.DebugContext(ctx, "task finished", slog.Duration("duration", time.Since(start)))
 
-		r.updateState(taskID, func(s *port.TaskState) {
+		r.updateState(task, func(s *port.TaskState) {
 			s.Status = port.TaskStatusSucceeded
 			s.FinishedAt = time.Now()
 			s.Progress = 1
@@ -182,26 +198,29 @@ func (r *TaskRunner) Schedule(ctx context.Context, task model.Task) error {
 	return nil
 }
 
-func (r *TaskRunner) updateState(taskID model.TaskID, fn func(s *port.TaskState)) {
-	state, _ := r.tasks.LoadOrStore(taskID, port.TaskState{
-		TaskStateHeader: port.TaskStateHeader{
-			ID: taskID,
+func (r *TaskRunner) updateState(task model.Task, fn func(s *port.TaskState)) {
+	entry, _ := r.tasks.LoadOrStore(task.ID(), taskEntry{
+		Task: task,
+		State: port.TaskState{
+			TaskStateHeader: port.TaskStateHeader{
+				ID: task.ID(),
+			},
 		},
 	})
 
-	fn(&state)
+	fn(&entry.State)
 
-	r.tasks.Store(taskID, state)
+	r.tasks.Store(task.ID(), entry)
 }
 
-// State implements port.TaskRunner.
-func (r *TaskRunner) State(ctx context.Context, id model.TaskID) (*port.TaskState, error) {
-	state, exists := r.tasks.Load(id)
+// GetTaskState implements port.TaskRunner.
+func (r *TaskRunner) GetTaskState(ctx context.Context, id model.TaskID) (*port.TaskState, error) {
+	entry, exists := r.tasks.Load(id)
 	if !exists {
 		return nil, errors.WithStack(port.ErrNotFound)
 	}
 
-	return &state, nil
+	return &entry.State, nil
 }
 
 func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskRunner {
@@ -211,7 +230,7 @@ func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval 
 		runningCond:     *sync.NewCond(runningMutex),
 		running:         false,
 		semaphore:       make(chan struct{}, parallelism),
-		tasks:           syncx.Map[model.TaskID, port.TaskState]{},
+		tasks:           syncx.Map[model.TaskID, taskEntry]{},
 		handlers:        syncx.Map[model.TaskType, port.TaskHandler]{},
 		cleanupDelay:    cleanupDelay,
 		cleanupInterval: cleanupInterval,

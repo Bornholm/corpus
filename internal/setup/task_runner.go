@@ -44,7 +44,7 @@ var getTaskRunner = createFromConfigOnce(func(ctx context.Context, conf *config.
 		ticker := time.NewTicker(30 * time.Second)
 		ctx := context.Background()
 		for {
-			tasks, err := taskRunner.List(ctx)
+			tasks, err := taskRunner.ListTasks(ctx)
 			if err != nil {
 				slog.ErrorContext(ctx, "could not list tasks", slog.Any("error", errors.WithStack(err)))
 				continue
@@ -79,21 +79,21 @@ func setupTaskHandlers(ctx context.Context, conf *config.Config, taskRunner port
 		return errors.Wrap(err, "could not create index file task handler from config")
 	}
 
-	taskRunner.Register(documentTask.TaskTypeIndexFile, indexFileHandler)
+	taskRunner.RegisterTask(documentTask.TaskTypeIndexFile, indexFileHandler)
 
 	restoreBackupHandler, err := getRestoreBackupTaskHandler(ctx, conf)
 	if err != nil {
 		return errors.Wrap(err, "could not create index file task handler from config")
 	}
 
-	taskRunner.Register(backup.TaskTypeRestoreBackup, restoreBackupHandler)
+	taskRunner.RegisterTask(backup.TaskTypeRestoreBackup, restoreBackupHandler)
 
 	cleanupHandler, err := getCleanupTaskHandler(ctx, conf)
 	if err != nil {
 		return errors.Wrap(err, "could not cleanup task handler from config")
 	}
 
-	taskRunner.Register(documentTask.TaskTypeCleanup, cleanupHandler)
+	taskRunner.RegisterTask(documentTask.TaskTypeCleanup, cleanupHandler)
 
 	return nil
 }

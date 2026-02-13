@@ -16,7 +16,7 @@ func TestTaskManager(t *testing.T) {
 
 	var executed atomic.Int64
 
-	tr.Register("dummy", port.TaskHandlerFunc(func(ctx context.Context, task model.Task, events chan port.TaskEvent) error {
+	tr.RegisterTask("dummy", port.TaskHandlerFunc(func(ctx context.Context, task model.Task, events chan port.TaskEvent) error {
 		t.Logf("[%s] start", task.ID())
 		events <- port.NewTaskEvent(port.WithTaskProgress(0.1))
 		events <- port.NewTaskEvent(port.WithTaskProgress(0.5))
@@ -36,7 +36,7 @@ func TestTaskManager(t *testing.T) {
 			id: model.NewTaskID(),
 		}
 		t.Logf("Scheduling task %s", task.ID())
-		tr.Schedule(ctx, task)
+		tr.ScheduleTask(ctx, task)
 	}
 
 	if err := tr.Run(ctx); err != nil && !errors.Is(err, context.DeadlineExceeded) {
@@ -49,7 +49,7 @@ func TestTaskManager(t *testing.T) {
 		t.Logf("executed: expected %d, got %d", e, g)
 	}
 
-	taskHeaders, err := tr.List(ctx)
+	taskHeaders, err := tr.ListTasks(ctx)
 	if err != nil {
 		t.Fatalf("%+v", errors.WithStack(err))
 	}
@@ -59,7 +59,7 @@ func TestTaskManager(t *testing.T) {
 	}
 
 	for _, header := range taskHeaders {
-		state, err := tr.State(ctx, header.ID)
+		state, err := tr.GetTaskState(ctx, header.ID)
 		if err != nil {
 			t.Fatalf("%+v", errors.WithStack(err))
 		}
@@ -72,6 +72,16 @@ func TestTaskManager(t *testing.T) {
 
 type dummyTask struct {
 	id model.TaskID
+}
+
+// MarshalJSON implements [model.Task].
+func (d *dummyTask) MarshalJSON() ([]byte, error) {
+	return nil, nil
+}
+
+// UnmarshalJSON implements [model.Task].
+func (d *dummyTask) UnmarshalJSON([]byte) error {
+	return nil
 }
 
 // Owner implements [model.Task].

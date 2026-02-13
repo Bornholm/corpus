@@ -1,8 +1,10 @@
 package admin
 
 import (
+	"cmp"
 	"context"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/a-h/templ"
@@ -100,10 +102,17 @@ func (h *Handler) fillTasksPageVModelTasks(ctx context.Context, vmodel *componen
 		}
 	}
 
-	taskHeaders, err := h.taskRunner.List(ctx)
+	taskHeaders, err := h.taskRunner.ListTasks(ctx)
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	slices.SortFunc(taskHeaders, func(a, b port.TaskStateHeader) int {
+		return cmp.Or(
+			cmp.Compare(a.ScheduledAt.Unix(), b.ScheduledAt.Unix()),
+			cmp.Compare(a.Status, b.Status),
+		)
+	})
 
 	// Simple pagination logic
 	start := page * limit
@@ -149,15 +158,24 @@ func (h *Handler) fillTaskPageVModelTask(ctx context.Context, vmodel *component.
 		return errors.New("task ID is required")
 	}
 
-	taskState, err := h.taskRunner.State(ctx, taskID)
+	taskState, err := h.taskRunner.GetTaskState(ctx, taskID)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
-			return errors.New("task not found")
+			return common.NewHTTPError(http.StatusNotFound)
 		}
 		return errors.WithStack(err)
 	}
 
-	vmodel.Task = taskState
+	task, err := h.taskRunner.GetTask(ctx, taskID)
+	if err != nil {
+		if errors.Is(err, port.ErrNotFound) {
+			return common.NewHTTPError(http.StatusNotFound)
+		}
+		return errors.WithStack(err)
+	}
+
+	vmodel.State = taskState
+	vmodel.Task = task
 
 	return nil
 }

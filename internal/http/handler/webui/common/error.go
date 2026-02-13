@@ -1,11 +1,21 @@
 package common
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+)
 
 type Error struct {
 	err         string
 	userMessage string
 	statusCode  int
+	links       []component.LinkItem
+}
+
+// Links implements [WithErrorLinks].
+func (e *Error) Links() []component.LinkItem {
+	return e.links
 }
 
 // StatusCode implements HTTPError.
@@ -23,13 +33,14 @@ func (e *Error) UserMessage() string {
 	return e.userMessage
 }
 
-func NewError(err string, userMessage string, statusCode int) *Error {
-	return &Error{err, userMessage, statusCode}
+func NewError(err string, userMessage string, statusCode int, links ...component.LinkItem) *Error {
+	return &Error{err, userMessage, statusCode, links}
 }
 
 var _ UserFacingError = &Error{}
 var _ HTTPError = &Error{}
+var _ WithErrorLinks = &Error{}
 
-func NewHTTPError(statusCode int) *Error {
-	return &Error{http.StatusText(statusCode), http.StatusText(statusCode), statusCode}
+func NewHTTPError(statusCode int, links ...component.LinkItem) *Error {
+	return &Error{http.StatusText(statusCode), http.StatusText(statusCode), statusCode, links}
 }

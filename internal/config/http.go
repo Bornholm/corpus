@@ -3,10 +3,11 @@ package config
 import "time"
 
 type HTTP struct {
-	BaseURL string  `env:"BASE_URL,expand" envDefault:"/"`
-	Address string  `env:"ADDRESS,expand" envDefault:":3002"`
-	Authn   Authn   `envPrefix:"AUTHN_"`
-	Session Session `envPrefix:"SESSION_"`
+	BaseURL   string        `env:"BASE_URL,expand" envDefault:"/"`
+	Address   string        `env:"ADDRESS,expand" envDefault:":3002"`
+	Authn     Authn         `envPrefix:"AUTHN_"`
+	Session   Session       `envPrefix:"SESSION_"`
+	RateLimit HTTPRateLimit `envPrefix:"RATE_LIMIT_"`
 }
 type Authn struct {
 	Providers       AuthProviders `envPrefix:"PROVIDERS_"`
@@ -52,4 +53,12 @@ type GiteaProvider struct {
 	AuthURL    string `env:"AUTH_URL"`
 	ProfileURL string `env:"PROFILE_URL"`
 	Label      string `env:"LABEL"`
+}
+
+type HTTPRateLimit struct {
+	TrustHeaders    bool          `env:"TRUST_HEADERS" envDefault:"true"`
+	RequestInterval time.Duration `env:"REQUEST_INTERVAL,expand" envDefault:"1s"`
+	RequestMaxBurst int           `env:"REQUEST_MAX_BURST,expand" envDefault:"5"`
+	CacheSize       int           `env:"CACHE_SIZE,expand" envDefault:"50"`
+	CacheTTL        time.Duration `env:"CACHE_TTL,expand" envDefault:"1h"`
 }
