@@ -13,8 +13,10 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/bornholm/corpus/internal/http/handler/webui/pubshare/component"
 	corpusLLM "github.com/bornholm/corpus/internal/llm"
+	"github.com/bornholm/corpus/internal/metrics"
 	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func (h *Handler) getPublicSharePage(w http.ResponseWriter, r *http.Request) {
@@ -49,6 +51,16 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	metrics.PublicShareTotalQuestions.With(prometheus.Labels{
+		metrics.LabelPublicShareID: string(vmodel.PublicShare.ID()),
+	}).Add(1)
+
+	incrementFailures := func() {
+		metrics.PublicShareFailedQuestions.With(prometheus.Labels{
+			metrics.LabelPublicShareID: string(vmodel.PublicShare.ID()),
+		}).Add(1)
+	}
+
 	ctx := r.Context()
 
 	ctx = corpusLLM.WithHighPriority(ctx)
@@ -67,6 +79,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	results, err := h.documentManager.Search(ctx, vmodel.Query, searchOptions...)
 	if err != nil && !errors.Is(err, service.ErrNoResults) {
+		defer incrementFailures()
+
 		if errors.Is(err, llm.ErrRateLimit) {
 			common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
 			return
@@ -81,6 +95,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if len(results) > 0 {
 		response, contents, err := h.documentManager.Ask(ctx, vmodel.Query, results)
 		if err != nil {
+			defer incrementFailures()
+
 			if errors.Is(err, llm.ErrRateLimit) {
 				common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
 				return
@@ -92,6 +108,14 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 		vmodel.Response = response
 		vmodel.SectionContents = contents
+
+		metrics.PublicShareSucceededQuestions.With(prometheus.Labels{
+			metrics.LabelPublicShareID: string(vmodel.PublicShare.ID()),
+		}).Add(1)
+	} else {
+		metrics.PublicShareUnansweredQuestions.With(prometheus.Labels{
+			metrics.LabelPublicShareID: string(vmodel.PublicShare.ID()),
+		}).Add(1)
 	}
 
 	renderPage()
