@@ -47,7 +47,7 @@ var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf
 		client = tokenlimit.NewClient(
 			client,
 			tokenlimit.WithChatCompletionLimit(conf.LLM.Provider.RateLimit.ChatCompletionTokenMaxBurst, conf.LLM.Provider.RateLimit.ChatCompletionTokenInterval),
-			tokenlimit.WithChatCompletionLimit(conf.LLM.Provider.RateLimit.EmbeddingsTokenMaxBurst, conf.LLM.Provider.RateLimit.EmbeddingsTokenInterval),
+			tokenlimit.WithEmbeddingsLimit(conf.LLM.Provider.RateLimit.EmbeddingsTokenMaxBurst, conf.LLM.Provider.RateLimit.EmbeddingsTokenInterval),
 		)
 	}
 

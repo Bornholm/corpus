@@ -26,11 +26,11 @@ type LLMRateLimit struct {
 	RequestMaxBurst             int           `env:"REQUEST_MAX_BURST,expand" envDefault:"2"`
 	RequestLowPriorityThreshold float64       `env:"REQUEST_LOW_PRIORITY_THRESHOLD,expand" envDefault:"0.5"`
 
-	ChatCompletionTokenMaxBurst int           `env:"CHAT_COMPLETION_TOKEN_MAX_BURST,expand" envDefault:"500000"`
+	ChatCompletionTokenMaxBurst int           `env:"CHAT_COMPLETION_TOKEN_MAX_BURST,expand" envDefault:"2000000"`
 	ChatCompletionTokenInterval time.Duration `env:"CHAT_COMPLETION_TOKEN_INTERVAL,expand" envDefault:"1m"`
 
 	EmbeddingsTokenMaxBurst int           `env:"EMBEDDINGS_TOKEN_MAX_BURST,expand" envDefault:"20000000"`
-	EmbeddingsTokenInterval time.Duration `env:"MBEDDINGS_TOKEN_INTERVAL,expand" envDefault:"1m"`
+	EmbeddingsTokenInterval time.Duration `env:"EMBEDDINGS_TOKEN_INTERVAL,expand" envDefault:"1m"`
 }
 
 type LLMIndex struct {
