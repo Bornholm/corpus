@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/bornholm/corpus/internal/core/port"
@@ -12,7 +11,22 @@ import (
 )
 
 func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	query, results, err := h.doSearch(ctx, request)
+	arguments := request.Params.Arguments
+
+	question, ok := arguments["question"].(string)
+	if !ok {
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				mcp.TextContent{
+					Type: "text",
+					Text: "The 'question' required argument is missing.",
+				},
+			},
+			IsError: true,
+		}, nil
+	}
+
+	query, results, err := h.doSearch(ctx, question)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -79,13 +93,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 	}, nil
 }
 
-func (h *Handler) doSearch(ctx context.Context, request mcp.CallToolRequest) (string, []*port.IndexSearchResult, error) {
-	arguments := request.Params.Arguments
-	question, ok := arguments["question"].(string)
-	if !ok {
-		return "", nil, fmt.Errorf("invalid question argument")
-	}
-
+func (h *Handler) doSearch(ctx context.Context, query string) (string, []*port.IndexSearchResult, error) {
 	options := make([]service.DocumentManagerSearchOptionFunc, 0)
 
 	sessionData := contextSessionData(ctx)
@@ -93,7 +101,7 @@ func (h *Handler) doSearch(ctx context.Context, request mcp.CallToolRequest) (st
 		options = append(options, service.WithDocumentManagerSearchCollections(sessionData.Collections...))
 	}
 
-	results, err := h.documentManager.Search(ctx, question, options...)
+	results, err := h.documentManager.Search(ctx, query, options...)
 	if err != nil {
 		return "", nil, errors.WithStack(err)
 	}

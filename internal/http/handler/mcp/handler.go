@@ -3,12 +3,10 @@ package mcp
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
+	"log/slog"
 	"net/http"
-	"strings"
 
 	"github.com/bornholm/corpus/internal/build"
-	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/gorilla/sessions"
@@ -47,10 +45,16 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 
 	mcpServer := server.NewMCPServer("corpus", build.ShortVersion,
 		server.WithToolCapabilities(true),
-		server.WithToolFilter(h.filterTools),
+		server.WithToolHandlerMiddleware(func(next server.ToolHandlerFunc) server.ToolHandlerFunc {
+			return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				slog.DebugContext(ctx, "mcp tool call", slog.String("tool_name", request.Request.Method), slog.Any("tool_params", request.Request.Params))
+				return next(ctx, request)
+			}
+		}),
 	)
 
-	mcpServer.AddTool(getAskTool(defaultAskDescription), h.handleAsk)
+	mcpServer.AddTool(getAskTool(), h.handleAsk)
+	mcpServer.AddTool(getListCollectionsTool(), h.handleListCollections)
 
 	h.mcp = mcpServer
 
@@ -68,60 +72,23 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 	return h
 }
 
-const defaultAskDescription string = "Ask a properly formulated question to the knowledge base."
-
-func getAskTool(description string) mcp.Tool {
+func getAskTool() mcp.Tool {
 	return mcp.NewTool("ask",
-		mcp.WithDescription(description),
+		mcp.WithDescription("Ask a question to the knowledge database about a topic"),
 		mcp.WithString("question",
 			mcp.Description(`A properly formulated question to submit to the knowledge base.`),
 			mcp.Required(),
 		),
+		mcp.WithString("collection",
+			mcp.Description("Collection identifier. Restrict the knowledge base search to this collection"),
+		),
 	)
 }
 
-func (h *Handler) filterTools(ctx context.Context, tools []mcp.Tool) []mcp.Tool {
-	askDescription, err := h.getAskDescription(ctx)
-	if err != nil {
-		panic(errors.WithStack(err))
-	}
-
-	tools = []mcp.Tool{
-		getAskTool(askDescription),
-	}
-
-	return tools
-}
-
-func (h *Handler) getAskDescription(ctx context.Context) (string, error) {
-	collections, err := h.documentManager.DocumentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
-	var sb strings.Builder
-
-	sb.WriteString("## Available collections ")
-
-	for _, c := range collections {
-		sb.WriteString("#### Collection '")
-		sb.WriteString(c.Label())
-		sb.WriteString("'\n\n")
-
-		sb.WriteString("**ID:** ")
-		sb.WriteString(string(c.ID()))
-		sb.WriteString("\n\n")
-
-		sb.WriteString("**Description:**\n")
-		sb.WriteString(c.Description())
-		sb.WriteString("\n\n")
-	}
-
-	return fmt.Sprintf(`
-	%s
-
-	%s
-	`, defaultAskDescription, sb.String()), nil
+func getListCollectionsTool() mcp.Tool {
+	return mcp.NewTool("list_collections",
+		mcp.WithDescription("List available documents collections in the knowledge database"),
+	)
 }
 
 func getCookieSigningKey() ([]byte, error) {
