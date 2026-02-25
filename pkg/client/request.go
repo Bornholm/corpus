@@ -13,10 +13,8 @@ import (
 )
 
 func (c *Client) request(ctx context.Context, method string, path string, header http.Header, body io.Reader, result io.Writer) error {
-	c.semaphore <- struct{}{}
-	defer func() {
-		<-c.semaphore
-	}()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
 	url, err := url.Parse(path)
 	if err != nil {

@@ -38,7 +38,6 @@ type filesystemIndexer struct {
 	indexFileDebouncers syncx.Map[string, func(fn func())]
 	source              *url.URL
 	eTagType            ETagType
-	semaphore           chan struct{}
 }
 
 func (i *filesystemIndexer) Watch(ctx context.Context, funcs ...filesystem.WatchOptionFunc) error {
@@ -54,6 +53,7 @@ func (i *filesystemIndexer) Watch(ctx context.Context, funcs ...filesystem.Watch
 
 		defer func() {
 			i.fs = nil
+			slog.InfoContext(ctx, "filesystem unmounted")
 		}()
 
 		i.fs = fs
@@ -82,11 +82,6 @@ func (i *filesystemIndexer) Handle(ctx context.Context, w *watcher.Watcher, even
 	if event.IsDir() {
 		return nil
 	}
-
-	i.semaphore <- struct{}{}
-	defer func() {
-		<-i.semaphore
-	}()
 
 	ctx = slogx.WithAttrs(ctx, slog.String("file", event.Path), slog.String("oldPath", event.OldPath))
 

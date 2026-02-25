@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
 type RateLimitTransport struct {
-	Base       http.RoundTripper
-	MaxRetries int
+	Base        http.RoundTripper
+	MaxRetries  int
+	DefaultWait time.Duration
+	mutex       sync.RWMutex
 }
 
 func (t *RateLimitTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -24,6 +28,7 @@ func (t *RateLimitTransport) RoundTrip(req *http.Request) (*http.Response, error
 	var err error
 
 	for attempt := 0; attempt <= t.MaxRetries; attempt++ {
+
 		resp, err = transport.RoundTrip(req)
 		if err != nil {
 			return nil, err
@@ -33,15 +38,17 @@ func (t *RateLimitTransport) RoundTrip(req *http.Request) (*http.Response, error
 			return resp, nil
 		}
 
-		waitTime := t.getWaitTime(resp)
-
-		slog.DebugContext(req.Context(), "rate limited (429)", slog.Duration("wait_time", waitTime), slog.Int("attempt", attempt+1), slog.Int("max_retries", t.MaxRetries))
-
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
 
 		if attempt == t.MaxRetries {
 			break
+		}
+
+		waitTime := t.getWaitTime(resp)
+
+		if attempt > 0 {
+			slog.WarnContext(req.Context(), "rate limited (429)", slog.Duration("wait_time", waitTime), slog.Int("attempt", attempt+1), slog.Int("max_retries", t.MaxRetries))
 		}
 
 		select {
@@ -65,15 +72,16 @@ func (t *RateLimitTransport) RoundTrip(req *http.Request) (*http.Response, error
 }
 
 func (t *RateLimitTransport) getWaitTime(resp *http.Response) time.Duration {
-	defaultWait := time.Second
-
 	retryAfter := resp.Header.Get("Retry-After")
 	if retryAfter != "" {
 		if seconds, err := strconv.Atoi(retryAfter); err == nil {
-			return time.Duration(seconds) * time.Second
+			wait := time.Duration(seconds) * time.Second
+			jitter := time.Duration(rand.Float64() * wait.Seconds())
+			return wait + jitter
 		}
 		if date, err := http.ParseTime(retryAfter); err == nil {
-			return time.Until(date)
+			wait := time.Until(date)
+			return wait
 		}
 	}
 
@@ -87,5 +95,5 @@ func (t *RateLimitTransport) getWaitTime(resp *http.Response) time.Duration {
 		}
 	}
 
-	return defaultWait
+	return t.DefaultWait
 }

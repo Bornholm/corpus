@@ -23,17 +23,11 @@ var (
 		Value:   cli.NewStringSlice(),
 		Usage:   "One or more filesystem DSN to watch",
 	})
-	flagConcurrency = altsrc.NewIntFlag(&cli.IntFlag{
-		Name:  paramConcurrency,
-		Value: 5,
-		Usage: "Maximum number of concurrent operations to execute (by filesystem)",
-	})
 )
 
 func withWatchFlags(flags ...cli.Flag) []cli.Flag {
 	return append([]cli.Flag{
 		flagFilesystem,
-		flagConcurrency,
 	}, flags...)
 }
 

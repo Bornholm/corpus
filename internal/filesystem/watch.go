@@ -168,26 +168,46 @@ func Watch(ctx context.Context, fs afero.Fs, handler WatchHandler, funcs ...Watc
 		}
 	}
 
-	for path := range w.WatchedFiles() {
-		slog.DebugContext(ctx, "watching file", slog.String("path", path))
-	}
-
 	hasCreateEvent := slices.Contains(opts.Events, watcher.Create.String())
 	if hasCreateEvent {
 		go triggerCreateEventForPreExistingFiles(ctx, fs, w, opts.Directory, opts.Filter, opts.Recursive)
 	}
 
 	slog.InfoContext(ctx, "starting watcher", slog.Duration("interval", opts.Interval))
-	defer slog.InfoContext(ctx, "watcher stopped")
 
-	if err := ctx.Err(); err != nil {
-		return errors.WithStack(err)
+	// Start the watching process in a goroutine since Start() blocks until Close() is called.
+	startErr := make(chan error, 1)
+	go func() {
+		if err := w.Start(opts.Interval); err != nil {
+			startErr <- err
+			return
+		}
+		close(startErr)
+	}()
+
+	// Wait for the watcher to start (unblocked when Start() calls wg.Done())
+	w.Wait()
+
+	slog.InfoContext(ctx, "watcher started")
+
+	// Check for startup errors
+	select {
+	case err := <-startErr:
+		if err != nil {
+			return errors.Wrap(err, "could not watch files")
+		}
+	default:
+		// Watcher started successfully, continue
 	}
 
-	// Start the watching process.
-	if err := w.Start(opts.Interval); err != nil {
-		return errors.Wrap(err, "could not watch files")
-	}
+	// Set up context cancellation handler after watcher has started
+	go func() {
+		<-ctx.Done()
+		w.Close()
+	}()
+
+	// Wait for the watcher to be closed
+	<-w.Closed
 
 	return nil
 }
@@ -195,7 +215,7 @@ func Watch(ctx context.Context, fs afero.Fs, handler WatchHandler, funcs ...Watc
 func triggerCreateEventForPreExistingFiles(ctx context.Context, afs afero.Fs, w *watcher.Watcher, directory string, filter *regexp.Regexp, recursive bool) {
 	w.Wait()
 
-	slog.InfoContext(ctx, "watcher started, checking for pre-existing files")
+	slog.InfoContext(ctx, "checking for pre-existing files")
 
 	baseDir, err := afs.Open(".")
 	if err != nil {

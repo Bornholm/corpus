@@ -4,6 +4,8 @@ import (
 	"context"
 	"log/slog"
 	"net/url"
+	"os"
+	"os/signal"
 	"regexp"
 	"slices"
 	"strings"
@@ -45,11 +47,6 @@ func Command() *cli.Command {
 			filesystems, err := getFilesystems(ctx)
 			if err != nil {
 				return errors.Wrap(err, "could not retrieve filesystems")
-			}
-
-			concurrency, err := getConcurrency(ctx)
-			if err != nil {
-				return errors.Wrap(err, "could not retrieve concurrency")
 			}
 
 			client, err := common.GetCorpusClient(ctx)
@@ -107,7 +104,6 @@ func Command() *cli.Command {
 						backend:     b,
 						source:      source,
 						eTagType:    eTagType,
-						semaphore:   make(chan struct{}, concurrency),
 					}
 
 					if err := indexer.Watch(watchCtx, watchOptions...); err != nil {
@@ -117,6 +113,17 @@ func Command() *cli.Command {
 			}
 
 			wg.Wait()
+
+			notify := make(chan os.Signal, 1)
+			signal.Notify(notify, os.Interrupt)
+
+			slog.InfoContext(sharedCtx, "watcher running, press ctrl+c to exit")
+
+			select {
+			case <-notify:
+			case <-sharedCtx.Done():
+				return errors.WithStack(ctx.Err())
+			}
 
 			return nil
 		},

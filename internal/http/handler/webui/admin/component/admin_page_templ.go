@@ -43,7 +43,7 @@ func AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...com
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container\"><div class=\"columns\"><div class=\"column is-narrow\"><aside class=\"menu\"><p class=\"menu-label\">Administration</p><ul class=\"menu-list\"><li>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 1, "<div class=\"container\"><div class=\"columns\"><div class=\"column is-3\"><aside class=\"menu\"><p class=\"menu-label\">Administration</p><ul class=\"menu-list\"><li>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -131,7 +131,7 @@ func AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...com
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><span class=\"icon\"><i class=\"fas fa-tasks\"></i></span> <span>Tâches</span></a></li></ul></aside></div><div class=\"column\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, "\"><span class=\"icon\"><i class=\"fas fa-tasks\"></i></span> <span>Tâches</span></a></li></ul></aside></div><div class=\"column is-9\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

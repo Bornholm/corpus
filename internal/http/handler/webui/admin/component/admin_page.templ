@@ -6,7 +6,7 @@ templ AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...co
 	@commonComp.NavbarPage(navbar, funcs...) {
 		<div class="container">
 			<div class="columns">
-				<div class="column is-narrow">
+				<div class="column is-3">
 					<aside class="menu">
 						<p class="menu-label">
 							Administration
@@ -47,7 +47,7 @@ templ AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...co
 						</ul>
 					</aside>
 				</div>
-				<div class="column">
+				<div class="column is-9">
 					{ children... }
 				</div>
 			</div>

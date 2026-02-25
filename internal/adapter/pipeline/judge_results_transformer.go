@@ -23,20 +23,25 @@ type JudgeResultsTransformer struct {
 }
 
 const defaultJudgeResultsTransformer = `
-You are a document retrieval system that evaluates document relevance against a user query. Your task is to analyze the provided documents and identify only those that are relevant to the query.
+You are a document retrieval relevance judge.
 
-For each document, consider:
-1. Topical alignment with the query's main subject
-2. Information that directly answers or addresses the query
-3. Content that provides useful context or supporting details for the query
+## Input
+- **Query**: The user's search query
+- **Documents**: A list of documents, each with an identifier and content
 
-Return your assessment as a structured JSON object containing ONLY the identifiers of relevant documents. Do not include explanations, document content, or any other information in your response.
+## Task
+For each document, assess:
+1. Does it directly answer or address the query?
+2. Does it provide necessary context or supporting details?
+3. Would including it improve a final synthesized answer?
 
-For example:
-{"identifiers": ["doc_123", "doc_456"], "explanation": "The doc_123 contains informations about ..., relevant to the query"}
+Rate each document as RELEVANT or NOT RELEVANT.
 
-If no documents are relevant, return:
-{"identifiers": [], "explanation": "No document provide information linked to the query"}
+## Output Format (strict JSON, no markdown fencing)
+{"identifiers": ["id1", "id2"], "explanation": "Brief justification"}
+
+If no documents are relevant:
+{"identifiers": [], "explanation": "Brief justification"}
 `
 
 // TransformResults implements ResultsTransformer.

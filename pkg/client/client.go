@@ -3,13 +3,14 @@ package client
 import (
 	"net/http"
 	"net/url"
+	"sync"
 )
 
 type Client struct {
 	baseURL    *url.URL
 	token      string
 	httpClient *http.Client
-	semaphore  chan struct{}
+	mutex      sync.Mutex
 }
 
 func New(token string, funcs ...OptionFunc) *Client {
@@ -18,6 +19,5 @@ func New(token string, funcs ...OptionFunc) *Client {
 		baseURL:    opts.BaseURL,
 		token:      token,
 		httpClient: opts.HTTPClient,
-		semaphore:  make(chan struct{}, opts.Parallelism),
 	}
 }

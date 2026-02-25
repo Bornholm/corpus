@@ -3,12 +3,12 @@ package client
 import (
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type Options struct {
-	BaseURL     *url.URL
-	HTTPClient  *http.Client
-	Parallelism int
+	BaseURL    *url.URL
+	HTTPClient *http.Client
 }
 
 type OptionFunc func(opts *Options)
@@ -25,12 +25,6 @@ func WithHTTPClient(httpClient *http.Client) OptionFunc {
 	}
 }
 
-func WithParallelism(parallelism int) OptionFunc {
-	return func(opts *Options) {
-		opts.Parallelism = parallelism
-	}
-}
-
 func NewOptions(funcs ...OptionFunc) *Options {
 	opts := &Options{
 		BaseURL: &url.URL{
@@ -38,13 +32,13 @@ func NewOptions(funcs ...OptionFunc) *Options {
 			Host:   "localhost:3002",
 		},
 		HTTPClient: &http.Client{
-			Timeout: 0,
+			Timeout: 5 * time.Minute,
 			Transport: &RateLimitTransport{
-				Base:       http.DefaultTransport,
-				MaxRetries: 3,
+				Base:        http.DefaultTransport,
+				MaxRetries:  10,
+				DefaultWait: time.Second,
 			},
 		},
-		Parallelism: 5,
 	}
 	for _, fn := range funcs {
 		fn(opts)
