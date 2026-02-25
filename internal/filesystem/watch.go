@@ -92,6 +92,9 @@ func Watch(ctx context.Context, fs afero.Fs, handler WatchHandler, funcs ...Watc
 	opts := NewWatchOptions(funcs...)
 	w := watcher.New()
 
+	// Track whether the initial scan has completed successfully
+	initialScanSuccessful := false
+
 	w.SetFileSystem(fs)
 
 	go func() {
@@ -125,6 +128,23 @@ func Watch(ctx context.Context, fs afero.Fs, handler WatchHandler, funcs ...Watc
 					continue
 				}
 
+				// Skip Remove events until the initial scan completes successfully.
+				// This prevents deleting documents when the filesystem has temporary
+				// connectivity issues (e.g., network timeout during initial listing).
+				if event.Op == watcher.Remove && !initialScanSuccessful {
+					slog.DebugContext(ctx, "skipping remove event until initial scan completes", slog.Any("event", event))
+					continue
+				}
+
+				// Mark initial scan as successful once we receive a non-Remove event.
+				// Non-Remove events (like Create) indicate the watcher has completed
+				// its initial scan successfully. Remove events alone don't indicate
+				// a successful scan - they might be incorrectly generated after errors.
+				if !initialScanSuccessful && event.Op != watcher.Remove {
+					initialScanSuccessful = true
+					slog.DebugContext(ctx, "initial scan completed successfully")
+				}
+
 				go func(event watcher.Event) {
 					if err := handler.Handle(ctx, w, event); err != nil {
 						slog.ErrorContext(
@@ -145,6 +165,10 @@ func Watch(ctx context.Context, fs afero.Fs, handler WatchHandler, funcs ...Watc
 					ctx, "error while watching files",
 					slog.Any("error", errors.WithStack(err)),
 				)
+
+				// Reset the flag on error so that Remove events are not processed
+				// until the initial scan completes successfully
+				initialScanSuccessful = false
 
 				continue
 

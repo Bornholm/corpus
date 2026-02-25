@@ -23,7 +23,8 @@ type TaskRunner struct {
 	runningCond  sync.Cond
 	running      bool
 
-	tasks syncx.Map[model.TaskID, taskEntry]
+	tasks      syncx.Map[model.TaskID, taskEntry]
+	stateMutex sync.Mutex
 
 	handlers  syncx.Map[model.TaskType, port.TaskHandler]
 	semaphore chan struct{}
@@ -59,7 +60,7 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 				slog.DebugContext(ctx, "running task cleaner")
 
 				r.tasks.Range(func(id model.TaskID, entry taskEntry) bool {
-					if entry.State.FinishedAt.IsZero() || time.Now().After(entry.State.FinishedAt.Add(r.cleanupDelay)) {
+					if entry.State.FinishedAt.IsZero() || !time.Now().After(entry.State.FinishedAt.Add(r.cleanupDelay)) {
 						return true
 					}
 
@@ -131,7 +132,7 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 		}()
 
 		r.runningMutex.Lock()
-		if !r.running {
+		for !r.running {
 			r.runningCond.Wait()
 		}
 		r.runningMutex.Unlock()
@@ -156,9 +157,11 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 		})
 
 		events := make(chan port.TaskEvent)
-		defer close(events)
 
+		var eventsWg sync.WaitGroup
+		eventsWg.Add(1)
 		go func() {
+			defer eventsWg.Done()
 			for e := range events {
 				r.updateState(task, func(s *port.TaskState) {
 					if e.Progress != nil {
@@ -175,7 +178,15 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 
 		start := time.Now()
 
-		if err := handler.Handle(ctx, task, events); err != nil {
+		err := handler.Handle(ctx, task, events)
+
+		// Close the events channel and wait for the events goroutine to fully
+		// drain before writing the final task state, eliminating the race between
+		// the events goroutine and the final updateState call.
+		close(events)
+		eventsWg.Wait()
+
+		if err != nil {
 			err = errors.WithStack(err)
 			slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
 
@@ -199,6 +210,9 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 }
 
 func (r *TaskRunner) updateState(task model.Task, fn func(s *port.TaskState)) {
+	r.stateMutex.Lock()
+	defer r.stateMutex.Unlock()
+
 	entry, _ := r.tasks.LoadOrStore(task.ID(), taskEntry{
 		Task: task,
 		State: port.TaskState{

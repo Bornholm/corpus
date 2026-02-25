@@ -76,13 +76,15 @@ templ TasksPage(vmodel TasksPageVModel) {
 				</table>
 			</div>
 			<!-- Pagination -->
-			if vmodel.CurrentPage > 1 || len(vmodel.Tasks) == vmodel.PageSize {
+			if vmodel.CurrentPage > 1 || vmodel.TotalTasks > (vmodel.CurrentPage * vmodel.PageSize) {
 				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
 					if vmodel.CurrentPage > 1 {
 						<a class="pagination-previous" href={ templ.SafeURL("/admin/tasks?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
 					}
-					if len(vmodel.Tasks) == vmodel.PageSize {
+					if vmodel.TotalTasks > (vmodel.CurrentPage * vmodel.PageSize) {
 						<a class="pagination-next" href={ templ.SafeURL("/admin/tasks?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
+					} else {
+						<a class="pagination-next is-disabled">Suivant</a>
 					}
 					<ul class="pagination-list">
 						<li>

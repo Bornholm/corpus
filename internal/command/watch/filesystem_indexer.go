@@ -31,13 +31,15 @@ const (
 )
 
 type filesystemIndexer struct {
-	client              *client.Client
-	collections         []model.CollectionID
-	backend             filesystem.Backend
-	fs                  afero.Fs
-	indexFileDebouncers syncx.Map[string, func(fn func())]
-	source              *url.URL
-	eTagType            ETagType
+	client               *client.Client
+	collections          []model.CollectionID
+	backend              filesystem.Backend
+	fs                   afero.Fs
+	indexFileDebouncers  syncx.Map[string, func(fn func())]
+	source               *url.URL
+	eTagType             ETagType
+	indexRetryMaxRetries int
+	indexRetryBaseDelay  time.Duration
 }
 
 func (i *filesystemIndexer) Watch(ctx context.Context, funcs ...filesystem.WatchOptionFunc) error {
@@ -129,6 +131,34 @@ func (i *filesystemIndexer) indexFileDebounced(ctx context.Context, path string,
 }
 
 func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
+	return i.indexFileWithRetry(ctx, path, fileInfo, 0)
+}
+
+func (i *filesystemIndexer) indexFileWithRetry(ctx context.Context, path string, fileInfo os.FileInfo, attempt int) error {
+	err := i.doIndexFile(ctx, path, fileInfo)
+	if err == nil {
+		return nil
+	}
+
+	// If no retries configured or permanent error, return immediately
+	if i.indexRetryMaxRetries == 0 {
+		return err
+	}
+
+	if attempt >= i.indexRetryMaxRetries {
+		slog.ErrorContext(ctx, "indexation failed after max retries", slog.Any("error", errors.WithStack(err)), slog.String("path", path), slog.Int("maxRetries", i.indexRetryMaxRetries))
+		return err
+	}
+
+	backoff := i.indexRetryBaseDelay * time.Duration(1<<attempt)
+	slog.WarnContext(ctx, "indexation failed, will retry", slog.Any("error", errors.WithStack(err)), slog.String("path", path), slog.Int("attempt", attempt+1), slog.Int("maxRetries", i.indexRetryMaxRetries), slog.Duration("backoff", backoff))
+
+	time.Sleep(backoff)
+
+	return i.indexFileWithRetry(ctx, path, fileInfo, attempt+1)
+}
+
+func (i *filesystemIndexer) doIndexFile(ctx context.Context, path string, fileInfo os.FileInfo) error {
 	source, err := i.getSource(path)
 	if err != nil {
 		return errors.WithStack(err)
@@ -156,8 +186,6 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo
 
 	defer file.Close()
 
-	slog.InfoContext(ctx, "indexing new document")
-
 	task, err := i.client.Index(
 		ctx,
 		filepath.Base(path), file,
@@ -168,6 +196,8 @@ func (i *filesystemIndexer) indexFile(ctx context.Context, path string, fileInfo
 	if err != nil {
 		return errors.WithStack(err)
 	}
+
+	slog.InfoContext(ctx, "started document indexing")
 
 	ctx = log.WithAttrs(ctx, slog.String("taskID", string(task.ID)))
 

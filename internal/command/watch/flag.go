@@ -35,8 +35,3 @@ func getFilesystems(ctx *cli.Context) ([]string, error) {
 	filesystems := ctx.StringSlice(paramFilesystem)
 	return filesystems, nil
 }
-
-func getConcurrency(ctx *cli.Context) (int, error) {
-	concurrency := ctx.Int(paramConcurrency)
-	return concurrency, nil
-}

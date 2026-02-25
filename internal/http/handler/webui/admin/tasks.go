@@ -107,11 +107,18 @@ func (h *Handler) fillTasksPageVModelTasks(ctx context.Context, vmodel *componen
 		return errors.WithStack(err)
 	}
 
+	// Sort by status priority (failed first, then running, then pending, then succeeded)
+	// then by date in reverse chronological order (most recent first)
 	slices.SortFunc(taskHeaders, func(a, b port.TaskStateHeader) int {
-		return cmp.Or(
-			cmp.Compare(a.ScheduledAt.Unix(), b.ScheduledAt.Unix()),
-			cmp.Compare(a.Status, b.Status),
-		)
+		priorityA := getStatusPriority(a.Status)
+		priorityB := getStatusPriority(b.Status)
+
+		if priorityA != priorityB {
+			return cmp.Compare(priorityA, priorityB)
+		}
+
+		// Same priority, sort by date descending (most recent first)
+		return cmp.Compare(b.ScheduledAt.Unix(), a.ScheduledAt.Unix())
 	})
 
 	// Simple pagination logic
@@ -137,6 +144,24 @@ func (h *Handler) fillTasksPageVModelTasks(ctx context.Context, vmodel *componen
 	vmodel.TotalTasks = len(taskHeaders)
 
 	return nil
+}
+
+// getStatusPriority returns the priority for a task status.
+// Lower values = higher priority (should appear first).
+// Order: failed (1) -> running (2) -> pending (3) -> succeeded (4)
+func getStatusPriority(status port.TaskStatus) int {
+	switch status {
+	case port.TaskStatusFailed:
+		return 1
+	case port.TaskStatusRunning:
+		return 2
+	case port.TaskStatusPending:
+		return 3
+	case port.TaskStatusSucceeded:
+		return 4
+	default:
+		return 5
+	}
 }
 
 func (h *Handler) fillTaskPageVModelNavbar(ctx context.Context, vmodel *component.TaskPageVModel, r *http.Request) error {

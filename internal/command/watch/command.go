@@ -99,11 +99,13 @@ func Command() *cli.Command {
 					watchCtx := slogx.WithAttrs(sharedCtx, slog.String("filesystem", scrubbedURL(dsn)))
 
 					indexer := &filesystemIndexer{
-						collections: collections,
-						client:      client,
-						backend:     b,
-						source:      source,
-						eTagType:    eTagType,
+						collections:          collections,
+						client:               client,
+						backend:              b,
+						source:               source,
+						eTagType:             eTagType,
+						indexRetryMaxRetries: 3,
+						indexRetryBaseDelay:  time.Second,
 					}
 
 					if err := indexer.Watch(watchCtx, watchOptions...); err != nil {
@@ -187,7 +189,6 @@ func getCorpusETagType(dsn *url.URL) (ETagType, error) {
 	query := dsn.Query()
 
 	if rawETagType := query.Get(paramCorpusETag); rawETagType != "" {
-
 		eTagType := ETagType(rawETagType)
 
 		if !slices.Contains(availableETagTypes, eTagType) {
