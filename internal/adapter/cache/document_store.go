@@ -269,6 +269,11 @@ func (s *DocumentStore) QueryUserWritableDocuments(ctx context.Context, userID m
 	return s.backend.QueryUserWritableDocuments(ctx, userID, opts)
 }
 
+// QueryDocumentsByCollectionID implements [port.DocumentStore].
+func (s *DocumentStore) QueryDocumentsByCollectionID(ctx context.Context, collectionID model.CollectionID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+	return s.backend.QueryDocumentsByCollectionID(ctx, collectionID, opts)
+}
+
 // SaveDocuments implements [port.DocumentStore].
 func (s *DocumentStore) SaveDocuments(ctx context.Context, documents ...model.OwnedDocument) error {
 	defer func() {

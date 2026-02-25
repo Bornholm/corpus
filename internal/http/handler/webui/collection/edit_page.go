@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/a-h/templ"
 	"github.com/bornholm/corpus/internal/core/model"
@@ -225,6 +226,7 @@ func (h *Handler) fillCollectionEditPageViewModel(r *http.Request) (*component.C
 		vmodel, r,
 		h.fillCollectionEditPageVModelCollection,
 		h.fillCollectionEditPageVModelShares,
+		h.fillCollectionEditPageVModelDocuments,
 		h.fillCollectionEditPageVModelNavbar,
 	)
 	if err != nil {
@@ -308,6 +310,42 @@ func (h *Handler) fillCollectionEditPageVModelNavbar(ctx context.Context, vmodel
 
 	vmodel.Navbar = commonComp.NavbarVModel{
 		User: user,
+	}
+
+	return nil
+}
+
+func (h *Handler) fillCollectionEditPageVModelDocuments(ctx context.Context, vmodel *component.CollectionEditPageVModel, r *http.Request) error {
+	collectionID := model.CollectionID(r.PathValue("id"))
+
+	// Get page from query params, default to 0
+	page := 0
+	pageSize := 10
+
+	if pageStr := r.URL.Query().Get("page"); pageStr != "" {
+		if p, err := strconv.Atoi(pageStr); err == nil && p > 0 {
+			page = p
+		}
+	}
+
+	opts := port.QueryDocumentsOptions{
+		Page:  &page,
+		Limit: &pageSize,
+	}
+
+	documents, total, err := h.documentManager.DocumentStore.QueryDocumentsByCollectionID(ctx, collectionID, opts)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	vmodel.Documents = documents
+	vmodel.CurrentPage = page
+	vmodel.PageSize = pageSize
+	vmodel.TotalDocuments = total
+	if pageSize > 0 {
+		vmodel.TotalPages = int((total + int64(pageSize) - 1) / int64(pageSize))
+	} else {
+		vmodel.TotalPages = 0
 	}
 
 	return nil

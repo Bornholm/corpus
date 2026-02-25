@@ -14,6 +14,9 @@ type DocumentStore interface {
 	DeleteDocumentByID(ctx context.Context, ids ...model.DocumentID) error
 	QueryDocuments(ctx context.Context, opts QueryDocumentsOptions) ([]model.PersistedDocument, int64, error)
 
+	// QueryDocumentsByCollectionID retrieves all documents belonging to a specific collection.
+	QueryDocumentsByCollectionID(ctx context.Context, collectionID model.CollectionID, opts QueryDocumentsOptions) ([]model.PersistedDocument, int64, error)
+
 	QueryUserReadableDocuments(ctx context.Context, userID model.UserID, opts QueryDocumentsOptions) ([]model.PersistedDocument, int64, error)
 	QueryUserWritableDocuments(ctx context.Context, userID model.UserID, opts QueryDocumentsOptions) ([]model.PersistedDocument, int64, error)
 

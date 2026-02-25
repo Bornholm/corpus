@@ -3,6 +3,7 @@ package component
 import (
 	"github.com/bornholm/corpus/internal/core/model"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
 )
 
 type CollectionEditPageVModel struct {
@@ -12,6 +13,11 @@ type CollectionEditPageVModel struct {
 	IsWritable     bool
 	Shares         []model.PersistedCollectionShare
 	AvailableUsers []model.User
+	Documents      []model.PersistedDocument
+	CurrentPage    int
+	TotalPages     int
+	TotalDocuments int64
+	PageSize       int
 }
 
 templ CollectionEditPage(vmodel CollectionEditPageVModel) {
@@ -49,6 +55,12 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 		</div>
 		<div class="columns">
 			<div class="column">
+				<h3 class="title is-size-4">
+					<span class="icon">
+						<i class="fas fa-info"></i>
+					</span>
+					<span>Informations</span>
+				</h3>
 				if vmodel.IsWritable {
 					<form method="post">
 						<div class="field">
@@ -103,98 +115,155 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 					</div>
 				}
 			</div>
+			if vmodel.IsOwner {
+				<div class="column is-half">
+					<div class="columns">
+						<div class="column">
+							<h3 class="title is-size-4">
+								<span class="icon">
+									<i class="fas fa-share-alt"></i>
+								</span>
+								<span>Partages</span>
+							</h3>
+							if len(vmodel.Shares) == 0 {
+								<p class="has-text-grey-light is-italic mb-4">Cette collection n'est partagée avec aucun utilisateur.</p>
+							} else {
+								<table class="table is-fullwidth is-striped mb-4">
+									<thead>
+										<tr>
+											<th>Utilisateur</th>
+											<th>Niveau d'accès</th>
+											<th></th>
+										</tr>
+									</thead>
+									<tbody>
+										for _, share := range vmodel.Shares {
+											<tr>
+												<td>
+													<span>{ share.SharedWith().DisplayName() }</span>
+													<span class="has-text-grey is-size-7 ml-2">{ share.SharedWith().Email() }</span>
+												</td>
+												<td>
+													if share.Level() == model.CollectionShareLevelWrite {
+														<span class="tag is-warning">Écriture</span>
+													} else {
+														<span class="tag is-info">Lecture</span>
+													}
+												</td>
+												<td class="has-text-right">
+													<button
+														class="button is-small is-danger is-outlined"
+														hx-delete={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "shares", string(share.ID()))) }
+														hx-confirm="Supprimer ce partage ?"
+														hx-target="body"
+													>
+														<span class="icon">
+															<i class="fas fa-times"></i>
+														</span>
+													</button>
+												</td>
+											</tr>
+										}
+									</tbody>
+								</table>
+							}
+							if len(vmodel.AvailableUsers) > 0 {
+								<form
+									method="post"
+									action={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "shares")) }
+								>
+									<div class="field is-grouped">
+										<div class="control is-expanded">
+											<div class="select is-fullwidth">
+												<select name="user_id" required>
+													<option value="">-- Choisir un utilisateur --</option>
+													for _, u := range vmodel.AvailableUsers {
+														<option value={ string(u.ID()) }>{ u.DisplayName() } ({ u.Email() })</option>
+													}
+												</select>
+											</div>
+										</div>
+										<div class="control">
+											<div class="select">
+												<select name="level" required>
+													<option value="read">Lecture</option>
+													<option value="write">Écriture</option>
+												</select>
+											</div>
+										</div>
+										<div class="control">
+											<button type="submit" class="button is-primary">
+												<span class="icon">
+													<i class="fas fa-plus"></i>
+												</span>
+												<span>Ajouter</span>
+											</button>
+										</div>
+									</div>
+								</form>
+							} else {
+								<p class="has-text-grey-light is-italic">Aucun autre utilisateur disponible à partager.</p>
+							}
+						</div>
+					</div>
+				</div>
+			}
 		</div>
-		if vmodel.IsOwner {
-			<hr/>
-			<div class="columns">
-				<div class="column">
-					<h3 class="title is-size-4">
-						<span class="icon">
-							<i class="fas fa-share-alt"></i>
-						</span>
-						<span>Partages</span>
-					</h3>
-					if len(vmodel.Shares) == 0 {
-						<p class="has-text-grey-light is-italic mb-4">Cette collection n'est partagée avec aucun utilisateur.</p>
-					} else {
+		<hr/>
+		<div class="columns">
+			<div class="column is-12">
+				<h3 class="title is-size-4">
+					<span class="icon">
+						<i class="fas fa-file-alt"></i>
+					</span>
+					<span>Documents ({ vmodel.TotalDocuments })</span>
+				</h3>
+				if len(vmodel.Documents) == 0 {
+					<p class="has-text-grey-light is-italic">Aucun document dans cette collection.</p>
+				} else {
+					<div class="table-container">
 						<table class="table is-fullwidth is-striped mb-4">
 							<thead>
 								<tr>
-									<th>Utilisateur</th>
-									<th>Niveau d'accès</th>
-									<th></th>
+									<th>Source</th>
+									<th>Propriétaire</th>
+									<th>Date d'ajout</th>
 								</tr>
 							</thead>
 							<tbody>
-								for _, share := range vmodel.Shares {
+								for _, doc := range vmodel.Documents {
 									<tr>
 										<td>
-											<span>{ share.SharedWith().DisplayName() }</span>
-											<span class="has-text-grey is-size-7 ml-2">{ share.SharedWith().Email() }</span>
+											<a href={ templ.SafeURL(doc.Source().String()) } target="_blank">{ doc.Source().String() }</a>
 										</td>
 										<td>
-											if share.Level() == model.CollectionShareLevelWrite {
-												<span class="tag is-warning">Écriture</span>
-											} else {
-												<span class="tag is-info">Lecture</span>
-											}
+											{ doc.Owner().DisplayName() }
 										</td>
-										<td class="has-text-right">
-											<button
-												class="button is-small is-danger is-outlined"
-												hx-delete={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "shares", string(share.ID()))) }
-												hx-confirm="Supprimer ce partage ?"
-												hx-target="body"
-											>
-												<span class="icon">
-													<i class="fas fa-times"></i>
-												</span>
-											</button>
+										<td>
+											<span>{ doc.CreatedAt().Format("02/01/2006") }</span>
 										</td>
 									</tr>
 								}
 							</tbody>
 						</table>
+					</div>
+					if vmodel.TotalPages > 1 {
+						<nav class="pagination" role="navigation" aria-label="pagination">
+							if vmodel.CurrentPage > 0 {
+								<a class="pagination-previous" href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1))) }>Précédent</a>
+							}
+							if vmodel.CurrentPage < vmodel.TotalPages-1 {
+								<a class="pagination-next" href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1))) }>Suivant</a>
+							}
+							<ul class="pagination-list">
+								<li>
+									<span class="pagination-link is-current">{ vmodel.CurrentPage + 1 } / { vmodel.TotalPages }</span>
+								</li>
+							</ul>
+						</nav>
 					}
-					if len(vmodel.AvailableUsers) > 0 {
-						<form
-							method="post"
-							action={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "shares")) }
-						>
-							<div class="field is-grouped">
-								<div class="control is-expanded">
-									<div class="select is-fullwidth">
-										<select name="user_id" required>
-											<option value="">-- Choisir un utilisateur --</option>
-											for _, u := range vmodel.AvailableUsers {
-												<option value={ string(u.ID()) }>{ u.DisplayName() } ({ u.Email() })</option>
-											}
-										</select>
-									</div>
-								</div>
-								<div class="control">
-									<div class="select">
-										<select name="level" required>
-											<option value="read">Lecture</option>
-											<option value="write">Écriture</option>
-										</select>
-									</div>
-								</div>
-								<div class="control">
-									<button type="submit" class="button is-primary">
-										<span class="icon">
-											<i class="fas fa-plus"></i>
-										</span>
-										<span>Ajouter</span>
-									</button>
-								</div>
-							</div>
-						</form>
-					} else {
-						<p class="has-text-grey-light is-italic">Aucun autre utilisateur disponible à partager.</p>
-					}
-				</div>
+				}
 			</div>
-		}
+		</div>
 	}
 }

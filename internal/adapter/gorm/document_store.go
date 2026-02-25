@@ -956,3 +956,58 @@ func (s *Store) CanWriteDocument(ctx context.Context, userID model.UserID, docum
 	slog.DebugContext(ctx, "document write permission result", slog.Bool("can_write", canWrite))
 	return canWrite, nil
 }
+
+// QueryDocumentsByCollectionID implements port.DocumentStore.
+func (s *Store) QueryDocumentsByCollectionID(ctx context.Context, collectionID model.CollectionID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+	var (
+		documents []*Document
+		total     int64
+	)
+
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
+		limit := 10
+		if opts.Limit != nil {
+			limit = *opts.Limit
+		}
+
+		page := 0
+		if opts.Page != nil {
+			page = *opts.Page
+		}
+
+		// Query documents that belong to the specified collection
+		// using the many-to-many join table
+		query := db.Model(&Document{}).Where(
+			"id IN (SELECT document_id FROM documents_collections WHERE collection_id = ?)",
+			string(collectionID),
+		)
+
+		if err := query.Count(&total).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		query = query.Limit(limit).Offset(page * limit).Order("created_at DESC")
+
+		if !opts.HeaderOnly {
+			query = query.Preload(clause.Associations).Preload("Sections")
+		} else {
+			query = query.Omit(clause.Associations).Select("ID", "CreatedAt", "UpdatedAt", "Source", "ETag")
+		}
+
+		if err := query.Find(&documents).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.BUSY, sqlite3.LOCKED)
+	if err != nil {
+		return nil, total, errors.WithStack(err)
+	}
+
+	wrappedDocuments := make([]model.PersistedDocument, 0, len(documents))
+	for _, d := range documents {
+		wrappedDocuments = append(wrappedDocuments, &wrappedDocument{d})
+	}
+
+	return wrappedDocuments, total, nil
+}

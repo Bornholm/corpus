@@ -214,6 +214,11 @@ func (d *dummyStore) GetCollectionShares(ctx context.Context, collectionID model
 	panic("unimplemented")
 }
 
+// QueryDocumentsByCollectionID implements [port.DocumentStore].
+func (d *dummyStore) QueryDocumentsByCollectionID(ctx context.Context, collectionID model.CollectionID, opts port.QueryDocumentsOptions) ([]model.PersistedDocument, int64, error) {
+	panic("unimplemented")
+}
+
 var _ port.DocumentStore = &dummyStore{}
 
 type dummySection struct {
