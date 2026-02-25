@@ -130,14 +130,18 @@ func (s *DocumentStore) CreateCollectionShare(ctx context.Context, collectionID 
 	s.authorizationCache.Remove(getCompositeCacheKey(userID, collectionID, "read", "collection"))
 	s.authorizationCache.Remove(getCompositeCacheKey(userID, collectionID, "write", "collection"))
 
+	// Invalidate the readable document count for the user who was granted access
+	s.statCache.Remove(getReadableDocumentsCountCacheKey(userID))
+
 	return share, nil
 }
 
 // DeleteCollectionShare implements [port.DocumentStore].
 func (s *DocumentStore) DeleteCollectionShare(ctx context.Context, shareID model.CollectionShareID) error {
 	// We can't know which user/collection this was for without fetching first,
-	// so purge the entire authorization cache to ensure consistency.
+	// so purge the entire authorization and stat caches to ensure consistency.
 	defer s.authorizationCache.Purge()
+	defer s.statCache.Purge()
 
 	return s.backend.DeleteCollectionShare(ctx, shareID)
 }

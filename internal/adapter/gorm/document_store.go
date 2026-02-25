@@ -279,7 +279,11 @@ func (s *Store) CountReadableDocuments(ctx context.Context, userID model.UserID)
 
 	var total int64
 
-	if err := db.Model(&Document{}).Where("owner_id = ?", userID).Count(&total).Error; err != nil {
+	// Count documents the user owns OR documents in collections shared with the user
+	if err := db.Model(&Document{}).Where(
+		"owner_id = ? OR id IN (SELECT document_id FROM documents_collections WHERE collection_id IN (SELECT collection_id FROM collection_shares WHERE user_id = ?))",
+		string(userID), string(userID),
+	).Count(&total).Error; err != nil {
 		return 0, errors.WithStack(err)
 	}
 
