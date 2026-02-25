@@ -21,6 +21,8 @@ type Collection struct {
 	Documents []*Document `gorm:"many2many:documents_collections;constraint:OnDelete:CASCADE"`
 
 	PublicShares []*PublicShare `gorm:"many2many:public_shares_collections;"`
+
+	Shares []*CollectionShare `gorm:"foreignKey:CollectionID;constraint:OnDelete:CASCADE"`
 }
 
 type wrappedCollection struct {

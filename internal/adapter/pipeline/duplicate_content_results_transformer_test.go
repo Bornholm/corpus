@@ -199,6 +199,21 @@ func (d *dummyStore) UpdateCollection(ctx context.Context, id model.CollectionID
 	panic("unimplemented")
 }
 
+// CreateCollectionShare implements [port.DocumentStore].
+func (d *dummyStore) CreateCollectionShare(ctx context.Context, collectionID model.CollectionID, userID model.UserID, level model.CollectionShareLevel) (model.PersistedCollectionShare, error) {
+	panic("unimplemented")
+}
+
+// DeleteCollectionShare implements [port.DocumentStore].
+func (d *dummyStore) DeleteCollectionShare(ctx context.Context, shareID model.CollectionShareID) error {
+	panic("unimplemented")
+}
+
+// GetCollectionShares implements [port.DocumentStore].
+func (d *dummyStore) GetCollectionShares(ctx context.Context, collectionID model.CollectionID) ([]model.PersistedCollectionShare, error) {
+	panic("unimplemented")
+}
+
 var _ port.DocumentStore = &dummyStore{}
 
 type dummySection struct {

@@ -38,6 +38,16 @@ type DocumentStore interface {
 
 	CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error)
 	CanWriteCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error)
+
+	// CreateCollectionShare shares a collection with a specific user at the given access level.
+	// Only one share per (collection, user) pair is allowed; an existing share will be updated.
+	CreateCollectionShare(ctx context.Context, collectionID model.CollectionID, userID model.UserID, level model.CollectionShareLevel) (model.PersistedCollectionShare, error)
+
+	// DeleteCollectionShare removes a share by its ID.
+	DeleteCollectionShare(ctx context.Context, shareID model.CollectionShareID) error
+
+	// GetCollectionShares returns all shares for a given collection.
+	GetCollectionShares(ctx context.Context, collectionID model.CollectionID) ([]model.PersistedCollectionShare, error)
 }
 
 type QueryDocumentsOptions struct {

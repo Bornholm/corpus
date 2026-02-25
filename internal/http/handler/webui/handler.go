@@ -33,7 +33,7 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRu
 	isActive := authz.Middleware(http.HandlerFunc(h.getInactiveUserPage), authz.Active())
 
 	mount(h.mux, "/", isActive(ask.NewHandler(documentManager, llm, taskRunner)))
-	mount(h.mux, "/collections/", isActive(collection.NewHandler(documentManager)))
+	mount(h.mux, "/collections/", isActive(collection.NewHandler(documentManager, userStore)))
 	mount(h.mux, "/profile/", isActive((profile.NewHandler(userStore))))
 	mount(h.mux, "/admin/", isActive(admin.NewHandler(userStore, documentStore, publicShareStore, taskRunner)))
 	mount(h.mux, "/docs/", swagger.NewHandler())

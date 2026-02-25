@@ -29,6 +29,14 @@ templ AdminPage(navbar commonComp.NavbarVModel, selectedItem string, funcs ...co
 								</a>
 							</li>
 							<li>
+								<a href="/admin/collection-shares" class={ templ.KV("is-active", selectedItem == "collection-shares") }>
+									<span class="icon">
+										<i class="fas fa-share-alt"></i>
+									</span>
+									<span>Partages de collections</span>
+								</a>
+							</li>
+							<li>
 								<a href="/admin/tasks" class={ templ.KV("is-active", selectedItem == "tasks") }>
 									<span class="icon">
 										<i class="fas fa-tasks"></i>

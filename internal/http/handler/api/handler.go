@@ -53,6 +53,9 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *backup.
 	h.mux.Handle("GET /collections/{collectionID}", assertUser(h.assertCollectionReadable(http.HandlerFunc(h.handleGetCollection))))
 	h.mux.Handle("PUT /collections/{collectionID}", assertUser(h.assertCollectionWritable(http.HandlerFunc(h.handleUpdateCollection))))
 	h.mux.Handle("DELETE /collections/{collectionID}", assertUser(h.assertCollectionWritable(http.HandlerFunc(h.handleDeleteCollection))))
+	h.mux.Handle("GET /collections/{collectionID}/shares", assertUser(http.HandlerFunc(h.handleListCollectionShares)))
+	h.mux.Handle("POST /collections/{collectionID}/shares", assertUser(http.HandlerFunc(h.handleCreateCollectionShare)))
+	h.mux.Handle("DELETE /collections/{collectionID}/shares/{shareID}", assertUser(http.HandlerFunc(h.handleDeleteCollectionShare)))
 
 	return h
 }

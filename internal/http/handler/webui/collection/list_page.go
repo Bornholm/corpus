@@ -68,6 +68,7 @@ func (h *Handler) fillCollectionListPageVModelCollections(ctx context.Context, v
 
 	vmodel.Collections = readableCollections
 	vmodel.TotalCollections = total
+	vmodel.CurrentUserID = user.ID()
 
 	return nil
 }

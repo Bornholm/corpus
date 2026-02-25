@@ -201,6 +201,11 @@ func (s *Store) DeleteCollection(ctx context.Context, id model.CollectionID) err
 			return errors.WithStack(err)
 		}
 
+		// Explicitly delete collection shares (in case FK cascade is not enforced)
+		if err := db.Where("collection_id = ?", string(id)).Delete(&CollectionShare{}).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
 		if err := db.Model(&Collection{}).Delete("id = ?", id).Error; err != nil {
 			return errors.WithStack(err)
 		}
@@ -611,7 +616,11 @@ func (s *Store) QueryUserWritableCollections(ctx context.Context, userID model.U
 	)
 
 	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
-		query := db.Model(&Collection{}).Where("owner_id = ?", string(userID))
+		// User can write to collections they own OR collections shared with them at write level
+		query := db.Model(&Collection{}).Where(
+			"owner_id = ? OR id IN (SELECT collection_id FROM collection_shares WHERE user_id = ? AND level = ?)",
+			string(userID), string(userID), string(model.CollectionShareLevelWrite),
+		)
 
 		// Apply ID filtering if specified
 		if opts.IDs != nil {
@@ -644,7 +653,7 @@ func (s *Store) QueryUserWritableCollections(ctx context.Context, userID model.U
 		}
 
 		// Execute the query
-		if err := query.Find(&collections).Error; err != nil {
+		if err := query.Preload("Owner").Find(&collections).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -670,9 +679,11 @@ func (s *Store) QueryUserReadableCollections(ctx context.Context, userID model.U
 	)
 
 	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
-		// For now, users can only read collections they own
-		// In the future, this could be extended to include shared collections
-		query := db.Model(&Collection{}).Where("owner_id = ?", string(userID))
+		// Users can read collections they own OR collections shared with them at any level
+		query := db.Model(&Collection{}).Where(
+			"owner_id = ? OR id IN (SELECT collection_id FROM collection_shares WHERE user_id = ?)",
+			string(userID), string(userID),
+		)
 
 		// Apply ID filtering if specified
 		if opts.IDs != nil {
@@ -705,7 +716,7 @@ func (s *Store) QueryUserReadableCollections(ctx context.Context, userID model.U
 		}
 
 		// Execute the query
-		if err := query.Find(&collections).Error; err != nil {
+		if err := query.Preload("Owner").Find(&collections).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -731,19 +742,27 @@ func (s *Store) CanReadCollection(ctx context.Context, userID model.UserID, coll
 
 	var canRead bool
 	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
-		var collection Collection
-		if err := db.First(&collection, "id = ? AND owner_id = ?", string(collectionID), string(userID)).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				canRead = false
-				return errors.WithStack(port.ErrNotFound)
-			}
+		var count int64
+		// User can read if they own the collection OR have any share level
+		err := db.Model(&Collection{}).Where(
+			"(id = ? AND owner_id = ?) OR (id = ? AND id IN (SELECT collection_id FROM collection_shares WHERE user_id = ?))",
+			string(collectionID), string(userID),
+			string(collectionID), string(userID),
+		).Count(&count).Error
+		if err != nil {
 			return errors.WithStack(err)
 		}
-		canRead = true
+		if count == 0 {
+			return errors.WithStack(port.ErrNotFound)
+		}
+		canRead = count > 0
 		return nil
 	}, sqlite3.LOCKED, sqlite3.BUSY)
 
 	if err != nil {
+		if errors.Is(err, port.ErrNotFound) {
+			return false, errors.WithStack(err)
+		}
 		slog.ErrorContext(ctx, "failed to check collection read permission", slog.Any("error", err))
 		return false, errors.WithStack(err)
 	}
@@ -789,25 +808,120 @@ func (s *Store) CanWriteCollection(ctx context.Context, userID model.UserID, col
 
 	var canWrite bool
 	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
-		var collection Collection
-		if err := db.First(&collection, "id = ? AND owner_id = ?", string(collectionID), string(userID)).Error; err != nil {
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				canWrite = false
-				return errors.WithStack(port.ErrNotFound)
-			}
+		var count int64
+		// User can write if they own the collection OR have a write-level share
+		err := db.Model(&Collection{}).Where(
+			"(id = ? AND owner_id = ?) OR (id = ? AND id IN (SELECT collection_id FROM collection_shares WHERE user_id = ? AND level = ?))",
+			string(collectionID), string(userID),
+			string(collectionID), string(userID), string(model.CollectionShareLevelWrite),
+		).Count(&count).Error
+		if err != nil {
 			return errors.WithStack(err)
 		}
-		canWrite = true
+		if count == 0 {
+			return errors.WithStack(port.ErrNotFound)
+		}
+		canWrite = count > 0
 		return nil
 	}, sqlite3.LOCKED, sqlite3.BUSY)
 
 	if err != nil {
+		if errors.Is(err, port.ErrNotFound) {
+			return false, errors.WithStack(err)
+		}
 		slog.ErrorContext(ctx, "failed to check collection write permission", slog.Any("error", err))
 		return false, errors.WithStack(err)
 	}
 
 	slog.DebugContext(ctx, "collection write permission result", slog.Bool("can_write", canWrite))
 	return canWrite, nil
+}
+
+// CreateCollectionShare implements [port.DocumentStore].
+func (s *Store) CreateCollectionShare(ctx context.Context, collectionID model.CollectionID, userID model.UserID, level model.CollectionShareLevel) (model.PersistedCollectionShare, error) {
+	var share CollectionShare
+
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
+		// Check if a share already exists for this collection+user pair
+		var existing CollectionShare
+		err := db.Where("collection_id = ? AND user_id = ?", string(collectionID), string(userID)).
+			First(&existing).Error
+
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return errors.WithStack(err)
+		}
+
+		if existing.ID != "" {
+			// Update existing share level
+			if err := db.Model(&existing).Update("level", string(level)).Error; err != nil {
+				return errors.WithStack(err)
+			}
+			share = existing
+		} else {
+			// Create new share
+			newShare := CollectionShare{
+				ID:           string(model.NewCollectionShareID()),
+				CollectionID: string(collectionID),
+				UserID:       string(userID),
+				Level:        string(level),
+			}
+			if err := db.Create(&newShare).Error; err != nil {
+				return errors.WithStack(err)
+			}
+			share = newShare
+		}
+
+		// Reload with user association
+		if err := db.Preload("User").First(&share, "id = ?", share.ID).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return &wrappedCollectionShare{&share}, nil
+}
+
+// DeleteCollectionShare implements [port.DocumentStore].
+func (s *Store) DeleteCollectionShare(ctx context.Context, shareID model.CollectionShareID) error {
+	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {
+		result := db.Delete(&CollectionShare{}, "id = ?", string(shareID))
+		if result.Error != nil {
+			return errors.WithStack(result.Error)
+		}
+		if result.RowsAffected == 0 {
+			return errors.WithStack(port.ErrNotFound)
+		}
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+// GetCollectionShares implements [port.DocumentStore].
+func (s *Store) GetCollectionShares(ctx context.Context, collectionID model.CollectionID) ([]model.PersistedCollectionShare, error) {
+	var shares []*CollectionShare
+
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
+		if err := db.Preload("User").Where("collection_id = ?", string(collectionID)).Find(&shares).Error; err != nil {
+			return errors.WithStack(err)
+		}
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make([]model.PersistedCollectionShare, 0, len(shares))
+	for _, s := range shares {
+		result = append(result, &wrappedCollectionShare{s})
+	}
+	return result, nil
 }
 
 // CanWriteDocument implements [port.DocumentStore].

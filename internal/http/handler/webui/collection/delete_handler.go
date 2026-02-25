@@ -28,23 +28,7 @@ func (h *Handler) handleCollectionDelete(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Check if the user can write to this collection (i.e., owns it)
-	canWrite, err := h.documentManager.DocumentStore.CanWriteCollection(ctx, user.ID(), collectionID)
-	if err != nil {
-		if errors.Is(err, port.ErrNotFound) {
-			common.HandleError(w, r, errors.New("collection not found"))
-			return
-		}
-		common.HandleError(w, r, errors.WithStack(err))
-		return
-	}
-
-	if !canWrite {
-		common.HandleError(w, r, errors.New("you do not have permission to delete this collection"))
-		return
-	}
-
-	// Get the collection to verify it exists
+	// Get the collection to verify it exists and check ownership
 	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID, false)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
@@ -52,6 +36,12 @@ func (h *Handler) handleCollectionDelete(w http.ResponseWriter, r *http.Request)
 			return
 		}
 		common.HandleError(w, r, errors.WithStack(err))
+		return
+	}
+
+	// Only the collection owner can delete it (write-share recipients cannot)
+	if collection.Owner().ID() != user.ID() {
+		common.HandleError(w, r, errors.New("only the collection owner can delete it"))
 		return
 	}
 

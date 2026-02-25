@@ -71,6 +71,8 @@ func NewStore(db *gorm.DB) *Store {
 		getDatabase: createGetDatabase(db,
 			// Document store
 			&Document{}, &Section{}, &Collection{},
+			// Collection shares
+			&CollectionShare{},
 			// User store
 			&User{}, &AuthToken{}, &UserRole{},
 			// Public share store

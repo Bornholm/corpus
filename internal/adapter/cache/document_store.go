@@ -119,6 +119,34 @@ func (s *DocumentStore) CreateCollection(ctx context.Context, ownerID model.User
 	return s.backend.CreateCollection(ctx, ownerID, label)
 }
 
+// CreateCollectionShare implements [port.DocumentStore].
+func (s *DocumentStore) CreateCollectionShare(ctx context.Context, collectionID model.CollectionID, userID model.UserID, level model.CollectionShareLevel) (model.PersistedCollectionShare, error) {
+	share, err := s.backend.CreateCollectionShare(ctx, collectionID, userID, level)
+	if err != nil {
+		return nil, err
+	}
+
+	// Invalidate authorization cache entries for this user+collection pair
+	s.authorizationCache.Remove(getCompositeCacheKey(userID, collectionID, "read", "collection"))
+	s.authorizationCache.Remove(getCompositeCacheKey(userID, collectionID, "write", "collection"))
+
+	return share, nil
+}
+
+// DeleteCollectionShare implements [port.DocumentStore].
+func (s *DocumentStore) DeleteCollectionShare(ctx context.Context, shareID model.CollectionShareID) error {
+	// We can't know which user/collection this was for without fetching first,
+	// so purge the entire authorization cache to ensure consistency.
+	defer s.authorizationCache.Purge()
+
+	return s.backend.DeleteCollectionShare(ctx, shareID)
+}
+
+// GetCollectionShares implements [port.DocumentStore].
+func (s *DocumentStore) GetCollectionShares(ctx context.Context, collectionID model.CollectionID) ([]model.PersistedCollectionShare, error) {
+	return s.backend.GetCollectionShares(ctx, collectionID)
+}
+
 // DeleteCollection implements [port.DocumentStore].
 func (s *DocumentStore) DeleteCollection(ctx context.Context, id model.CollectionID) error {
 	defer func() {

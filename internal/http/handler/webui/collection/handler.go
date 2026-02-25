@@ -3,6 +3,7 @@ package collection
 import (
 	"net/http"
 
+	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
 )
@@ -10,6 +11,7 @@ import (
 type Handler struct {
 	mux             *http.ServeMux
 	documentManager *service.DocumentManager
+	userStore       port.UserStore
 }
 
 // ServeHTTP implements http.Handler.
@@ -17,10 +19,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager) *Handler {
+func NewHandler(documentManager *service.DocumentManager, userStore port.UserStore) *Handler {
 	h := &Handler{
 		mux:             http.NewServeMux(),
 		documentManager: documentManager,
+		userStore:       userStore,
 	}
 
 	assertUser := authz.Middleware(http.HandlerFunc(h.getForbiddenPage), authz.OneOf(authz.Has(authz.RoleUser), authz.Has(authz.RoleAdmin)))
@@ -31,6 +34,8 @@ func NewHandler(documentManager *service.DocumentManager) *Handler {
 	h.mux.Handle("GET /{id}/edit", assertUser(http.HandlerFunc(h.getCollectionEditPage)))
 	h.mux.Handle("POST /{id}/edit", assertUser(http.HandlerFunc(h.handleCollectionUpdate)))
 	h.mux.Handle("DELETE /{id}", assertUser(http.HandlerFunc(h.handleCollectionDelete)))
+	h.mux.Handle("POST /{id}/shares", assertUser(http.HandlerFunc(h.handleCollectionShareCreate)))
+	h.mux.Handle("DELETE /{id}/shares/{shareID}", assertUser(http.HandlerFunc(h.handleCollectionShareDelete)))
 
 	return h
 }

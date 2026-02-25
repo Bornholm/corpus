@@ -10,6 +10,7 @@ type CollectionListPageVModel struct {
 	TotalCollections int64
 	Collections      []model.PersistedCollection
 	CollectionStats  map[model.CollectionID]*model.CollectionStats
+	CurrentUserID    model.UserID
 	Navbar           common.NavbarVModel
 }
 
@@ -43,6 +44,7 @@ templ CollectionListPage(vmodel CollectionListPageVModel) {
 					@CollectionCard(CollectionCardVModel{
 						Collection: collection,
 						Stats:      vmodel.CollectionStats[collection.ID()],
+						IsOwner:    collection.Owner().ID() == vmodel.CurrentUserID,
 					})
 				}
 			</div>
@@ -51,8 +53,9 @@ templ CollectionListPage(vmodel CollectionListPageVModel) {
 }
 
 type CollectionCardVModel struct {
-	Collection model.Collection
+	Collection model.PersistedCollection
 	Stats      *model.CollectionStats
+	IsOwner    bool
 }
 
 templ CollectionCard(vmodel CollectionCardVModel) {
@@ -60,6 +63,16 @@ templ CollectionCard(vmodel CollectionCardVModel) {
 		<div class="card">
 			<header class="card-header">
 				<p class="card-header-title">{ vmodel.Collection.Label() }</p>
+				if !vmodel.IsOwner {
+					<span class="card-header-icon" title="Partagée avec vous">
+						<span class="tag is-info is-light">
+							<span class="icon is-small">
+								<i class="fas fa-share-alt"></i>
+							</span>
+							<span>Partagée</span>
+						</span>
+					</span>
+				}
 			</header>
 			<div class="card-content">
 				<div class="content">

@@ -6,8 +6,12 @@ import (
 )
 
 type CollectionEditPageVModel struct {
-	Collection model.Collection
-	Navbar     common.NavbarVModel
+	Collection     model.Collection
+	Navbar         common.NavbarVModel
+	IsOwner        bool
+	IsWritable     bool
+	Shares         []model.PersistedCollectionShare
+	AvailableUsers []model.User
 }
 
 templ CollectionEditPage(vmodel CollectionEditPageVModel) {
@@ -25,54 +29,172 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 					</h2>
 				</div>
 			</div>
-			<div class="level-right">
-				<div class="level-item">
-					<button
-						class="button is-danger"
-						hx-delete={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()))) }
-						hx-confirm="Êtes-vous sûr de vouloir supprimer cette collection ? Cette action supprimera également tous les documents associés et ne peut pas être annulée."
-						hx-target="body"
-					>
-						<span class="icon">
-							<i class="fas fa-trash"></i>
-						</span>
-						<span>Supprimer</span>
-					</button>
+			if vmodel.IsOwner {
+				<div class="level-right">
+					<div class="level-item">
+						<button
+							class="button is-danger"
+							hx-delete={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()))) }
+							hx-confirm="Êtes-vous sûr de vouloir supprimer cette collection ? Cette action supprimera également tous les documents associés et ne peut pas être annulée."
+							hx-target="body"
+						>
+							<span class="icon">
+								<i class="fas fa-trash"></i>
+							</span>
+							<span>Supprimer</span>
+						</button>
+					</div>
 				</div>
-			</div>
+			}
 		</div>
 		<div class="columns">
 			<div class="column">
-				<form method="post">
-					<div class="field">
-						<label class="label" for="label">Libellé</label>
-						<div class="control">
-							<input class="input" type="text" id="label" name="label" value={ vmodel.Collection.Label() } required/>
+				if vmodel.IsWritable {
+					<form method="post">
+						<div class="field">
+							<label class="label" for="label">Libellé</label>
+							<div class="control">
+								<input class="input" type="text" id="label" name="label" value={ vmodel.Collection.Label() } required/>
+							</div>
+							<p class="help">Le libellé associé à la collection.</p>
 						</div>
-						<p class="help">Le libellé associé à la collection.</p>
+						<div class="field">
+							<label class="label" for="description">Description</label>
+							<div class="control">
+								<textarea class="textarea" id="description" name="description" rows="4">{ vmodel.Collection.Description() }</textarea>
+							</div>
+							<p class="help">La description de la collection. Celle ci est utilisé par le LLM pour préparer le domaine métier des documents intégrés à cette collection.</p>
+						</div>
+						<div class="field is-grouped">
+							<div class="control">
+								<button type="submit" class="button is-primary">
+									<span class="icon">
+										<i class="fas fa-save"></i>
+									</span>
+									<span>Modifier</span>
+								</button>
+							</div>
+							<div class="control">
+								<a href={ common.BaseURL(ctx, common.WithPath("/collections/")) } class="button is-light">Annuler</a>
+							</div>
+						</div>
+					</form>
+				} else {
+					<div class="notification is-info is-light">
+						<span class="icon"><i class="fas fa-info-circle"></i></span>
+						Vous avez accès en lecture seule à cette collection. Vous ne pouvez pas modifier ses informations.
 					</div>
 					<div class="field">
-						<label class="label" for="description">Description</label>
+						<label class="label">Libellé</label>
 						<div class="control">
-							<textarea class="textarea" id="description" name="description" rows="4">{ vmodel.Collection.Description() }</textarea>
-						</div>
-						<p class="help">La description de la collection. Celle ci est utilisé par le LLM pour préparer le domaine métier des documents intégrés à cette collection.</p>
-					</div>
-					<div class="field is-grouped">
-						<div class="control">
-							<button type="submit" class="button is-primary">
-								<span class="icon">
-									<i class="fas fa-save"></i>
-								</span>
-								<span>Modifier</span>
-							</button>
-						</div>
-						<div class="control">
-							<a href={ common.BaseURL(ctx, common.WithPath("/collections/")) } class="button is-light">Annuler</a>
+							<input class="input" type="text" value={ vmodel.Collection.Label() } disabled/>
 						</div>
 					</div>
-				</form>
+					<div class="field">
+						<label class="label">Description</label>
+						<div class="control">
+							<textarea class="textarea" rows="4" disabled>{ vmodel.Collection.Description() }</textarea>
+						</div>
+					</div>
+					<div class="field">
+						<div class="control">
+							<a href={ common.BaseURL(ctx, common.WithPath("/collections/")) } class="button is-light">Retour</a>
+						</div>
+					</div>
+				}
 			</div>
 		</div>
+		if vmodel.IsOwner {
+			<hr/>
+			<div class="columns">
+				<div class="column">
+					<h3 class="title is-size-4">
+						<span class="icon">
+							<i class="fas fa-share-alt"></i>
+						</span>
+						<span>Partages</span>
+					</h3>
+					if len(vmodel.Shares) == 0 {
+						<p class="has-text-grey-light is-italic mb-4">Cette collection n'est partagée avec aucun utilisateur.</p>
+					} else {
+						<table class="table is-fullwidth is-striped mb-4">
+							<thead>
+								<tr>
+									<th>Utilisateur</th>
+									<th>Niveau d'accès</th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, share := range vmodel.Shares {
+									<tr>
+										<td>
+											<span>{ share.SharedWith().DisplayName() }</span>
+											<span class="has-text-grey is-size-7 ml-2">{ share.SharedWith().Email() }</span>
+										</td>
+										<td>
+											if share.Level() == model.CollectionShareLevelWrite {
+												<span class="tag is-warning">Écriture</span>
+											} else {
+												<span class="tag is-info">Lecture</span>
+											}
+										</td>
+										<td class="has-text-right">
+											<button
+												class="button is-small is-danger is-outlined"
+												hx-delete={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "shares", string(share.ID()))) }
+												hx-confirm="Supprimer ce partage ?"
+												hx-target="body"
+											>
+												<span class="icon">
+													<i class="fas fa-times"></i>
+												</span>
+											</button>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					}
+					if len(vmodel.AvailableUsers) > 0 {
+						<form
+							method="post"
+							action={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "shares")) }
+						>
+							<div class="field is-grouped">
+								<div class="control is-expanded">
+									<div class="select is-fullwidth">
+										<select name="user_id" required>
+											<option value="">-- Choisir un utilisateur --</option>
+											for _, u := range vmodel.AvailableUsers {
+												<option value={ string(u.ID()) }>{ u.DisplayName() } ({ u.Email() })</option>
+											}
+										</select>
+									</div>
+								</div>
+								<div class="control">
+									<div class="select">
+										<select name="level" required>
+											<option value="read">Lecture</option>
+											<option value="write">Écriture</option>
+										</select>
+									</div>
+								</div>
+								<div class="control">
+									<button type="submit" class="button is-primary">
+										<span class="icon">
+											<i class="fas fa-plus"></i>
+										</span>
+										<span>Ajouter</span>
+									</button>
+								</div>
+							</div>
+						</form>
+					} else {
+						<p class="has-text-grey-light is-italic">Aucun autre utilisateur disponible à partager.</p>
+					}
+				</div>
+			</div>
+		}
 	}
 }
