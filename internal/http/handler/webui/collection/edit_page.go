@@ -329,8 +329,9 @@ func (h *Handler) fillCollectionEditPageVModelDocuments(ctx context.Context, vmo
 	}
 
 	opts := port.QueryDocumentsOptions{
-		Page:  &page,
-		Limit: &pageSize,
+		Page:       &page,
+		Limit:      &pageSize,
+		HeaderOnly: true,
 	}
 
 	documents, total, err := h.documentManager.DocumentStore.QueryDocumentsByCollectionID(ctx, collectionID, opts)

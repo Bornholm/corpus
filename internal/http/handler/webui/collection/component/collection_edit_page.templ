@@ -226,7 +226,6 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 							<thead>
 								<tr>
 									<th>Source</th>
-									<th>Propriétaire</th>
 									<th>Date d'ajout</th>
 								</tr>
 							</thead>
@@ -235,9 +234,6 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 									<tr>
 										<td>
 											<a href={ templ.SafeURL(doc.Source().String()) } target="_blank">{ doc.Source().String() }</a>
-										</td>
-										<td>
-											{ doc.Owner().DisplayName() }
 										</td>
 										<td>
 											<span>{ doc.CreatedAt().Format("02/01/2006") }</span>
