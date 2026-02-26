@@ -3,6 +3,7 @@ package webdav
 import (
 	"io/fs"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/bornholm/corpus/internal/filesystem/backend"
@@ -225,29 +226,79 @@ func NewFs(withClient withClientFunc) *Fs {
 
 var _ afero.Fs = &Fs{}
 
-func getFileInfo(client *gowebdav.Client, path string) (*FileInfo, error) {
-	stat, err := client.Stat(path)
-	if err != nil {
-		// Targeted file is a directory
-		if isWebDavErr(err, "PROPFIND", 200) {
-			stat, err := client.Stat(gowebdav.FixSlashes(path))
-			if err != nil {
-				return nil, errors.WithStack(err)
-			}
+const (
+	maxRetries     = 3
+	baseRetryDelay = 100 * time.Millisecond
+)
 
+// isTransientError checks if the error is a transient HTTP error that should be retried.
+func isTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errStr := err.Error()
+
+	// Check for HTTP 5xx server errors
+	if strings.Contains(errStr, "500") ||
+		strings.Contains(errStr, "501") ||
+		strings.Contains(errStr, "502") ||
+		strings.Contains(errStr, "503") ||
+		strings.Contains(errStr, "504") {
+		return true
+	}
+
+	// Check for timeout errors
+	if strings.Contains(errStr, "timeout") ||
+		strings.Contains(errStr, "context deadline exceeded") {
+		return true
+	}
+
+	return false
+}
+
+func getFileInfo(client *gowebdav.Client, path string) (*FileInfo, error) {
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		stat, err := client.Stat(path)
+		if err == nil {
 			return fromFileInfo(path, stat), nil
 		}
 
-		if isWebDavErr(err, "PROPFIND", 404) {
-			return nil, &os.PathError{
-				Op:   "PROPFIND",
-				Path: path,
-				Err:  os.ErrNotExist,
+		lastErr = err
+
+		// Check if this is a transient error that should be retried
+		if !isTransientError(err) {
+			// Not a transient error, check for specific status codes
+			if isWebDavErr(err, "PROPFIND", 200) {
+				stat, statErr := client.Stat(gowebdav.FixSlashes(path))
+				if statErr != nil {
+					return nil, errors.WithStack(statErr)
+				}
+
+				return fromFileInfo(path, stat), nil
 			}
+
+			if isWebDavErr(err, "PROPFIND", 404) {
+				return nil, &os.PathError{
+					Op:   "PROPFIND",
+					Path: path,
+					Err:  os.ErrNotExist,
+				}
+			}
+
+			// Non-transient error, return immediately
+			return nil, errors.WithStack(err)
 		}
 
-		return nil, errors.WithStack(err)
+		// Transient error, retry with exponential backoff
+		if attempt < maxRetries-1 {
+			delay := baseRetryDelay * time.Duration(1<<attempt)
+			time.Sleep(delay)
+		}
 	}
 
-	return fromFileInfo(path, stat), nil
+	// All retries exhausted
+	return nil, errors.WithStack(lastErr)
 }
