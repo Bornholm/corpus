@@ -61,6 +61,8 @@ func Command() *cli.Command {
 
 			wg.Add(len(filesystems))
 
+			slog.InfoContext(sharedCtx, "indexing filesystems", slog.Int("total", len(filesystems)))
+
 			for _, f := range filesystems {
 				dsn, err := url.Parse(f)
 				if err != nil {
@@ -72,7 +74,7 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not retrieve collections from dsn '%s'", dsn)
 				}
 
-				source, err := getCorpusSource(dsn)
+				source, sourceEmbedded, err := getCorpusSource(dsn)
 				if err != nil {
 					return errors.Wrapf(err, "could not retrieve source from dsn '%s'", dsn)
 				}
@@ -92,7 +94,7 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", dsn)
 				}
 
-				go func(b filesystem.Backend, dsn *url.URL, collections []model.CollectionID, source *url.URL, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType) {
+				go func(b filesystem.Backend, dsn *url.URL, collections []model.CollectionID, source *url.URL, sourceEmbedded bool, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType) {
 					defer wg.Done()
 					defer sharedCancel()
 
@@ -103,6 +105,7 @@ func Command() *cli.Command {
 						client:               client,
 						backend:              b,
 						source:               source,
+						sourceEmbedded:       sourceEmbedded,
 						eTagType:             eTagType,
 						indexRetryMaxRetries: 3,
 						indexRetryBaseDelay:  time.Second,
@@ -111,7 +114,7 @@ func Command() *cli.Command {
 					if err := indexer.Watch(watchCtx, watchOptions...); err != nil {
 						slog.ErrorContext(watchCtx, "could not watch filesystem", slog.Any("error", errors.WithStack(err)))
 					}
-				}(b, dsn, collections, source, watchOptions, eTagType)
+				}(b, dsn, collections, source, sourceEmbedded, watchOptions, eTagType)
 			}
 
 			wg.Wait()
@@ -158,22 +161,26 @@ const (
 	paramCorpusSource = "corpusSource"
 )
 
-func getCorpusSource(dsn *url.URL) (*url.URL, error) {
+func getCorpusSource(dsn *url.URL) (*url.URL, bool, error) {
 	query := dsn.Query()
 
 	if rawSource := query.Get(paramCorpusSource); rawSource != "" {
+		if rawSource == "embedded" {
+			return nil, true, nil
+		}
+
 		source, err := url.Parse(rawSource)
 		if err != nil {
-			return nil, errors.WithStack(err)
+			return nil, false, errors.WithStack(err)
 		}
 
 		query.Del(paramCorpusSource)
 		dsn.RawQuery = query.Encode()
 
-		return source, nil
+		return source, false, nil
 	}
 
-	return nil, nil
+	return nil, false, nil
 }
 
 const (

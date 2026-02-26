@@ -37,6 +37,7 @@ type filesystemIndexer struct {
 	fs                   afero.Fs
 	indexFileDebouncers  syncx.Map[string, func(fn func())]
 	source               *url.URL
+	sourceEmbedded       bool
 	eTagType             ETagType
 	indexRetryMaxRetries int
 	indexRetryBaseDelay  time.Duration
@@ -186,12 +187,19 @@ func (i *filesystemIndexer) doIndexFile(ctx context.Context, path string, fileIn
 
 	defer file.Close()
 
+	opts := []client.IndexOptionFunc{
+		client.WithIndexCollections(i.collections...),
+		client.WithIndexETag(etag),
+	}
+
+	if source != nil {
+		opts = append(opts, client.WithIndexSource(source))
+	}
+
 	task, err := i.client.Index(
 		ctx,
 		filepath.Base(path), file,
-		client.WithIndexSource(source),
-		client.WithIndexCollections(i.collections...),
-		client.WithIndexETag(etag),
+		opts...,
 	)
 	if err != nil {
 		return errors.WithStack(err)
@@ -223,6 +231,11 @@ func (i *filesystemIndexer) removeFile(ctx context.Context, path string, fileInf
 		return errors.WithStack(err)
 	}
 
+	if source == nil {
+		slog.WarnContext(ctx, "could not retrieve document source, document auto removal unavailable", slog.String("path", path))
+		return nil
+	}
+
 	ctx = log.WithAttrs(ctx, slog.String("source", source.String()))
 
 	documents, _, err := i.client.QueryDocuments(ctx, client.WithQueryDocumentsSource(source))
@@ -250,6 +263,10 @@ const pathMarker = "__PATH__"
 const escapedPathMarker = "__ESCAPED_PATH__"
 
 func (i *filesystemIndexer) getSource(path string) (*url.URL, error) {
+	if i.sourceEmbedded {
+		return nil, nil
+	}
+
 	cleanedPath := filepath.Clean(path)
 
 	if i.source != nil {

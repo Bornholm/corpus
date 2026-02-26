@@ -31,11 +31,16 @@ type indexTaskPayload struct {
 
 // MarshalJSON implements [model.Task].
 func (i *IndexFileTask) MarshalJSON() ([]byte, error) {
+	var sourceStr string
+	if i.source != nil {
+		sourceStr = i.source.String()
+	}
+
 	payload := indexTaskPayload{
 		Path:         i.path,
 		OriginalName: i.originalName,
 		Etag:         i.etag,
-		Source:       i.source.String(),
+		Source:       sourceStr,
 		Collections:  i.collections,
 	}
 

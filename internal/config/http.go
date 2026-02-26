@@ -58,7 +58,7 @@ type GiteaProvider struct {
 type HTTPRateLimit struct {
 	TrustHeaders    bool          `env:"TRUST_HEADERS" envDefault:"true"`
 	RequestInterval time.Duration `env:"REQUEST_INTERVAL,expand" envDefault:"1s"`
-	RequestMaxBurst int           `env:"REQUEST_MAX_BURST,expand" envDefault:"5"`
+	RequestMaxBurst int           `env:"REQUEST_MAX_BURST,expand" envDefault:"10"`
 	CacheSize       int           `env:"CACHE_SIZE,expand" envDefault:"50"`
 	CacheTTL        time.Duration `env:"CACHE_TTL,expand" envDefault:"1h"`
 }
