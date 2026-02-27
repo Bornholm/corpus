@@ -3,6 +3,7 @@ package sqlitevec
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"math"
 	"net/url"
@@ -34,23 +35,78 @@ func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
 	defer i.rwLock.Unlock()
 
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
-		stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE section_id IN ( SELECT value FROM json_each(?) );")
+		// First, get the embeddings IDs to delete
+		getIDsStmt, _, err := conn.Prepare("SELECT id FROM embeddings WHERE section_id IN ( SELECT value FROM json_each(?) );")
 		if err != nil {
 			return errors.WithStack(err)
 		}
-
-		defer stmt.Close()
+		defer getIDsStmt.Close()
 
 		jsonIDs, err := json.Marshal(ids)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		if err := stmt.BindBlob(1, jsonIDs); err != nil {
+		if err := getIDsStmt.BindBlob(1, jsonIDs); err != nil {
 			return errors.WithStack(err)
 		}
 
-		if err := stmt.Exec(); err != nil {
+		var idsToDelete []int
+		for getIDsStmt.Step() {
+			idsToDelete = append(idsToDelete, getIDsStmt.ColumnInt(0))
+		}
+
+		if len(idsToDelete) == 0 {
+			return nil
+		}
+
+		// Delete from embeddings_collections first (has FK)
+		colStmt, _, err := conn.Prepare("DELETE FROM embeddings_collections WHERE embeddings_id IN ( SELECT value FROM json_each(?) );")
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer colStmt.Close()
+
+		jsonColIDs, err := json.Marshal(idsToDelete)
+		if err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := colStmt.BindBlob(1, jsonColIDs); err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := colStmt.Exec(); err != nil {
+			return errors.WithStack(err)
+		}
+
+		// Delete from vec0 virtual table
+		vecStmt, _, err := conn.Prepare("DELETE FROM embeddings_vec WHERE rowid IN ( SELECT value FROM json_each(?) );")
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer vecStmt.Close()
+
+		if err := vecStmt.BindBlob(1, jsonColIDs); err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := vecStmt.Exec(); err != nil {
+			return errors.WithStack(err)
+		}
+
+		// Delete from embeddings
+		delStmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE section_id IN ( SELECT value FROM json_each(?) );")
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer delStmt.Close()
+
+		if err := delStmt.BindBlob(1, jsonIDs); err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := delStmt.Exec(); err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -69,18 +125,73 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 	defer i.rwLock.Unlock()
 
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
-		stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE source = ?;")
+		// First, get the embeddings IDs to delete
+		getIDsStmt, _, err := conn.Prepare("SELECT id FROM embeddings WHERE source = ?;")
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer getIDsStmt.Close()
+
+		if err := getIDsStmt.BindText(1, source.String()); err != nil {
+			return errors.WithStack(err)
+		}
+
+		var idsToDelete []int
+		for getIDsStmt.Step() {
+			idsToDelete = append(idsToDelete, getIDsStmt.ColumnInt(0))
+		}
+
+		if len(idsToDelete) == 0 {
+			return nil
+		}
+
+		// Delete from embeddings_collections first (has FK)
+		colStmt, _, err := conn.Prepare("DELETE FROM embeddings_collections WHERE embeddings_id IN ( SELECT value FROM json_each(?) );")
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer colStmt.Close()
+
+		jsonColIDs, err := json.Marshal(idsToDelete)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 
-		defer stmt.Close()
-
-		if err := stmt.BindText(1, source.String()); err != nil {
+		if err := colStmt.BindBlob(1, jsonColIDs); err != nil {
 			return errors.WithStack(err)
 		}
 
-		if err := stmt.Exec(); err != nil {
+		if err := colStmt.Exec(); err != nil {
+			return errors.WithStack(err)
+		}
+
+		// Delete from vec0 virtual table
+		vecStmt, _, err := conn.Prepare("DELETE FROM embeddings_vec WHERE rowid IN ( SELECT value FROM json_each(?) );")
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer vecStmt.Close()
+
+		if err := vecStmt.BindBlob(1, jsonColIDs); err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := vecStmt.Exec(); err != nil {
+			return errors.WithStack(err)
+		}
+
+		// Delete from embeddings
+		delStmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE source = ?;")
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer delStmt.Close()
+
+		if err := delStmt.BindText(1, source.String()); err != nil {
+			return errors.WithStack(err)
+		}
+
+		if err := delStmt.Exec(); err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -197,15 +308,26 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 	}
 
 	return i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
+		// Insert into main embeddings table (metadata only - vectors go to vec0)
 		stmt, _, err := conn.Prepare(`
-			INSERT INTO embeddings (source, section_id, chunk_index, embeddings) 
-			VALUES (?, ?, ?, vec_normalize(vec_slice(?, 0, 256)))
+			INSERT INTO embeddings (source, section_id, chunk_index)
+			VALUES (?, ?, ?)
 			RETURNING id;
 		`)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 		defer stmt.Close()
+
+		// Prepare vec0 statement for HNSW index
+		vecStmt, _, err := conn.Prepare(fmt.Sprintf(`
+			INSERT INTO embeddings_vec (rowid, embedding)
+			VALUES (?, vec_normalize(vec_slice(?, 0, %d)));
+		`, VectorSize))
+		if err != nil {
+			return errors.WithStack(err)
+		}
+		defer vecStmt.Close()
 
 		var batchItems []*indexableChunk
 		var batchTexts []string
@@ -243,16 +365,24 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 					return err
 				}
 
-				if err := stmt.BindBlob(4, vecBlob); err != nil {
-					return err
-				}
-
 				if hasRow := stmt.Step(); !hasRow {
 					return errors.New("no id returned")
 				}
 
 				embeddingsID := stmt.ColumnInt(0)
 				stmt.Reset()
+
+				// Insert into vec0 for HNSW index
+				if err := vecStmt.BindInt(1, embeddingsID); err != nil {
+					return err
+				}
+				if err := vecStmt.BindBlob(2, vecBlob); err != nil {
+					return err
+				}
+				if err := vecStmt.Exec(); err != nil {
+					return err
+				}
+				vecStmt.Reset()
 
 				for _, coll := range item.Section.Document().Collections() {
 					if err := i.insertCollection(ctx, conn, embeddingsID, coll.ID()); err != nil {
@@ -349,23 +479,34 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 			return errors.WithStack(err)
 		}
 
+		// Use vec0 virtual table with HNSW index for fast KNN search
+		// IMPORTANT: vec0 uses <column> match <vector> syntax, not <column>.match
+		// Also requires k = <number> to specify number of nearest neighbors
 		sql := `
 		SELECT
-			source,
-			section_id,
-			vec_distance_L2(vec_normalize(vec_slice(embeddings, 0, 256)), vec_normalize(vec_slice(?, 0, 256))) as distance
-		FROM embeddings
+			e.source,
+			e.section_id,
+			v.distance
+		FROM embeddings_vec v
+		JOIN embeddings e ON v.rowid = e.id
 	`
 
-		if len(opts.Collections) > 0 {
-			sql += ` LEFT JOIN embeddings_collections ON id = embeddings_id WHERE embeddings_collections.collection_id IN ( SELECT value FROM json_each(?) )`
+		hasCollections := len(opts.Collections) > 0
+		if hasCollections {
+			sql += ` JOIN embeddings_collections ec ON e.id = ec.embeddings_id`
 		}
 
-		sql += ` ORDER BY distance ASC`
+		// Use <column> match <value> syntax for vec0 KNN query
+		sql += fmt.Sprintf(` WHERE v.embedding match vec_normalize(vec_slice(?, 0, %d))`, VectorSize)
 
-		if opts.MaxResults > 0 {
-			sql += ` LIMIT ?`
+		// Add k parameter for vec0 (number of nearest neighbors)
+		sql += ` AND k = ?`
+
+		if hasCollections {
+			sql += ` AND ec.collection_id IN ( SELECT value FROM json_each(?) )`
 		}
+
+		sql += ` ORDER BY v.distance ASC`
 
 		sql += `;`
 
@@ -383,13 +524,25 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 
 		bindIndex := 1
 
+		// Bind the query vector for knn_query (always first)
 		if err := stmt.BindBlob(bindIndex, embeddings); err != nil {
 			return errors.WithStack(err)
 		}
 
-		bindIndex = 2
+		bindIndex++
 
-		if len(opts.Collections) > 0 {
+		// Bind k parameter (number of nearest neighbors) - required for vec0
+		maxResults := opts.MaxResults
+		if maxResults <= 0 {
+			maxResults = 10 // default
+		}
+		if err := stmt.BindInt(bindIndex, maxResults); err != nil {
+			return errors.WithStack(err)
+		}
+
+		bindIndex++
+
+		if hasCollections {
 			jsonCollections, err := json.Marshal(opts.Collections)
 			if err != nil {
 				return errors.WithStack(err)
@@ -399,13 +552,7 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 				return errors.WithStack(err)
 			}
 
-			bindIndex = 3
-		}
-
-		if opts.MaxResults > 0 {
-			if err := stmt.BindInt(bindIndex, opts.MaxResults); err != nil {
-				return errors.WithStack(err)
-			}
+			bindIndex++
 		}
 
 		if err := stmt.Exec(); err != nil {

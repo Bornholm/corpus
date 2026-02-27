@@ -312,6 +312,38 @@ func (s *Store) GetSectionByID(ctx context.Context, id model.SectionID) (model.S
 	return &wrappedSection{&section}, nil
 }
 
+// GetSectionsByIDs implements port.DocumentStore.
+func (s *Store) GetSectionsByIDs(ctx context.Context, ids []model.SectionID) (map[model.SectionID]model.Section, error) {
+	if len(ids) == 0 {
+		return make(map[model.SectionID]model.Section), nil
+	}
+
+	var sections []Section
+
+	rawIDs := make([]string, len(ids))
+	for i, id := range ids {
+		rawIDs[i] = string(id)
+	}
+
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
+		if err := db.Preload(clause.Associations).Find(&sections, "id in ?", rawIDs).Error; err != nil {
+			return errors.WithStack(err)
+		}
+
+		return nil
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	result := make(map[model.SectionID]model.Section, len(sections))
+	for i := range sections {
+		result[model.SectionID(sections[i].ID)] = &wrappedSection{&sections[i]}
+	}
+
+	return result, nil
+}
+
 // DeleteDocumentBySource implements port.DocumentStore.
 func (s *Store) DeleteDocumentBySource(ctx context.Context, ownerID model.UserID, source *url.URL) error {
 	if source == nil {

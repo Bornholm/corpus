@@ -154,6 +154,17 @@ func (d *dummyStore) GetSectionByID(ctx context.Context, id model.SectionID) (mo
 	return d.sections[id], nil
 }
 
+// GetSectionsByIDs implements [port.DocumentStore].
+func (d *dummyStore) GetSectionsByIDs(ctx context.Context, ids []model.SectionID) (map[model.SectionID]model.Section, error) {
+	result := make(map[model.SectionID]model.Section)
+	for _, id := range ids {
+		if s, exists := d.sections[id]; exists {
+			result[id] = s
+		}
+	}
+	return result, nil
+}
+
 // QueryCollections implements [port.DocumentStore].
 func (d *dummyStore) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, error) {
 	panic("unimplemented")

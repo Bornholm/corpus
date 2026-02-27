@@ -24,19 +24,17 @@ func (t *DuplicateContentResultsTransformer) TransformResults(ctx context.Contex
 			Sections: make([]model.SectionID, 0),
 		}
 
+		// Batch load all sections for this result
+		sectionsMap, err := t.store.GetSectionsByIDs(ctx, r.Sections)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
 		sections := make([]model.Section, 0, len(r.Sections))
-
 		for _, sectionID := range r.Sections {
-			s, err := t.store.GetSectionByID(ctx, sectionID)
-			if err != nil {
-				if errors.Is(err, port.ErrNotFound) {
-					continue
-				}
-
-				return nil, errors.WithStack(err)
+			if s, exists := sectionsMap[sectionID]; exists {
+				sections = append(sections, s)
 			}
-
-			sections = append(sections, s)
 		}
 
 		childrenOnly := make([]model.Section, 0)

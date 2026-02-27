@@ -83,6 +83,12 @@ func TestIndex(t *testing.T) {
 			return nil, errors.WithStack(err)
 		}
 
+		// Also remove WAL/SHM files left over from previous test runs
+		walFile := dbFile + "-wal"
+		shmFile := dbFile + "-shm"
+		_ = os.RemoveAll(walFile)
+		_ = os.RemoveAll(shmFile)
+
 		db, err := sqlite3.Open(dbFile)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to open sqlite database")

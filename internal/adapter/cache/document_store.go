@@ -239,6 +239,40 @@ func (s *DocumentStore) GetSectionByID(ctx context.Context, id model.SectionID) 
 	return section, nil
 }
 
+// GetSectionsByIDs implements [port.DocumentStore].
+func (s *DocumentStore) GetSectionsByIDs(ctx context.Context, ids []model.SectionID) (map[model.SectionID]model.Section, error) {
+	if len(ids) == 0 {
+		return make(map[model.SectionID]model.Section), nil
+	}
+
+	result := make(map[model.SectionID]model.Section)
+	idsToFetch := make([]model.SectionID, 0, len(ids))
+
+	// Check cache first
+	for _, id := range ids {
+		if cachedSection, exists := s.sectionCache.Get(string(id)); exists {
+			result[id] = cachedSection
+		} else {
+			idsToFetch = append(idsToFetch, id)
+		}
+	}
+
+	// Fetch missing sections from backend if any
+	if len(idsToFetch) > 0 {
+		sections, err := s.backend.GetSectionsByIDs(ctx, idsToFetch)
+		if err != nil {
+			return nil, errors.WithStack(err)
+		}
+
+		for id, section := range sections {
+			result[id] = section
+			s.sectionCache.Add(NewCacheableSection(section))
+		}
+	}
+
+	return result, nil
+}
+
 // QueryCollections implements [port.DocumentStore].
 func (s *DocumentStore) QueryCollections(ctx context.Context, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, error) {
 	return s.backend.QueryCollections(ctx, opts)

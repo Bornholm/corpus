@@ -147,6 +147,18 @@ func (t *JudgeResultsTransformer) TransformResults(ctx context.Context, query st
 }
 
 func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query string, results []*port.IndexSearchResult) (string, error) {
+	// Collect all section IDs for batch loading
+	var allSectionIDs []model.SectionID
+	for _, r := range results {
+		allSectionIDs = append(allSectionIDs, r.Sections...)
+	}
+
+	// Batch load all sections in a single query
+	sectionsMap, err := t.store.GetSectionsByIDs(ctx, allSectionIDs)
+	if err != nil {
+		return "", errors.WithStack(err)
+	}
+
 	var sb strings.Builder
 	sb.WriteString("## Query\n\n")
 	sb.WriteString(query)
@@ -156,9 +168,9 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 
 	for _, r := range results {
 		for _, s := range r.Sections {
-			section, err := t.store.GetSectionByID(ctx, s)
-			if err != nil {
-				return "", errors.WithStack(err)
+			section, exists := sectionsMap[s]
+			if !exists {
+				continue
 			}
 
 			sb.WriteString("### Document ")

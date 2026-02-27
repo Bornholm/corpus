@@ -26,6 +26,7 @@ type DocumentStore interface {
 	CountReadableDocuments(ctx context.Context, userID model.UserID) (int64, error)
 
 	GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error)
+	GetSectionsByIDs(ctx context.Context, ids []model.SectionID) (map[model.SectionID]model.Section, error)
 	SectionExists(ctx context.Context, id model.SectionID) (bool, error)
 
 	GetCollectionByID(ctx context.Context, id model.CollectionID, full bool) (model.PersistedCollection, error)

@@ -107,7 +107,9 @@ func TestIndex(t *testing.T, factory func(t *testing.T) (port.Index, error)) {
 				t.Fatalf("could not create index: %+v", errors.WithStack(err))
 			}
 
-			tc.Run(t, ctx, index)
+			if err := tc.Run(t, ctx, index); err != nil {
+				t.Fatalf("could not run test: %+v", errors.WithStack(err))
+			}
 		})
 	}
 }
@@ -153,7 +155,7 @@ func loadTestDocuments(t *testing.T, index port.Index) (map[string]model.Collect
 
 		doc.AddCollection(coll)
 
-		t.Logf("indexing document %s within collections %v", doc.Source(), slices.Collect[string](func(yield func(string) bool) {
+		t.Logf("indexing document %s within collections %v", doc.Source(), slices.Collect(func(yield func(string) bool) {
 			for _, c := range doc.Collections() {
 				if !yield(c.Label()) {
 					return
