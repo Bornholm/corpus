@@ -47,6 +47,7 @@ func (r *TaskRunner) GetTask(ctx context.Context, id model.TaskID) (model.Task, 
 func (r *TaskRunner) Run(ctx context.Context) error {
 	r.runningMutex.Lock()
 	r.running = true
+	slog.Debug("TaskRunner: setting running=true and broadcasting")
 	r.runningCond.Broadcast()
 	r.runningMutex.Unlock()
 
@@ -132,9 +133,12 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 		}()
 
 		r.runningMutex.Lock()
+		slog.Debug("TaskRunner: waiting for running flag", slog.Bool("running", r.running))
 		for !r.running {
+			slog.Debug("TaskRunner: waiting on condition variable")
 			r.runningCond.Wait()
 		}
+		slog.Debug("TaskRunner: running flag is true, proceeding")
 		r.runningMutex.Unlock()
 
 		r.semaphore <- struct{}{}
@@ -210,6 +214,7 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 }
 
 func (r *TaskRunner) updateState(task model.Task, fn func(s *port.TaskState)) {
+	slog.Debug("TaskRunner: acquiring state mutex for task", slog.String("taskID", string(task.ID())))
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 

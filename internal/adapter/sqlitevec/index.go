@@ -24,11 +24,15 @@ type Index struct {
 	getConn  func(ctx context.Context) (*sqlite3.Conn, error)
 	llm      llm.Client
 	model    string
-	lock     sync.Mutex
+	// rwLock allows concurrent Search operations while serializing Index/Delete
+	rwLock sync.RWMutex
 }
 
 // DeleteByID implements port.Index.
 func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
+	i.rwLock.Lock()
+	defer i.rwLock.Unlock()
+
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
 		stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE section_id IN ( SELECT value FROM json_each(?) );")
 		if err != nil {
@@ -61,6 +65,9 @@ func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
 
 // DeleteBySource implements port.Index.
 func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
+	i.rwLock.Lock()
+	defer i.rwLock.Unlock()
+
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
 		stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE source = ?;")
 		if err != nil {
@@ -80,25 +87,6 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 		return nil
 	}, sqlite3.BUSY, sqlite3.LOCKED)
 	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	return nil
-}
-
-func (i *Index) deleteBySource(ctx context.Context, conn *sqlite3.Conn, source *url.URL) error {
-	stmt, _, err := conn.Prepare("DELETE FROM embeddings WHERE source = ?;")
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	defer stmt.Close()
-
-	if err := stmt.BindText(1, source.String()); err != nil {
-		return errors.WithStack(err)
-	}
-
-	if err := stmt.Exec(); err != nil {
 		return errors.WithStack(err)
 	}
 
@@ -127,6 +115,9 @@ const (
 
 // Index implements port.Index.
 func (i *Index) Index(ctx context.Context, document model.Document, funcs ...port.IndexOptionFunc) error {
+	i.rwLock.Lock()
+	defer i.rwLock.Unlock()
+
 	opts := port.NewIndexOptions(funcs...)
 
 	var chunksToProcess []*indexableChunk
@@ -348,6 +339,9 @@ func (i *Index) insertCollection(ctx context.Context, conn *sqlite3.Conn, embedd
 
 // Search implements port.Index.
 func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchOptions) ([]*port.IndexSearchResult, error) {
+	i.rwLock.RLock()
+	defer i.rwLock.RUnlock()
+
 	var searchResults []*port.IndexSearchResult
 	err := i.withRetry(ctx, func(ctx context.Context, conn *sqlite3.Conn) error {
 		res, err := i.llm.Embeddings(ctx, []string{query})
@@ -478,9 +472,6 @@ func (i *Index) Search(ctx context.Context, query string, opts port.IndexSearchO
 }
 
 func (i *Index) withRetry(ctx context.Context, fn func(ctx context.Context, conn *sqlite3.Conn) error, codes ...sqlite3.ErrorCode) error {
-	i.lock.Lock()
-	defer i.lock.Unlock()
-
 	conn, err := i.getConn(ctx)
 	if err != nil {
 		return errors.WithStack(err)

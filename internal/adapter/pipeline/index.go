@@ -168,7 +168,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 
 	ctx = slogx.WithAttrs(ctx, slog.String("documentID", string(document.ID())))
 
-	slog.DebugContext(ctx, "indexing document")
+	slog.DebugContext(ctx, "pipeline: indexing document", slog.Int("indexCount", count))
 
 	for index := range i.indexes {
 		go func(index *IdentifiedIndex) {
@@ -202,6 +202,7 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 				defer opts.OnProgress(1)
 			}
 
+			slog.DebugContext(indexCtx, "pipeline: calling Index() on underlying index")
 			if err := index.Index().Index(indexCtx, document, indexOptions...); err != nil {
 				err = errors.WithStack(err)
 				slog.ErrorContext(indexCtx, "could not index document", slog.Any("error", err))
