@@ -36,6 +36,7 @@ func NewHandler(documentManager *service.DocumentManager, userStore port.UserSto
 	h.mux.Handle("DELETE /{id}", assertUser(http.HandlerFunc(h.handleCollectionDelete)))
 	h.mux.Handle("POST /{id}/shares", assertUser(http.HandlerFunc(h.handleCollectionShareCreate)))
 	h.mux.Handle("DELETE /{id}/shares/{shareID}", assertUser(http.HandlerFunc(h.handleCollectionShareDelete)))
+	h.mux.Handle("DELETE /{id}/documents/{docID}", assertUser(http.HandlerFunc(h.handleDocumentDelete)))
 
 	return h
 }

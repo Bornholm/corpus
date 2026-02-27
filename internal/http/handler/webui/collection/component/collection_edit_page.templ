@@ -227,6 +227,9 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 								<tr>
 									<th>Source</th>
 									<th>Date d'ajout</th>
+									if vmodel.IsWritable {
+										<th></th>
+									}
 								</tr>
 							</thead>
 							<tbody>
@@ -238,6 +241,20 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 										<td>
 											<span>{ doc.CreatedAt().Format("02/01/2006") }</span>
 										</td>
+										if vmodel.IsWritable {
+											<td class="has-text-right">
+												<button
+													class="button is-small is-danger is-outlined"
+													hx-delete={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "documents", string(doc.ID()))) }
+													hx-confirm="Supprimer ce document ?"
+													hx-target="body"
+												>
+													<span class="icon">
+														<i class="fas fa-times"></i>
+													</span>
+												</button>
+											</td>
+										}
 									</tr>
 								}
 							</tbody>

@@ -53,18 +53,6 @@ func (h *Handler) postReindexCollectionFromCollectionPage(w http.ResponseWriter,
 		return
 	}
 
-	// Check if the user has access to the collection
-	canWrite, err := h.documentStore.CanWriteCollection(ctx, user.ID(), collectionID)
-	if err != nil {
-		common.HandleError(w, r, errors.Wrap(err, "could not check collection access"))
-		return
-	}
-
-	if !canWrite {
-		common.HandleError(w, r, errors.New("you don't have permission to reindex this collection"))
-		return
-	}
-
 	// Schedule the reindex task
 	taskID, err := h.documentManager.ReindexCollection(ctx, user, collectionID)
 	if err != nil {
