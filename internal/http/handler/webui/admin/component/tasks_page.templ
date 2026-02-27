@@ -37,38 +37,6 @@ templ TasksPage(vmodel TasksPageVModel) {
 				</div>
 			</div>
 		</div>
-		<!-- Actions Section -->
-		<div class="box mt-5">
-			<h2 class="title is-size-4">Actions</h2>
-			<form action="/admin/tasks/reindex" method="POST">
-				<div class="field has-addons">
-					<div class="control is-expanded">
-						<div class="select is-fullwidth">
-							if len(vmodel.Collections) == 0 {
-								<select name="collection_id" disabled>
-									<option>Aucune collection disponible</option>
-								</select>
-							} else {
-								<select name="collection_id" required>
-									<option value="" disabled selected>Sélectionner une collection</option>
-									for _, coll := range vmodel.Collections {
-										<option value={ string(coll.ID) }>{ coll.Label }</option>
-									}
-								</select>
-							}
-						</div>
-					</div>
-					<div class="control">
-						if len(vmodel.Collections) == 0 {
-							<button class="button is-primary" type="submit" disabled>Réindexer</button>
-						} else {
-							<button class="button is-primary" type="submit">Réindexer</button>
-						}
-					</div>
-				</div>
-				<p class="help">Cette action va supprimer et réindexer tous les documents de la collection sélectionnée.</p>
-			</form>
-		</div>
 		if len(vmodel.Tasks) == 0 {
 			<div class="notification is-info is-light">
 				<p>Aucune tâche en cours ou récente.</p>

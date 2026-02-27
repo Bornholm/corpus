@@ -1,0 +1,87 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
+)
+
+type CollectionsPageVModel struct {
+	Navbar      commonComp.NavbarVModel
+	Collections []model.PersistedCollection
+	CurrentPage int
+	PageSize    int
+}
+
+templ CollectionsPage(vmodel CollectionsPageVModel) {
+	@AdminPage(vmodel.Navbar, "collections", commonComp.WithTitle("Collections")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<h1 class="title is-size-3">Collections</h1>
+				</div>
+			</div>
+		</div>
+		if len(vmodel.Collections) == 0 {
+			<div class="notification is-info is-light">
+				<p>Aucune collection trouvée.</p>
+			</div>
+		} else {
+			<div class="table-container">
+				<table class="table is-fullwidth is-striped">
+					<thead>
+						<tr>
+							<th>Nom</th>
+							<th>Description</th>
+							<th>Propriétaire</th>
+							<th>Créée le</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, collection := range vmodel.Collections {
+							<tr>
+								<td>{ collection.Label() }</td>
+								<td>
+									if collection.Description() != "" {
+										{ collection.Description() }
+									} else {
+										<span class="has-text-grey">-</span>
+									}
+								</td>
+								<td>{ collection.Owner().DisplayName() }</td>
+								<td>{ collection.CreatedAt().Format("02/01/2006") }</td>
+								<td>
+									<div class="buttons">
+										<a href={ templ.SafeURL("/admin/collections/" + string(collection.ID())) } class="button is-primary is-small">
+											<span class="icon">
+												<i class="fas fa-eye"></i>
+											</span>
+											<span>Voir</span>
+										</a>
+									</div>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+			<!-- Pagination -->
+			if vmodel.CurrentPage > 1 || len(vmodel.Collections) == vmodel.PageSize {
+				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
+					if vmodel.CurrentPage > 1 {
+						<a class="pagination-previous" href={ templ.SafeURL("/admin/collections?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+					}
+					if len(vmodel.Collections) == vmodel.PageSize {
+						<a class="pagination-next" href={ templ.SafeURL("/admin/collections?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
+					}
+					<ul class="pagination-list">
+						<li>
+							<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) }</span>
+						</li>
+					</ul>
+				</nav>
+			}
+		}
+	}
+}

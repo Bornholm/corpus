@@ -28,7 +28,8 @@ templ NewPublicSharePage(vmodel NewPublicSharePageVModel) {
 			<div class="level-right"></div>
 		</div>
 		<div class="columns">
-			<div class="column">
+			<div class="column is-half">
+				<h3 class="title is-size-5">Créer un nouveau partage</h3>
 				@form.FormWrapper(vmodel.PublicShareForm, commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares")), "POST") {
 					<div class="field is-grouped">
 						<div class="control">
@@ -36,7 +37,7 @@ templ NewPublicSharePage(vmodel NewPublicSharePageVModel) {
 								<span class="icon">
 									<i class="fas fa-plus"></i>
 								</span>
-								<span>Créer le partage</span>
+								<span>Créer</span>
 							</button>
 						</div>
 						<div class="control">

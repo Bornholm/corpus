@@ -60,7 +60,7 @@ func NewPublicSharePage(vmodel NewPublicSharePageVModel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Nouveau partage public</h2></div></div><div class=\"level-right\"></div></div><div class=\"columns\"><div class=\"column\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "\" class=\"button is-text mr-3 is-medium\" style=\"text-decoration:none\"><span class=\"icon\"><i class=\"fas fa-arrow-left\"></i></span></a><h2 class=\"title is-size-3\">Nouveau partage public</h2></div></div><div class=\"level-right\"></div></div><div class=\"columns\"><div class=\"column is-half\"><h3 class=\"title is-size-5\">Créer un nouveau partage</h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -76,7 +76,7 @@ func NewPublicSharePage(vmodel NewPublicSharePageVModel) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-plus\"></i></span> <span>Créer le partage</span></button></div><div class=\"control\"><a href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-plus\"></i></span> <span>Créer</span></button></div><div class=\"control\"><a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

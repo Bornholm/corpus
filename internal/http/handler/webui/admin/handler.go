@@ -55,10 +55,15 @@ func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publ
 	h.mux.Handle("POST /public-shares/{id}/edit", assertAdmin(http.HandlerFunc(h.postEditPublicShare)))
 	h.mux.Handle("DELETE /public-shares/{id}", assertAdmin(http.HandlerFunc(h.handlePublicShareDelete)))
 
-	// Collection share routes
-	h.mux.Handle("GET /collection-shares", assertAdmin(http.HandlerFunc(h.getCollectionSharesPage)))
+	// Collection share routes (for delete operations)
 	h.mux.Handle("POST /collection-shares", assertAdmin(http.HandlerFunc(h.postCollectionShare)))
 	h.mux.Handle("DELETE /collection-shares/{id}", assertAdmin(http.HandlerFunc(h.handleCollectionShareDelete)))
+
+	// Collection routes
+	h.mux.Handle("GET /collections", assertAdmin(http.HandlerFunc(h.getCollectionsPage)))
+	h.mux.Handle("GET /collections/{id}", assertAdmin(http.HandlerFunc(h.getCollectionPage)))
+	h.mux.Handle("POST /collections/{id}/reindex", assertAdmin(http.HandlerFunc(h.postReindexCollectionFromCollectionPage)))
+	h.mux.Handle("DELETE /collections/{id}", assertAdmin(http.HandlerFunc(h.handleDeleteCollection)))
 
 	// Task routes
 	h.mux.Handle("GET /tasks", assertAdmin(http.HandlerFunc(h.getTasksPage)))

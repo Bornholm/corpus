@@ -44,7 +44,8 @@ templ EditPublicSharePage(vmodel EditPublicSharePageVModel) {
 			</div>
 		</div>
 		<div class="columns">
-			<div class="column">
+			<div class="column is-half">
+				<h3 class="title is-size-5">Modifier le partage</h3>
 				@form.FormWrapper(vmodel.PublicShareForm, commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()), "edit")), "POST") {
 					<div class="field is-grouped">
 						<div class="control">
@@ -52,7 +53,7 @@ templ EditPublicSharePage(vmodel EditPublicSharePageVModel) {
 								<span class="icon">
 									<i class="fas fa-save"></i>
 								</span>
-								<span>Modifier le partage</span>
+								<span>Enregistrer</span>
 							</button>
 						</div>
 						<div class="control">

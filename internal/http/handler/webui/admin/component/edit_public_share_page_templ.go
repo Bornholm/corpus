@@ -75,7 +75,7 @@ func EditPublicSharePage(vmodel EditPublicSharePageVModel) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-confirm=\"Êtes-vous sûr de vouloir supprimer ce partage public ? Cette action ne peut pas être annulée.\" hx-target=\"body\"><span class=\"icon\"><i class=\"fas fa-trash\"></i></span> <span>Supprimer</span></button></div></div></div><div class=\"columns\"><div class=\"column\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "\" hx-confirm=\"Êtes-vous sûr de vouloir supprimer ce partage public ? Cette action ne peut pas être annulée.\" hx-target=\"body\"><span class=\"icon\"><i class=\"fas fa-trash\"></i></span> <span>Supprimer</span></button></div></div></div><div class=\"columns\"><div class=\"column is-half\"><h3 class=\"title is-size-5\">Modifier le partage</h3>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -91,7 +91,7 @@ func EditPublicSharePage(vmodel EditPublicSharePageVModel) templ.Component {
 					}()
 				}
 				ctx = templ.InitializeContext(ctx)
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Modifier le partage</span></button></div><div class=\"control\"><a href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"field is-grouped\"><div class=\"control\"><button type=\"submit\" class=\"button is-primary\"><span class=\"icon\"><i class=\"fas fa-save\"></i></span> <span>Enregistrer</span></button></div><div class=\"control\"><a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

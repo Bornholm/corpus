@@ -1,0 +1,254 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"strconv"
+)
+
+type CollectionPageVModel struct {
+	Navbar         commonComp.NavbarVModel
+	Collection     model.PersistedCollection
+	Stats          *model.CollectionStats
+	IsOwner        bool
+	Documents      []model.PersistedDocument
+	CurrentPage    int
+	PageSize       int
+	TotalDocuments int64
+	TotalPages     int
+	Shares         []model.PersistedCollectionShare
+	AllUsers       []model.User
+}
+
+templ CollectionPage(vmodel CollectionPageVModel) {
+	@AdminPage(vmodel.Navbar, "collections", commonComp.WithTitle("Détails de la collection")) {
+		<div class="level is-mobile">
+			<div class="level-left">
+				<div class="level-item">
+					<a href={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/collections")) } class="button is-text mr-3 is-medium" style="text-decoration:none">
+						<span class="icon">
+							<i class="fas fa-arrow-left"></i>
+						</span>
+					</a>
+					<h1 class="title is-size-3">{ vmodel.Collection.Label() }</h1>
+				</div>
+			</div>
+			<div class="level-right">
+				if vmodel.IsOwner {
+					<div class="level-item">
+						<button
+							class="button is-danger"
+							hx-delete={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/collections", string(vmodel.Collection.ID()))) }
+							hx-confirm="Êtes-vous sûr de vouloir supprimer cette collection ? Cette action supprimera également tous les documents associés et ne peut pas être annulée."
+							hx-target="body"
+						>
+							<span class="icon">
+								<i class="fas fa-trash"></i>
+							</span>
+							<span>Supprimer</span>
+						</button>
+					</div>
+				}
+				<div class="level-item">
+					<form method="POST" action={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/collections", string(vmodel.Collection.ID()), "reindex")) }>
+						<button type="submit" class="button is-primary">
+							<span class="icon">
+								<i class="fas fa-sync"></i>
+							</span>
+							<span>Réindexer</span>
+						</button>
+					</form>
+				</div>
+			</div>
+		</div>
+		<div class="columns">
+			<div class="column">
+				<h3 class="title is-size-5">Informations</h3>
+				<div class="field">
+					<label class="label">Nom</label>
+					<div class="control">
+						<input class="input" type="text" value={ vmodel.Collection.Label() } readonly/>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label">Description</label>
+					<div class="control">
+						if vmodel.Collection.Description() != "" {
+							<textarea class="textarea" rows="2" readonly>{ vmodel.Collection.Description() }</textarea>
+						} else {
+							<textarea class="textarea" rows="2" readonly>-</textarea>
+						}
+					</div>
+				</div>
+				<div class="field">
+					<label class="label">Propriétaire</label>
+					<div class="control">
+						<input class="input" type="text" value={ vmodel.Collection.Owner().DisplayName() } readonly/>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label">Créée le</label>
+					<div class="control">
+						<input class="input" type="text" value={ vmodel.Collection.CreatedAt().Format("02/01/2006 15:04:05") } readonly/>
+					</div>
+				</div>
+				<div class="field">
+					<label class="label">Modifiée le</label>
+					<div class="control">
+						<input class="input" type="text" value={ vmodel.Collection.UpdatedAt().Format("02/01/2006 15:04:05") } readonly/>
+					</div>
+				</div>
+			</div>
+		</div>
+		<hr/>
+		<div class="columns">
+			if vmodel.IsOwner {
+				<div class="column is-4">
+					<h3 class="title is-size-5">Ajouter un partage</h3>
+					<form method="post" action={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/collection-shares")) }>
+						<input type="hidden" name="collection_id" value={ string(vmodel.Collection.ID()) }/>
+						<div class="field">
+							<label class="label">Utilisateur</label>
+							<div class="control">
+								<div class="select is-fullwidth">
+									<select name="user_id" required>
+										<option value="">-- Utilisateur --</option>
+										for _, u := range vmodel.AllUsers {
+											<option value={ string(u.ID()) }>{ u.DisplayName() } ({ u.Email() })</option>
+										}
+									</select>
+								</div>
+							</div>
+						</div>
+						<div class="field">
+							<label class="label">Niveau</label>
+							<div class="control">
+								<div class="select is-fullwidth">
+									<select name="level" required>
+										<option value="read">Lecture</option>
+										<option value="write">Écriture</option>
+									</select>
+								</div>
+							</div>
+						</div>
+						<div class="field">
+							<div class="control">
+								<button type="submit" class="button is-primary is-fullwidth">
+									<span class="icon">
+										<i class="fas fa-plus"></i>
+									</span>
+									<span>Ajouter</span>
+								</button>
+							</div>
+						</div>
+					</form>
+				</div>
+			}
+			<div class="column">
+				<h3 class="title is-size-5">
+					<span class="icon">
+						<i class="fas fa-share-alt"></i>
+					</span>
+					<span>Partages ({ strconv.Itoa(len(vmodel.Shares)) })</span>
+				</h3>
+				if len(vmodel.Shares) == 0 {
+					<p class="has-text-grey-light is-italic">Aucun partage pour cette collection.</p>
+				} else {
+					<div class="table-container">
+						<table class="table is-fullwidth is-striped mb-4">
+							<thead>
+								<tr>
+									<th>Utilisateur</th>
+									<th>Email</th>
+									<th>Niveau</th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, share := range vmodel.Shares {
+									<tr>
+										<td>{ share.SharedWith().DisplayName() }</td>
+										<td>{ share.SharedWith().Email() }</td>
+										<td>
+											if share.Level() == model.CollectionShareLevelWrite {
+												<span class="tag is-warning">Écriture</span>
+											} else {
+												<span class="tag is-info">Lecture</span>
+											}
+										</td>
+										<td>
+											if vmodel.IsOwner {
+												<button
+													class="button is-small is-danger is-outlined"
+													hx-delete={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/collection-shares", string(share.ID()))) }
+													hx-confirm="Supprimer ce partage ?"
+													hx-target="body"
+												>
+													<span class="icon">
+														<i class="fas fa-times"></i>
+													</span>
+												</button>
+											}
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+				}
+			</div>
+		</div>
+		<hr/>
+		<div class="columns">
+			<div class="column is-12">
+				<h3 class="title is-size-5">
+					<span class="icon">
+						<i class="fas fa-file-alt"></i>
+					</span>
+					<span>Documents ({ strconv.FormatInt(vmodel.TotalDocuments, 10) })</span>
+				</h3>
+				if len(vmodel.Documents) == 0 {
+					<p class="has-text-grey-light is-italic">Aucun document dans cette collection.</p>
+				} else {
+					<div class="table-container">
+						<table class="table is-fullwidth is-striped mb-4">
+							<thead>
+								<tr>
+									<th>Source</th>
+									<th>Date d'ajout</th>
+								</tr>
+							</thead>
+							<tbody>
+								for _, doc := range vmodel.Documents {
+									<tr>
+										<td>
+											<a href={ templ.SafeURL(doc.Source().String()) } target="_blank">{ doc.Source().String() }</a>
+										</td>
+										<td>
+											<span>{ doc.CreatedAt().Format("02/01/2006") }</span>
+										</td>
+									</tr>
+								}
+							</tbody>
+						</table>
+					</div>
+					if vmodel.TotalPages > 1 {
+						<nav class="pagination" role="navigation" aria-label="pagination">
+							if vmodel.CurrentPage > 1 {
+								<a class="pagination-previous" href={ templ.SafeURL("/admin/collections/" + string(vmodel.Collection.ID()) + "?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+							}
+							if vmodel.CurrentPage < vmodel.TotalPages {
+								<a class="pagination-next" href={ templ.SafeURL("/admin/collections/" + string(vmodel.Collection.ID()) + "?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
+							}
+							<ul class="pagination-list">
+								<li>
+									<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) } / { strconv.Itoa(vmodel.TotalPages) }</span>
+								</li>
+							</ul>
+						</nav>
+					}
+				}
+			</div>
+		</div>
+	}
+}
