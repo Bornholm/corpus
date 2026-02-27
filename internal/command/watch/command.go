@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -49,19 +48,20 @@ func Command() *cli.Command {
 				return errors.Wrap(err, "could not retrieve filesystems")
 			}
 
+			maxRestarts, err := getMaxRestarts(ctx)
+			if err != nil {
+				return errors.Wrap(err, "could not retrieve max restarts")
+			}
+
 			client, err := common.GetCorpusClient(ctx)
 			if err != nil {
 				return errors.Wrap(err, "could not retrieve corpus client")
 			}
 
-			sharedCtx, sharedCancel := context.WithCancel(ctx.Context)
-			defer sharedCancel()
+			mainCtx, mainCancel := context.WithCancel(ctx.Context)
+			defer mainCancel()
 
-			var wg sync.WaitGroup
-
-			wg.Add(len(filesystems))
-
-			slog.InfoContext(sharedCtx, "indexing filesystems", slog.Int("total", len(filesystems)))
+			slog.InfoContext(mainCtx, "indexing filesystems", slog.Int("total", len(filesystems)))
 
 			for _, f := range filesystems {
 				dsn, err := url.Parse(f)
@@ -95,40 +95,51 @@ func Command() *cli.Command {
 				}
 
 				go func(b filesystem.Backend, dsn *url.URL, collections []model.CollectionID, source *url.URL, sourceEmbedded bool, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType) {
-					defer wg.Done()
-					defer sharedCancel()
+					watcherRestarts := 0
+					baseDelay := time.Second
+					restartDelay := baseDelay
 
-					watchCtx := slogx.WithAttrs(sharedCtx, slog.String("filesystem", scrubbedURL(dsn)))
+					watchCtx := slogx.WithAttrs(context.Background(), slog.String("filesystem", scrubbedURL(dsn)))
 
-					indexer := &filesystemIndexer{
-						collections:          collections,
-						client:               client,
-						backend:              b,
-						source:               source,
-						sourceEmbedded:       sourceEmbedded,
-						eTagType:             eTagType,
-						indexRetryMaxRetries: 3,
-						indexRetryBaseDelay:  time.Second,
+					for {
+						indexer := &filesystemIndexer{
+							collections:          collections,
+							client:               client,
+							backend:              b,
+							source:               source,
+							sourceEmbedded:       sourceEmbedded,
+							eTagType:             eTagType,
+							indexRetryMaxRetries: 3,
+							indexRetryBaseDelay:  time.Second,
+						}
+
+						err := indexer.Watch(watchCtx, watchOptions...)
+						if err != nil {
+							slog.ErrorContext(watchCtx, "could not watch filesystem", slog.Any("error", errors.WithStack(err)))
+							watcherRestarts++
+						} else {
+							watcherRestarts = 0
+							restartDelay = baseDelay
+						}
+
+						if watcherRestarts > maxRestarts {
+							slog.ErrorContext(watchCtx, "indexer max restarts reached, killing process", slog.Int("restarts", watcherRestarts))
+							os.Exit(1)
+						}
+
+						slog.InfoContext(watchCtx, "indexer will automatically restart", slog.Duration("delay", restartDelay), slog.Int("restarts", watcherRestarts))
+
+						time.Sleep(restartDelay)
+						restartDelay *= 2
 					}
 
-					if err := indexer.Watch(watchCtx, watchOptions...); err != nil {
-						slog.ErrorContext(watchCtx, "could not watch filesystem", slog.Any("error", errors.WithStack(err)))
-					}
 				}(b, dsn, collections, source, sourceEmbedded, watchOptions, eTagType)
 			}
-
-			wg.Wait()
 
 			notify := make(chan os.Signal, 1)
 			signal.Notify(notify, os.Interrupt)
 
-			slog.InfoContext(sharedCtx, "watcher running, press ctrl+c to exit")
-
-			select {
-			case <-notify:
-			case <-sharedCtx.Done():
-				return errors.WithStack(ctx.Err())
-			}
+			<-notify
 
 			return nil
 		},
