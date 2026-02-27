@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
@@ -14,6 +15,8 @@ import (
 	"github.com/bornholm/corpus/internal/workflow"
 	"github.com/pkg/errors"
 )
+
+const indexFileTaskTimeout = 2 * time.Hour
 
 type IndexFileHandler struct {
 	userStore         port.UserStore
@@ -35,6 +38,10 @@ func NewIndexFileHandler(userStore port.UserStore, documentStore port.DocumentSt
 
 // Handle implements [port.TaskHandler].
 func (h *IndexFileHandler) Handle(ctx context.Context, task model.Task, events chan port.TaskEvent) error {
+	// Add a 2-hour timeout for the entire task execution
+	ctx, cancel := context.WithTimeout(ctx, indexFileTaskTimeout)
+	defer cancel()
+
 	indexFileTask, ok := task.(*IndexFileTask)
 	if !ok {
 		return errors.Errorf("unexpected task type '%T'", task)
@@ -114,7 +121,7 @@ func (h *IndexFileHandler) Handle(ctx context.Context, task model.Task, events c
 				}
 
 				if doc.Source() == nil {
-					return errors.New("document source missing")
+					return errors.Errorf("document source missing (document header: %s)", data[0:min(len(data), 512)])
 				}
 
 				if indexFileTask.etag != "" {
