@@ -12,8 +12,14 @@ type Workflow struct {
 
 func (w *Workflow) Execute(ctx context.Context) error {
 	for idx, step := range w.steps {
+		select {
+		case <-ctx.Done():
+			return errors.WithStack(ctx.Err())
+		default:
+		}
+
 		if executionErr := step.Execute(ctx); executionErr != nil {
-			if compensationErrs := w.compensate(ctx, idx); compensationErrs != nil {
+			if compensationErrs := w.compensate(context.WithoutCancel(ctx), idx); compensationErrs != nil {
 				return errors.WithStack(NewCompensationError(executionErr, compensationErrs...))
 			}
 

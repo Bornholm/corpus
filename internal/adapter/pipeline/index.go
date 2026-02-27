@@ -175,7 +175,9 @@ func (i *Index) Index(ctx context.Context, document model.Document, funcs ...por
 			defer func() {
 				if r := recover(); r != nil {
 					if err, ok := r.(error); ok {
-						aggregatedErr.Add(errors.WithStack(err))
+						err = errors.WithStack(err)
+						aggregatedErr.Add(err)
+						errs <- err
 					} else {
 						panic(r)
 					}

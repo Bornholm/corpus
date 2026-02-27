@@ -48,12 +48,35 @@ func (h *Handler) fillTasksPageViewModel(r *http.Request) (*component.TasksPageV
 		vmodel, r,
 		h.fillTasksPageVModelNavbar,
 		h.fillTasksPageVModelTasks,
+		h.fillTasksPageVModelCollections,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	return vmodel, nil
+}
+
+func (h *Handler) fillTasksPageVModelCollections(ctx context.Context, vmodel *component.TasksPageVModel, r *http.Request) error {
+	user := httpCtx.User(ctx)
+	if user == nil {
+		return errors.New("could not retrieve user from context")
+	}
+
+	collections, _, err := h.documentStore.QueryUserWritableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
+	if err != nil {
+		return errors.Wrap(err, "could not query collections")
+	}
+
+	vmodel.Collections = make([]component.CollectionOption, len(collections))
+	for i, coll := range collections {
+		vmodel.Collections[i] = component.CollectionOption{
+			ID:    coll.ID(),
+			Label: coll.Label(),
+		}
+	}
+
+	return nil
 }
 
 func (h *Handler) fillTaskPageViewModel(r *http.Request) (*component.TaskPageVModel, error) {
@@ -201,6 +224,85 @@ func (h *Handler) fillTaskPageVModelTask(ctx context.Context, vmodel *component.
 
 	vmodel.State = taskState
 	vmodel.Task = task
+	// A task is cancelable if it's pending or running
+	vmodel.Cancelable = taskState.Status == port.TaskStatusPending || taskState.Status == port.TaskStatusRunning
 
 	return nil
+}
+
+func (h *Handler) postReindexCollection(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	// Get the user from context
+	user := httpCtx.User(ctx)
+	if user == nil {
+		common.HandleError(w, r, errors.New("could not retrieve user from context"))
+		return
+	}
+
+	// Parse the collection ID from the form
+	if err := r.ParseForm(); err != nil {
+		common.HandleError(w, r, errors.Wrap(err, "could not parse form"))
+		return
+	}
+
+	collectionIDStr := r.Form.Get("collection_id")
+	if collectionIDStr == "" {
+		common.HandleError(w, r, errors.New("collection ID is required"))
+		return
+	}
+
+	collectionID := model.CollectionID(collectionIDStr)
+
+	// Check if the user has access to the collection
+	canWrite, err := h.documentStore.CanWriteCollection(ctx, user.ID(), collectionID)
+	if err != nil {
+		common.HandleError(w, r, errors.Wrap(err, "could not check collection access"))
+		return
+	}
+
+	if !canWrite {
+		common.HandleError(w, r, errors.New("you don't have permission to reindex this collection"))
+		return
+	}
+
+	// Schedule the reindex task
+	taskID, err := h.documentManager.ReindexCollection(ctx, user, collectionID)
+	if err != nil {
+		common.HandleError(w, r, errors.Wrap(err, "could not schedule reindex task"))
+		return
+	}
+
+	// Redirect to the task page
+	redirectURL := commonComp.BaseURL(r.Context(), commonComp.WithPath("/admin/tasks", string(taskID)))
+	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
+}
+
+func (h *Handler) postCancelTask(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	taskID := model.TaskID(r.PathValue("id"))
+	if taskID == "" {
+		common.HandleError(w, r, errors.New("task ID is required"))
+		return
+	}
+
+	err := h.taskRunner.CancelTask(ctx, taskID)
+	if err != nil {
+		if errors.Is(err, port.ErrNotFound) {
+			http.Error(w, "Task not found", http.StatusNotFound)
+			return
+		}
+		if errors.Is(err, port.ErrCanceled) {
+			// Task is already canceled or cannot be canceled
+			common.HandleError(w, r, errors.Wrap(err, "cannot cancel task"))
+			return
+		}
+		common.HandleError(w, r, errors.Wrap(err, "could not cancel task"))
+		return
+	}
+
+	// Redirect back to the task page
+	redirectURL := commonComp.BaseURL(r.Context(), commonComp.WithPath("/admin/tasks", string(taskID)))
+	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
 }

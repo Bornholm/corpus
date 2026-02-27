@@ -29,8 +29,46 @@ type TaskRunner struct {
 	handlers  syncx.Map[model.TaskType, port.TaskHandler]
 	semaphore chan struct{}
 
+	// cancelFuncs stores cancel functions for running/pending tasks
+	cancelFuncs syncx.Map[model.TaskID, context.CancelFunc]
+
 	cleanupDelay    time.Duration
 	cleanupInterval time.Duration
+}
+
+// CancelTask implements [port.TaskRunner].
+func (r *TaskRunner) CancelTask(ctx context.Context, id model.TaskID) error {
+	entry, exists := r.tasks.Load(id)
+	if !exists {
+		return errors.WithStack(port.ErrNotFound)
+	}
+
+	// Can only cancel pending or running tasks
+	if entry.State.Status != port.TaskStatusPending && entry.State.Status != port.TaskStatusRunning {
+		return errors.WithStack(port.ErrCanceled)
+	}
+
+	// Get the cancel function if it exists
+	cancelFn, exists := r.cancelFuncs.Load(id)
+	if !exists {
+		// No cancel function means the task might have already finished
+		// or there's no way to cancel it
+		return errors.WithStack(port.ErrCanceled)
+	}
+
+	// Call the cancel function
+	cancelFn()
+
+	// Update the task state to failed with canceled error
+	r.updateState(entry.Task, func(s *port.TaskState) {
+		s.Error = errors.WithStack(port.ErrCanceled)
+		s.Status = port.TaskStatusFailed
+		s.FinishedAt = time.Now()
+	})
+
+	r.cancelFuncs.Delete(id)
+
+	return nil
 }
 
 // GetTask implements [port.TaskRunner].
@@ -47,7 +85,6 @@ func (r *TaskRunner) GetTask(ctx context.Context, id model.TaskID) (model.Task, 
 func (r *TaskRunner) Run(ctx context.Context) error {
 	r.runningMutex.Lock()
 	r.running = true
-	slog.Debug("TaskRunner: setting running=true and broadcasting")
 	r.runningCond.Broadcast()
 	r.runningMutex.Unlock()
 
@@ -60,17 +97,25 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 			case <-ticker.C:
 				slog.DebugContext(ctx, "running task cleaner")
 
+				// Collect IDs to delete first to avoid race conditions during iteration
+				var idsToDelete []model.TaskID
+
 				r.tasks.Range(func(id model.TaskID, entry taskEntry) bool {
 					if entry.State.FinishedAt.IsZero() || !time.Now().After(entry.State.FinishedAt.Add(r.cleanupDelay)) {
 						return true
 					}
 
-					slog.DebugContext(ctx, "deleting expired task", slog.String("taskID", string(id)))
-
-					r.tasks.Delete(id)
+					idsToDelete = append(idsToDelete, id)
 
 					return true
 				})
+
+				// Now delete them
+				for _, id := range idsToDelete {
+					slog.DebugContext(ctx, "deleting expired task", slog.String("taskID", string(id)))
+					r.tasks.Delete(id)
+					r.cancelFuncs.Delete(id)
+				}
 			}
 		}
 	}()
@@ -115,8 +160,15 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 		s.Type = task.Type()
 	})
 
+	// Create a cancelable context for this task
+	taskCtx, cancelFn := context.WithCancel(context.Background())
+	r.cancelFuncs.Store(taskID, cancelFn)
+
 	go func() {
 		defer func() {
+			// Clean up the cancel function when the task finishes
+			r.cancelFuncs.Delete(taskID)
+
 			if recovered := recover(); recovered != nil {
 				err, ok := recovered.(error)
 				if !ok {
@@ -133,12 +185,9 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 		}()
 
 		r.runningMutex.Lock()
-		slog.Debug("TaskRunner: waiting for running flag", slog.Bool("running", r.running))
 		for !r.running {
-			slog.Debug("TaskRunner: waiting on condition variable")
 			r.runningCond.Wait()
 		}
-		slog.Debug("TaskRunner: running flag is true, proceeding")
 		r.runningMutex.Unlock()
 
 		r.semaphore <- struct{}{}
@@ -178,11 +227,33 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 			}
 		}()
 
-		slog.DebugContext(ctx, "executing task")
-
 		start := time.Now()
 
-		err := handler.Handle(ctx, task, events)
+		taskCtx := slogx.WithAttrs(taskCtx,
+			slog.String("taskID", string(taskID)),
+			slog.String("taskType", string(task.Type())),
+		)
+
+		slog.DebugContext(taskCtx, "executing task")
+
+		err := handler.Handle(taskCtx, task, events)
+
+		// Check if the task was canceled
+		if errors.Is(err, port.ErrCanceled) {
+			slog.DebugContext(ctx, "task was canceled")
+
+			r.updateState(task, func(s *port.TaskState) {
+				s.Error = errors.WithStack(port.ErrCanceled)
+				s.Status = port.TaskStatusFailed
+				s.FinishedAt = time.Now()
+			})
+
+			// Close the events channel and wait for the events goroutine
+			close(events)
+			eventsWg.Wait()
+
+			return
+		}
 
 		// Close the events channel and wait for the events goroutine to fully
 		// drain before writing the final task state, eliminating the race between
@@ -214,7 +285,6 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 }
 
 func (r *TaskRunner) updateState(task model.Task, fn func(s *port.TaskState)) {
-	slog.Debug("TaskRunner: acquiring state mutex for task", slog.String("taskID", string(task.ID())))
 	r.stateMutex.Lock()
 	defer r.stateMutex.Unlock()
 

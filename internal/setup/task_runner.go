@@ -95,5 +95,12 @@ func setupTaskHandlers(ctx context.Context, conf *config.Config, taskRunner port
 
 	taskRunner.RegisterTask(documentTask.TaskTypeCleanup, cleanupHandler)
 
+	reindexCollectionHandler, err := getReindexCollectionTaskHandler(ctx, conf)
+	if err != nil {
+		return errors.Wrap(err, "could not reindex collection task handler from config")
+	}
+
+	taskRunner.RegisterTask(documentTask.TaskTypeReindexCollection, reindexCollectionHandler)
+
 	return nil
 }

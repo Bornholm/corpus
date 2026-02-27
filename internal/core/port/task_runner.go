@@ -74,5 +74,8 @@ type TaskRunner interface {
 	GetTask(ctx context.Context, id model.TaskID) (model.Task, error)
 	ListTasks(ctx context.Context) ([]TaskStateHeader, error)
 	RegisterTask(taskType model.TaskType, handler TaskHandler)
+	// CancelTask cancels a scheduled or running task
+	// A canceled task should return the error ErrCanceled
+	CancelTask(ctx context.Context, id model.TaskID) error
 	Run(ctx context.Context) error
 }

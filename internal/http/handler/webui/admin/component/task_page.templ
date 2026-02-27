@@ -3,15 +3,18 @@ package component
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 )
 
 type TaskPageVModel struct {
-	Navbar commonComp.NavbarVModel
-	State  *port.TaskState
-	Task   model.Task
+	Navbar     commonComp.NavbarVModel
+	State      *port.TaskState
+	Task       model.Task
+	Cancelable bool
 }
 
 templ TaskPage(vmodel TaskPageVModel) {
@@ -29,10 +32,33 @@ templ TaskPage(vmodel TaskPageVModel) {
 					</h2>
 				</div>
 			</div>
-			<div class="level-right"></div>
+			<div class="level-right">
+				if vmodel.Cancelable {
+					<div class="level-item">
+						<form method="POST" action={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/tasks", string(vmodel.State.ID), "cancel")) }>
+							<button type="submit" class="button is-danger">
+								<span class="icon">
+									<i class="fas fa-times"></i>
+								</span>
+								<span>Annuler</span>
+							</button>
+						</form>
+					</div>
+				}
+			</div>
 		</div>
 		if vmodel.State != nil && vmodel.Task != nil {
-			<div class="content">
+			<div
+				id="task-details"
+				hx-select="#task-details"
+				if vmodel.State.Status == port.TaskStatusPending || vmodel.State.Status == port.TaskStatusRunning {
+					hx-trigger="every 2s"
+				}
+				hx-get={ string(commonComp.CurrentURL(ctx)) }
+				hx-swap="outerHTML"
+				hx-target="this"
+				class="content"
+			>
 				<div class="field is-horizontal">
 					<div class="field-label is-normal">
 						<label class="label">ID</label>
@@ -95,6 +121,29 @@ templ TaskPage(vmodel TaskPageVModel) {
 						</div>
 					</div>
 				}
+				<div class="field is-horizontal">
+					<div class="field-label is-normal">
+						<label class="label">Durée</label>
+					</div>
+					<div class="field-body">
+						<div class="field">
+							<div class="control">
+								<span>
+									{{
+										var duration time.Duration
+										if !vmodel.State.FinishedAt.IsZero() {
+											duration = vmodel.State.FinishedAt.Sub(vmodel.State.ScheduledAt)
+										} else {
+											duration = time.Since(vmodel.State.ScheduledAt)
+										}
+										formattedDuration := duration.Round(time.Second).String()
+									}}
+									{ formattedDuration }
+								</span>
+							</div>
+						</div>
+					</div>
+				</div>
 				if vmodel.State.Progress > 0 {
 					<div class="field is-horizontal">
 						<div class="field-label is-normal">
@@ -157,7 +206,7 @@ templ TaskPage(vmodel TaskPageVModel) {
 										<code>{ err.Error() }</code>
 									</div>
 								} else {
-									<pre style="white-space:break-spaces"><code>{ string(payload	) }</code></pre>
+									<pre style="white-space:break-spaces"><code>{ string(payload) }</code></pre>
 								}
 							</div>
 						</div>

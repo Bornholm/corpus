@@ -1,11 +1,18 @@
 package admin
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
 )
+
+type DocumentManagerInterface interface {
+	ReindexCollection(ctx context.Context, owner model.User, collectionID model.CollectionID) (model.TaskID, error)
+	QueryUserWritableCollections(ctx context.Context, userID model.UserID, opts port.QueryCollectionsOptions) ([]model.PersistedCollection, int64, error)
+}
 
 type Handler struct {
 	mux              *http.ServeMux
@@ -13,6 +20,7 @@ type Handler struct {
 	documentStore    port.DocumentStore
 	publicShareStore port.PublicShareStore
 	taskRunner       port.TaskRunner
+	documentManager  DocumentManagerInterface
 }
 
 // ServeHTTP implements http.Handler.
@@ -20,13 +28,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore, taskRunner port.TaskRunner) *Handler {
+func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore, taskRunner port.TaskRunner, documentManager DocumentManagerInterface) *Handler {
 	h := &Handler{
 		mux:              http.NewServeMux(),
 		userStore:        userStore,
 		documentStore:    documentStore,
 		publicShareStore: publicShareStore,
 		taskRunner:       taskRunner,
+		documentManager:  documentManager,
 	}
 
 	// Admin middleware - only allow admin users
@@ -54,6 +63,10 @@ func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publ
 	// Task routes
 	h.mux.Handle("GET /tasks", assertAdmin(http.HandlerFunc(h.getTasksPage)))
 	h.mux.Handle("GET /tasks/{id}", assertAdmin(http.HandlerFunc(h.getTaskPage)))
+	h.mux.Handle("POST /tasks/{id}/cancel", assertAdmin(http.HandlerFunc(h.postCancelTask)))
+
+	// Actions
+	h.mux.Handle("POST /tasks/reindex", assertAdmin(http.HandlerFunc(h.postReindexCollection)))
 
 	return h
 }

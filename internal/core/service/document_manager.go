@@ -327,6 +327,16 @@ func (m *DocumentManager) CleanupIndex(ctx context.Context, owner model.User, co
 	return taskID, nil
 }
 
+func (m *DocumentManager) ReindexCollection(ctx context.Context, owner model.User, collectionID model.CollectionID) (model.TaskID, error) {
+	reindexTask := documentTask.NewReindexCollectionTask(owner, collectionID)
+
+	if err := m.taskRunner.ScheduleTask(ctx, reindexTask); err != nil {
+		return "", errors.WithStack(err)
+	}
+
+	return reindexTask.ID(), nil
+}
+
 func NewDocumentManager(store port.DocumentStore, index port.Index, taskRunner port.TaskRunner, llm llm.Client, funcs ...DocumentManagerOptionFunc) *DocumentManager {
 	opts := NewDocumentManagerOptions(funcs...)
 
