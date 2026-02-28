@@ -1,4 +1,4 @@
-FROM alpine:3.21 AS runtime
+FROM alpine:3.23 AS runtime
 
 RUN apk add \
     ca-certificates \

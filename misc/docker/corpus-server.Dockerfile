@@ -1,10 +1,11 @@
-FROM alpine:3.21 AS runtime
+FROM alpine:3.23 AS runtime
 
 RUN apk add \
     ca-certificates \
     openssl \
     pandoc \
     gcompat \
+    libreoffice \
   && update-ca-certificates
 
 COPY corpus-server /usr/local/bin/corpus-server

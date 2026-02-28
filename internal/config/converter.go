@@ -4,7 +4,7 @@ import "time"
 
 type FileConverter struct {
 	Enabled   bool                   `env:"ENABLED,expand" envDefault:"true"`
-	URI       []string               `env:"URI,expand" envDefault:"pandoc://" envSeparator:","`
+	URI       []string               `env:"URI,expand" envDefault:"libreoffice+pandoc://" envSeparator:","`
 	RateLimit FileConverterRateLimit `envPrefix:"RATE_LIMIT_"`
 
 	MaxRetries  int           `env:"MAX_RETRIES,expand" envDefault:"3"`

@@ -1,4 +1,4 @@
-package pandoc
+package libreoffice
 
 import (
 	"context"
@@ -6,16 +6,23 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
+	"github.com/bornholm/corpus/internal/adapter/pandoc"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/pkg/errors"
 )
 
 type FileConverter struct {
+	pandoc *pandoc.FileConverter
 }
 
 // Convert implements port.FileConverter.
 func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reader) (io.ReadCloser, error) {
+	if filepath.Ext(filename) != ".doc" {
+		return f.pandoc.Convert(ctx, filename, r)
+	}
+
 	tempDir, err := os.MkdirTemp(os.TempDir(), "corpus-*")
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -23,10 +30,8 @@ func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reade
 
 	defer os.RemoveAll(tempDir)
 
-	ext := filepath.Ext(filename)
-
-	source := filepath.Join(tempDir, "file"+ext)
-	target := filepath.Join(tempDir, "file.md")
+	source := filepath.Join(tempDir, "file.doc")
+	target := filepath.Join(tempDir, "file.docx")
 
 	copy, err := os.Create(source)
 	if err != nil {
@@ -37,7 +42,7 @@ func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reade
 		return nil, errors.WithStack(err)
 	}
 
-	cmd := exec.Command("pandoc", "--to", "commonmark-raw_html", "--output", target, source)
+	cmd := exec.Command("libreoffice", "--headless", "--convert-to", "docx", source, "--outdir", tempDir)
 
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
@@ -46,21 +51,27 @@ func (f *FileConverter) Convert(ctx context.Context, filename string, r io.Reade
 		return nil, errors.WithStack(err)
 	}
 
-	markdown, err := os.Open(target)
+	docx, err := os.Open(target)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return markdown, nil
+	defer docx.Close()
+
+	filename = strings.TrimSuffix(filename, ".doc")
+
+	return f.pandoc.Convert(ctx, filename+".docx", docx)
 }
 
 // SupportedExtensions implements port.FileConverter.
 func (f *FileConverter) SupportedExtensions() []string {
-	return []string{".docx", ".rtf", ".odt", ".md", ".rst", ".epub", ".html", ".tex", ".txt"}
+	return append(f.pandoc.SupportedExtensions(), ".doc")
 }
 
-func NewFileConverter() *FileConverter {
-	return &FileConverter{}
+func NewFileConverter(pandoc *pandoc.FileConverter) *FileConverter {
+	return &FileConverter{
+		pandoc: pandoc,
+	}
 }
 
 var _ port.FileConverter = &FileConverter{}
