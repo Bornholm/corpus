@@ -42,7 +42,7 @@ var getIndexFromConfig = createFromConfigOnce(func(ctx context.Context, conf *co
 		),
 		pipeline.WithResultsTransformers(
 			pipeline.NewDuplicateContentResultsTransformer(documentStore),
-			pipeline.NewJudgeResultsTransformer(llmClient, documentStore, conf.LLM.Index.MaxWords),
+			pipeline.NewJudgeResultsTransformer(llmClient, documentStore, conf.LLM.Index.MaxTotalWords),
 		),
 	)
 

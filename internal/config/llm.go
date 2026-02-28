@@ -34,5 +34,6 @@ type LLMRateLimit struct {
 }
 
 type LLMIndex struct {
-	MaxWords int `env:"MAX_WORDS,expand" envDefault:"2000"`
+	MaxWords      int `env:"MAX_WORDS,expand" envDefault:"2000"`
+	MaxTotalWords int `env:"MAX_TOTAL_WORDS,expand" envDefault:"50000"`
 }

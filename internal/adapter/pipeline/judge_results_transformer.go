@@ -17,9 +17,9 @@ import (
 
 // Hypothetical document
 type JudgeResultsTransformer struct {
-	llm      llm.Client
-	store    port.DocumentStore
-	maxWords int
+	llm           llm.Client
+	store         port.DocumentStore
+	maxTotalWords int
 }
 
 const defaultJudgeResultsTransformer = `
@@ -159,6 +159,12 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 		return "", errors.WithStack(err)
 	}
 
+	maxTotalWords := t.maxTotalWords
+	if maxTotalWords <= 0 {
+		maxTotalWords = 50000
+	}
+	totalWords := 0
+
 	var sb strings.Builder
 	sb.WriteString("## Query\n\n")
 	sb.WriteString(query)
@@ -171,6 +177,10 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 			section, exists := sectionsMap[s]
 			if !exists {
 				continue
+			}
+
+			if totalWords >= maxTotalWords {
+				break
 			}
 
 			sb.WriteString("### Document ")
@@ -186,8 +196,14 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 				return "", errors.WithStack(err)
 			}
 
-			sb.WriteString(string(content))
+			words := strings.Fields(string(content))
+			remaining := maxTotalWords - totalWords
+			if len(words) > remaining {
+				words = words[:remaining]
+			}
+			totalWords += len(words)
 
+			sb.WriteString(strings.Join(words, " "))
 			sb.WriteString("\n\n")
 		}
 	}
@@ -195,11 +211,11 @@ func (t *JudgeResultsTransformer) getUserPrompt(ctx context.Context, query strin
 	return sb.String(), nil
 }
 
-func NewJudgeResultsTransformer(client llm.Client, store port.DocumentStore, maxWords int) *JudgeResultsTransformer {
+func NewJudgeResultsTransformer(client llm.Client, store port.DocumentStore, maxTotalWords int) *JudgeResultsTransformer {
 	return &JudgeResultsTransformer{
-		llm:      client,
-		store:    store,
-		maxWords: maxWords,
+		llm:           client,
+		store:         store,
+		maxTotalWords: maxTotalWords,
 	}
 }
 
