@@ -15,9 +15,10 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/admin/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
+	"github.com/bornholm/corpus/templx/form/renderer/templui"
 	"github.com/bornholm/go-x/templx/form"
 	formx "github.com/bornholm/go-x/templx/form"
-	"github.com/bornholm/go-x/templx/form/renderer/bulma"
 	"github.com/pkg/errors"
 )
 
@@ -271,7 +272,7 @@ func (h *Handler) fillPublicSharesPageViewModel(r *http.Request) (*component.Pub
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillPublicSharesPageVModelNavbar,
+		h.fillPublicSharesPageVModelAppLayout,
 		h.fillPublicSharesPageVModelPublicShares,
 	)
 	if err != nil {
@@ -288,7 +289,7 @@ func (h *Handler) fillNewPublicSharePageViewModel(r *http.Request) (*component.N
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillNewPublicSharePageVModelNavbar,
+		h.fillNewPublicSharePageVModelAppLayout,
 		h.fillNewPublicSharePageVModelForm,
 	)
 	if err != nil {
@@ -298,14 +299,24 @@ func (h *Handler) fillNewPublicSharePageViewModel(r *http.Request) (*component.N
 	return vmodel, nil
 }
 
-func (h *Handler) fillPublicSharesPageVModelNavbar(ctx context.Context, vmodel *component.PublicSharesPageVModel, r *http.Request) error {
+func (h *Handler) fillPublicSharesPageVModelAppLayout(ctx context.Context, vmodel *component.PublicSharesPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "public-shares",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil
@@ -340,18 +351,29 @@ func (h *Handler) fillPublicSharesPageVModelPublicShares(ctx context.Context, vm
 	vmodel.PublicShares = publicShares
 	vmodel.CurrentPage = page + 1 // Convert back to 1-based
 	vmodel.PageSize = limit
+	vmodel.TotalShares = len(publicShares)
 
 	return nil
 }
 
-func (h *Handler) fillNewPublicSharePageVModelNavbar(ctx context.Context, vmodel *component.NewPublicSharePageVModel, r *http.Request) error {
+func (h *Handler) fillNewPublicSharePageVModelAppLayout(ctx context.Context, vmodel *component.NewPublicSharePageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "public-shares",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil
@@ -379,7 +401,7 @@ func (h *Handler) fillEditPublicSharePageViewModel(r *http.Request) (*component.
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillEditPublicSharePageVModelNavbar,
+		h.fillEditPublicSharePageVModelAppLayout,
 		h.fillEditPublicSharePageVModelPublicShare,
 		h.fillEditPublicSharePageVModelForm,
 	)
@@ -390,14 +412,24 @@ func (h *Handler) fillEditPublicSharePageViewModel(r *http.Request) (*component.
 	return vmodel, nil
 }
 
-func (h *Handler) fillEditPublicSharePageVModelNavbar(ctx context.Context, vmodel *component.EditPublicSharePageVModel, r *http.Request) error {
+func (h *Handler) fillEditPublicSharePageVModelAppLayout(ctx context.Context, vmodel *component.EditPublicSharePageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "public-shares",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil
@@ -471,7 +503,7 @@ func (h *Handler) newPublicShareForm(collections []model.PersistedCollection) *f
 				}
 			})...),
 		),
-	}, form.WithDefaultRenderer(bulma.NewFieldRenderer()))
+	}, form.WithDefaultRenderer(templui.NewFieldRenderer()))
 
 	return form
 }

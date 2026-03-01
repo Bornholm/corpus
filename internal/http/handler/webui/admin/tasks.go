@@ -14,6 +14,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/admin/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/pkg/errors"
 )
 
@@ -46,7 +47,7 @@ func (h *Handler) fillTasksPageViewModel(r *http.Request) (*component.TasksPageV
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillTasksPageVModelNavbar,
+		h.fillTasksPageVModelAppLayout,
 		h.fillTasksPageVModelTasks,
 		h.fillTasksPageVModelCollections,
 	)
@@ -86,7 +87,7 @@ func (h *Handler) fillTaskPageViewModel(r *http.Request) (*component.TaskPageVMo
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillTaskPageVModelNavbar,
+		h.fillTaskPageVModelAppLayout,
 		h.fillTaskPageVModelTask,
 	)
 	if err != nil {
@@ -96,14 +97,24 @@ func (h *Handler) fillTaskPageViewModel(r *http.Request) (*component.TaskPageVMo
 	return vmodel, nil
 }
 
-func (h *Handler) fillTasksPageVModelNavbar(ctx context.Context, vmodel *component.TasksPageVModel, r *http.Request) error {
+func (h *Handler) fillTasksPageVModelAppLayout(ctx context.Context, vmodel *component.TasksPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "tasks",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil
@@ -187,14 +198,24 @@ func getStatusPriority(status port.TaskStatus) int {
 	}
 }
 
-func (h *Handler) fillTaskPageVModelNavbar(ctx context.Context, vmodel *component.TaskPageVModel, r *http.Request) error {
+func (h *Handler) fillTaskPageVModelAppLayout(ctx context.Context, vmodel *component.TaskPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "tasks",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil

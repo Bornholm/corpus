@@ -12,7 +12,7 @@ type ServerSelectionPageVModel struct {
 templ ServerSelectionPage(vmodel ServerSelectionPageVModel) {
 	@DesktopPage(DesktopPageVModel{
 		PageOptions: []common.PageOptionFunc{
-			common.WithTitle("Sélectionner un serveur"), common.WithFooter(false),
+			common.WithTitle("Sélectionner un serveur"),
 		},
 		SidebarActiveItem: "servers",
 	}) {

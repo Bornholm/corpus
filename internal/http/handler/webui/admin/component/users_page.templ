@@ -3,93 +3,147 @@ package component
 import (
 	"github.com/bornholm/corpus/internal/core/model"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/badge"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/pagination"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
 	"strconv"
 )
 
 type UsersPageVModel struct {
-	Navbar      commonComp.NavbarVModel
-	Users       []model.User
-	CurrentPage int
-	PageSize    int
+	AppLayoutVModel commonComp.AppLayoutVModel
+	Users           []model.User
+	CurrentPage     int
+	PageSize        int
+	TotalUsers      int
 }
 
 templ UsersPage(vmodel UsersPageVModel) {
-	@AdminPage(vmodel.Navbar, "users", commonComp.WithTitle("Utilisateurs")) {
-		<div class="level is-mobile">
-			<div class="level-left">
-				<div class="level-item">
-					<h1 class="title is-size-3">Utilisateurs</h1>
+	@commonComp.AppLayout(vmodel.AppLayoutVModel, commonComp.WithTitle("Utilisateurs")) {
+		<div class="space-y-6">
+			<!-- Header -->
+			<div class="flex items-center justify-between">
+				<div>
+					<h1 class="text-2xl font-semibold">Utilisateurs</h1>
+					<p class="text-sm text-muted-foreground">
+						{ strconv.Itoa(vmodel.TotalUsers) } utilisateur(s) au total
+					</p>
 				</div>
 			</div>
-		</div>
-		if len(vmodel.Users) == 0 {
-			<div class="notification is-info is-light">
-				<p>Aucun utilisateur trouvé.</p>
-			</div>
-		} else {
-			<div class="table-container">
-				<table class="table is-fullwidth is-striped">
-					<thead>
-						<tr>
-							<th>Nom d'affichage</th>
-							<th>Email</th>
-							<th>Fournisseur</th>
-							<th>Rôles</th>
-							<th>Statut</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						for _, user := range vmodel.Users {
-							<tr>
-								<td>{ user.DisplayName() }</td>
-								<td>{ user.Email() }</td>
-								<td>{ user.Provider() }</td>
-								<td>
-									<div class="tags">
-										for _, role := range user.Roles() {
-											<span class="tag is-light">{ role }</span>
-										}
-									</div>
-								</td>
-								<td>
-									if user.Active() {
-										<span class="tag is-success">Actif</span>
-									} else {
-										<span class="tag is-danger">Inactif</span>
-									}
-								</td>
-								<td>
-									<div class="buttons">
-										<a href={ templ.SafeURL("/admin/users/" + string(user.ID()) + "/edit") } class="button is-primary is-small">
-											<span class="icon">
-												<i class="fas fa-edit"></i>
-											</span>
-											<span>Modifier</span>
-										</a>
-									</div>
-								</td>
-							</tr>
+			if len(vmodel.Users) == 0 {
+				<div class="rounded-lg border border-border p-6 text-center">
+					<div class="flex flex-col items-center gap-2">
+						@icon.Info(icon.Props{Class: "h-8 w-8 text-muted-foreground"})
+						<p class="text-muted-foreground">Aucun utilisateur trouvé.</p>
+					</div>
+				</div>
+			} else {
+				<!-- Users table -->
+				<div class="rounded-md border">
+					@table.Table() {
+						@table.Header() {
+							@table.Head() {
+								Nom d'affichage 
+							}
+							@table.Head() {
+								Email 
+							}
+							@table.Head() {
+								Fournisseur 
+							}
+							@table.Head() {
+								Rôles 
+							}
+							@table.Head() {
+								Statut 
+							}
+							@table.Head() {
+								Actions 
+							}
 						}
-					</tbody>
-				</table>
-			</div>
-			<!-- Pagination -->
-			if vmodel.CurrentPage > 1 || len(vmodel.Users) == vmodel.PageSize {
-				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
-					if vmodel.CurrentPage > 1 {
-						<a class="pagination-previous" href={ templ.SafeURL("/admin/users?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+						@table.Body() {
+							for _, user := range vmodel.Users {
+								@table.Row() {
+									@table.Cell() {
+										{ user.DisplayName() }
+									}
+									@table.Cell() {
+										{ user.Email() }
+									}
+									@table.Cell() {
+										{ user.Provider() }
+									}
+									@table.Cell() {
+										<div class="flex flex-wrap gap-1">
+											for _, role := range user.Roles() {
+												@badge.Badge(badge.Props{Variant: badge.VariantSecondary}) {
+													{ role }
+												}
+											}
+										</div>
+									}
+									@table.Cell() {
+										if user.Active() {
+											@badge.Badge(badge.Props{Variant: badge.VariantDefault}) {
+												<span>Actif</span>
+											}
+										} else {
+											@badge.Badge(badge.Props{Variant: badge.VariantDestructive}) {
+												<span>Inactif</span>
+											}
+										}
+									}
+									@table.Cell() {
+										@editUserButton(user)
+									}
+								}
+							}
+						}
 					}
-					if len(vmodel.Users) == vmodel.PageSize {
-						<a class="pagination-next" href={ templ.SafeURL("/admin/users?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
-					}
-					<ul class="pagination-list">
-						<li>
-							<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) }</span>
-						</li>
-					</ul>
-				</nav>
+				</div>
+				@usersPagination(vmodel)
 			}
+		</div>
+	}
+}
+
+templ editUserButton(user model.User) {
+	@button.Button(button.Props{
+		Href:    string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/users", string(user.ID()), "edit"))),
+		Size:    button.SizeSm,
+		Variant: button.VariantDefault,
+	}) {
+		@icon.Pencil(icon.Props{Class: "h-4 w-4"})
+		<span>Modifier</span>
+	}
+}
+
+templ usersPagination(vmodel UsersPageVModel) {
+	{{ totalPages := (vmodel.TotalUsers + vmodel.PageSize - 1) / vmodel.PageSize }}
+	{{ paginator := pagination.CreatePagination(vmodel.CurrentPage, totalPages, 5) }}
+	@pagination.Pagination() {
+		@pagination.Content() {
+			@pagination.Previous(pagination.PreviousProps{
+				Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1)))),
+				Disabled: !paginator.HasPrevious,
+				Label:    "Précédent",
+			})
+			for _, page := range paginator.Pages {
+				@pagination.Item() {
+					@pagination.Link(pagination.LinkProps{
+						Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(page)))),
+						IsActive: page == vmodel.CurrentPage,
+					}) {
+						{ strconv.Itoa(page) }
+					}
+				}
+			}
+			@pagination.Next(pagination.NextProps{
+				Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1)))),
+				Disabled: !paginator.HasNext,
+				Label:    "Suivant",
+			})
 		}
 	}
 }

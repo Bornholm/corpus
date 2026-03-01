@@ -1,9 +1,9 @@
 package profile
 
 import (
+	"github.com/bornholm/corpus/templx/form/renderer/templui"
 	"github.com/bornholm/go-x/templx/form"
 	formx "github.com/bornholm/go-x/templx/form"
-	"github.com/bornholm/go-x/templx/form/renderer/bulma"
 )
 
 func newTokenForm() *form.Form {
@@ -14,7 +14,7 @@ func newTokenForm() *form.Form {
 			formx.WithPlaceholder("Ex: Application mobile, Script de sauvegarde..."),
 			formx.WithValidation(formx.RequiredRule{}),
 		),
-	}, form.WithDefaultRenderer(bulma.NewFieldRenderer()))
+	}, form.WithDefaultRenderer(templui.NewFieldRenderer()))
 
 	return form
 }

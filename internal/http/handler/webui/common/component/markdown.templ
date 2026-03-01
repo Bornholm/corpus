@@ -2,12 +2,23 @@ package component
 
 import (
 	"bytes"
+
 	"github.com/pkg/errors"
 	"github.com/yuin/goldmark"
 )
 
+// Markdown renders markdown content with default prose styling.
 templ Markdown(source string) {
-	@templ.Raw(convert(source))
+	<div class="prose">
+		@templ.Raw(convert(source))
+	</div>
+}
+
+// MarkdownWithVariants renders markdown content with customizable prose styling.
+templ MarkdownWithVariants(source string, class string) {
+	<div class={ "prose", class }>
+		@templ.Raw(convert(source))
+	</div>
 }
 
 func convert(source string) (string, error) {

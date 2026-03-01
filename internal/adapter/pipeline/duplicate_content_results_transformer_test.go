@@ -12,7 +12,98 @@ import (
 )
 
 func TestBranchMergeResultsTransformer(t *testing.T) {
-	transformer := NewDuplicateContentResultsTransformer(&dummyStore{
+	source, _ := url.Parse("https://example.net")
+
+	tests := []struct {
+		name     string
+		sections []model.SectionID
+		expected []model.SectionID
+	}{
+		{
+			name: "EliminateAncestorsKeepLeaves",
+			sections: []model.SectionID{
+				"parent1", "child1", "child2",
+				"grandchild1", "grandchild2",
+				"parent2", "child3",
+				"parent3",
+			},
+			expected: []model.SectionID{
+				"child1", "grandchild1", "grandchild2",
+				"child3", "parent3",
+			},
+		},
+		{
+			name:     "SingleSection",
+			sections: []model.SectionID{"parent1"},
+			expected: []model.SectionID{"parent1"},
+		},
+		{
+			name:     "EmptySections",
+			sections: []model.SectionID{},
+			expected: []model.SectionID{},
+		},
+		{
+			name: "NoOverlap",
+			sections: []model.SectionID{
+				"parent1", "parent2", "parent3",
+			},
+			expected: []model.SectionID{
+				"parent1", "parent2", "parent3",
+			},
+		},
+		{
+			name: "DeepChainKeepsOnlyLeaf",
+			sections: []model.SectionID{
+				"parent1", "child2", "grandchild1",
+			},
+			expected: []model.SectionID{"grandchild1"},
+		},
+		{
+			name: "SiblingsAllKept",
+			sections: []model.SectionID{
+				"child1", "child2",
+			},
+			expected: []model.SectionID{"child1", "child2"},
+		},
+	}
+
+	store := newDummyStore()
+
+	transformer := &DuplicateContentResultsTransformer{store: store}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			results := []*port.IndexSearchResult{
+				{
+					Source:   source,
+					Sections: tt.sections,
+				},
+			}
+
+			transformed, err := transformer.TransformResults(
+				context.Background(), "test", results, port.IndexSearchOptions{},
+			)
+			if err != nil {
+				t.Fatalf("%+v", errors.WithStack(err))
+			}
+
+			got := transformed[0].Sections
+
+			if e, g := len(tt.expected), len(got); e != g {
+				t.Errorf("len(sections): expected %d, got %d", e, g)
+			}
+
+			for _, e := range tt.expected {
+				if !slices.Contains(got, e) {
+					t.Errorf("expected section '%s' not found in %v", e, got)
+				}
+			}
+		})
+	}
+}
+
+func newDummyStore() *dummyStore {
+	return &dummyStore{
 		sections: map[model.SectionID]model.Section{
 			"parent1": &dummySection{
 				id:     "parent1",
@@ -47,41 +138,6 @@ func TestBranchMergeResultsTransformer(t *testing.T) {
 				branch: []model.SectionID{"parent3"},
 			},
 		},
-	})
-
-	source, _ := url.Parse("https://example.net")
-
-	results := []*port.IndexSearchResult{
-		{
-			Source: source,
-			Sections: []model.SectionID{
-				"parent1",
-				"child1",
-				"child2",
-				"grandchild1",
-				"grandchild2",
-				"parent2",
-				"child3",
-				"parent3",
-			},
-		},
-	}
-
-	transformed, err := transformer.TransformResults(context.Background(), "test", results, port.IndexSearchOptions{})
-	if err != nil {
-		t.Fatalf("%+v", errors.WithStack(err))
-	}
-
-	expected := []model.SectionID{"child1", "grandchild1", "grandchild2", "child3", "parent3"}
-
-	for _, e := range expected {
-		if !slices.Contains(transformed[0].Sections, e) {
-			t.Errorf("transformed[0].Sections: expected '%s' not found", e)
-		}
-	}
-
-	if e, g := len(expected), len(transformed[0].Sections); e != g {
-		t.Errorf("len(transformed[0].Sections): expected '%d', got '%d'", e, g)
 	}
 }
 

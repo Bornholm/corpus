@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/a-h/templ"
@@ -12,6 +13,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/admin/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/pkg/errors"
 )
 
@@ -72,7 +74,7 @@ func (h *Handler) fillCollectionsPageViewModel(r *http.Request) (*component.Coll
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillCollectionsPageVModelNavbar,
+		h.fillCollectionsPageVModelAppLayout,
 		h.fillCollectionsPageVModelCollections,
 	)
 	if err != nil {
@@ -89,7 +91,7 @@ func (h *Handler) fillCollectionPageViewModel(r *http.Request) (*component.Colle
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillCollectionPageVModelNavbar,
+		h.fillCollectionPageVModelAppLayout,
 		h.fillCollectionPageVModelCollection,
 		h.fillCollectionPageVModelShares,
 		h.fillCollectionPageVModelDocuments,
@@ -125,14 +127,24 @@ func (h *Handler) handleDeleteCollection(w http.ResponseWriter, r *http.Request)
 	http.Redirect(w, r, string(redirectURL), http.StatusSeeOther)
 }
 
-func (h *Handler) fillCollectionsPageVModelNavbar(ctx context.Context, vmodel *component.CollectionsPageVModel, r *http.Request) error {
+func (h *Handler) fillCollectionsPageVModelAppLayout(ctx context.Context, vmodel *component.CollectionsPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "collections",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil
@@ -164,21 +176,39 @@ func (h *Handler) fillCollectionsPageVModelCollections(ctx context.Context, vmod
 		return errors.WithStack(err)
 	}
 
+	// Get total count for pagination
+	totalOpts := port.QueryCollectionsOptions{}
+	allCollections, err := h.documentStore.QueryCollections(ctx, totalOpts)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
 	vmodel.Collections = collections
 	vmodel.CurrentPage = page + 1 // Convert back to 1-based
 	vmodel.PageSize = limit
+	vmodel.TotalCollections = len(allCollections)
 
 	return nil
 }
 
-func (h *Handler) fillCollectionPageVModelNavbar(ctx context.Context, vmodel *component.CollectionPageVModel, r *http.Request) error {
+func (h *Handler) fillCollectionPageVModelAppLayout(ctx context.Context, vmodel *component.CollectionPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "collections",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil

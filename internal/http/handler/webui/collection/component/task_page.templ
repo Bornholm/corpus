@@ -1,0 +1,75 @@
+package component
+
+import (
+	"fmt"
+
+	"github.com/bornholm/corpus/internal/core/port"
+	webCommon "github.com/bornholm/corpus/internal/http/handler/webui/common"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/alert"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/progress"
+)
+
+type TaskPageVModel struct {
+	AppLayoutVModel common.AppLayoutVModel
+	Task            *port.TaskState
+}
+
+templ TaskPage(vmodel TaskPageVModel) {
+	{{ progressValue := int(vmodel.Task.Progress * 100) }}
+	@common.AppLayout(vmodel.AppLayoutVModel, common.WithScripts(progress.Script()), common.WithTitle(fmt.Sprintf("(%d%%) Indexation en cours...", progressValue))) {
+		<div class="space-y-6">
+			<div
+				id="progress-container"
+				hx-select="#progress-container"
+				if vmodel.Task.Status == port.TaskStatusPending || vmodel.Task.Status == port.TaskStatusRunning {
+					hx-trigger="every 2s"
+				}
+				hx-get={ string(common.CurrentURL(ctx)) }
+				hx-swap="outerHTML"
+				hx-target="this"
+			>
+				switch vmodel.Task.Status {
+					case port.TaskStatusSucceeded:
+						@alert.Alert(alert.Props{
+							Variant: alert.VariantDefault,
+						}) {
+							@icon.Check()
+							@alert.Title() {
+								Document indexé !
+							}
+							@alert.Description() {
+								<p class="mt-2"><a href={ common.BaseURL(ctx) } hx-disable>Cliquer ici pour retourner à la page d'accueil.</a></p>
+							}
+						}
+					case port.TaskStatusFailed:
+						@alert.Alert(alert.Props{
+							Variant: alert.VariantDestructive,
+						}) {
+							@icon.CircleAlert()
+							@alert.Title() {
+								Une erreur est survenue !
+							}
+							@alert.Description() {
+								if userFacingErr, ok := vmodel.Task.Error.(webCommon.UserFacingError); ok {
+									<p class="mt-2">{ userFacingErr.UserMessage() }</p>
+								}
+								<p class="mt-2"><a href={ common.BaseURL(ctx) } hx-disable>Cliquer ici pour retourner à la page d'accueil.</a></p>
+							}
+						}
+					default:
+						<div class="space-y-4">
+							@progress.Progress(progress.Props{
+								Value:     progressValue,
+								Max:       100,
+								Size:      progress.SizeLg,
+								ShowValue: true,
+							})
+							<p class="text-center text-sm text-muted-foreground">Vous pouvez quitter la page, le document sera indexé en tâche de fond.</p>
+						</div>
+				}
+			</div>
+		</div>
+	}
+}

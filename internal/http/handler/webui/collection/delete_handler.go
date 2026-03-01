@@ -15,7 +15,7 @@ import (
 func (h *Handler) handleCollectionDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 	if collectionID == "" {
 		common.HandleError(w, r, errors.New("collection ID is required"))
 		return
@@ -76,7 +76,7 @@ func (h *Handler) handleCollectionDelete(w http.ResponseWriter, r *http.Request)
 func (h *Handler) handleDocumentDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 	if collectionID == "" {
 		common.HandleError(w, r, errors.New("collection ID is required"))
 		return

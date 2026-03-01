@@ -14,7 +14,7 @@ type EditServerPageVModel struct {
 templ EditServerPage(vmodel EditServerPageVModel) {
 	@DesktopPage(DesktopPageVModel{
 		PageOptions: []common.PageOptionFunc{
-			common.WithTitle("Éditer un serveur"), common.WithFooter(false),
+			common.WithTitle("Éditer un serveur"),
 		},
 		SidebarActiveItem: "servers",
 	}) {

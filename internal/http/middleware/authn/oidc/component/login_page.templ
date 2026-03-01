@@ -2,7 +2,9 @@ package component
 
 import (
 	"fmt"
-	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	templuibutton "github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	templuicard "github.com/bornholm/corpus/internal/http/handler/webui/templui/component/card"
 )
 
 type Provider struct {
@@ -13,36 +15,51 @@ type Provider struct {
 
 type LoginPageVModel struct {
 	Providers []Provider
+	Version   string
+	APIDocURL string
 }
 
-const defaultMaxCollections = 3
-
+// LoginPage renders a centered card layout for authentication.
 templ LoginPage(vmodel LoginPageVModel) {
-	@common.Page(common.WithTitle("Authentification")) {
-		<div class="is-flex is-justify-content-center is-align-items-center" style="height:100%">
-			<nav class="panel" style="min-width: 33%">
-				<div class="panel-heading has-background-link-95 is-flex">
-					<div>
-						<img
-							style="height:3em;vertical-align:middle"
-							src={ string(common.BaseURL(ctx, common.WithPath("/assets/logo.svg"))) }
-						/>
+	@component.Page(component.WithTitle("Authentification")) {
+		<div class="flex min-h-screen items-center justify-center bg-muted/40 p-4">
+			@templuicard.Card(templuicard.Props{Class: "w-full max-w-sm"}) {
+				@templuicard.Header(templuicard.HeaderProps{Class: "text-center space-y-2"}) {
+					<div class="mx-auto flex h-18 w-18 items-center justify-center rounded-full bg-primary/5">
+						@component.Logo("h-14 w-14 text-primary")
 					</div>
-					<div style="flex:1" class="pl-3">
-						<span class="title">Corpus</span>
-						<br/>
-						<span class="subtitle">Veuillez vous authentifier</span>
-					</div>
-				</div>
-				for _, p := range vmodel.Providers {
-					<a class="panel-block py-5" href={ common.BaseURL(ctx, common.WithPath(fmt.Sprintf("/auth/oidc/providers/%s", p.ID))) } hx-boost="false">
-						<span class="panel-icon is-size-3">
-							<i class={ fmt.Sprintf("fab %s", p.Icon) } aria-hidden="true"></i>
-						</span>
-						<span class="is-size-5">{ p.Label }</span>
-					</a>
+					@templuicard.Title() {
+						Corpus 
+					}
+					@templuicard.Description() {
+						Veuillez vous authentifier 
+					}
 				}
-			</nav>
+				@templuicard.Content(templuicard.ContentProps{Class: "space-y-3"}) {
+					for _, p := range vmodel.Providers {
+						@templuibutton.Button(templuibutton.Props{
+							Variant:  templuibutton.VariantOutline,
+							Class:    "w-full justify-center gap-2",
+							Href:     fmt.Sprintf("/auth/oidc/providers/%s", p.ID),
+							Disabled: false,
+							Attributes: templ.Attributes{
+								"hx-boost": "false",
+							},
+						}) {
+							<i class={ fmt.Sprintf("fab %s", p.Icon) } aria-hidden="true"></i>
+							{ p.Label }
+						}
+					}
+				}
+				@templuicard.Footer(templuicard.FooterProps{Class: "justify-center"}) {
+					<p class="text-xs text-muted-foreground">
+						Corpus { vmodel.Version } ·
+						<a href={ component.BaseURL(ctx, component.WithPath(vmodel.APIDocURL)) } class="underline hover:text-foreground">
+							Documentation API
+						</a>
+					</p>
+				}
+			}
 		</div>
 	}
 }

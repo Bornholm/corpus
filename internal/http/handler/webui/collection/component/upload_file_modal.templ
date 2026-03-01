@@ -1,0 +1,103 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/core/model"
+	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/dialog"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/form"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/input"
+	"strings"
+)
+
+type UploadFileModalVModel struct {
+	SupportedExtensions []string
+	Open                bool
+	Collection          model.CollectionID
+}
+
+templ UploadFileModal(vmodel UploadFileModalVModel) {
+	if !vmodel.Open {
+		return
+	}
+	@dialog.Dialog(dialog.Props{Open: true}) {
+		@dialog.Content() {
+			@dialog.Header() {
+				<div class="flex items-center justify-between mb-4">
+					<h2 class="text-lg font-semibold">Ajouter un fichier</h2>
+				</div>
+			}
+			<form
+				method="post"
+				enctype="multipart/form-data"
+				action={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection), "/index")) }
+			>
+				<div class="grid gap-4 mb-4">
+					@form.Item() {
+						@form.Label(form.LabelProps{
+							For: "file-input",
+						}) {
+							Fichier
+						}
+						@input.Input(input.Props{
+							ID:    "file-input",
+							Name:  "file",
+							Type:  input.TypeFile,
+							Class: "cursor-pointer",
+							Attributes: templ.Attributes{
+								"required":     "true",
+								"hx-on:change": "onFileChange.call(this)",
+							},
+						})
+						@form.Description() {
+							Formats acceptés: <code>{ strings.Join(vmodel.SupportedExtensions, ", ") }</code>
+						}
+					}
+					@form.Item() {
+						@form.Label(form.LabelProps{
+							For: "file",
+						}) {
+							Source
+						}
+						@input.Input(input.Props{
+							ID:   "source",
+							Name: "source",
+							Type: input.TypeURL,
+							Attributes: templ.Attributes{
+								"required": "true",
+							},
+							Placeholder: "https://myserver/mydocument.md",
+						})
+						@form.Description() {
+							L'URL unique qui sera associée au document.
+						}
+					}
+				</div>
+				<div class="flex justify-end gap-2">
+					<a
+						href={ common.CurrentURL(ctx, common.WithoutValues("action", "*")) }
+						class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80 h-9 px-4 py-2 cursor-pointer"
+					>
+						Annuler
+					</a>
+					<button
+						type="submit"
+						class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground shadow-sm hover:bg-primary/90 h-9 px-4 py-2 cursor-pointer"
+					>
+						Indexer
+					</button>
+				</div>
+			</form>
+		}
+	}
+	<script>
+	   function onFileChange() {
+	     if (this.files.length > 0) {
+	       const name = this.files[0].name;	       
+	       const sourceInput = this.closest("form").querySelector(`input[name="source"]`)
+	       if (!sourceInput.value) {
+	         sourceInput.value = `file://${name.replace(/\s+/g, '-')}`
+	       }
+	     }
+	   }
+	 </script>
+}

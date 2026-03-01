@@ -93,7 +93,7 @@ func (h *Handler) fillCollectionCreatePageViewModel(r *http.Request) (*component
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillCollectionCreatePageVModelNavbar,
+		h.fillCollectionCreatePageVModelAppLayout,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -102,14 +102,21 @@ func (h *Handler) fillCollectionCreatePageViewModel(r *http.Request) (*component
 	return vmodel, nil
 }
 
-func (h *Handler) fillCollectionCreatePageVModelNavbar(ctx context.Context, vmodel *component.CollectionCreatePageVModel, r *http.Request) error {
+func (h *Handler) fillCollectionCreatePageVModelAppLayout(ctx context.Context, vmodel *component.CollectionCreatePageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		SelectedItem: "collections",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppFooterItems(vmodel)
+		},
 	}
 
 	return nil

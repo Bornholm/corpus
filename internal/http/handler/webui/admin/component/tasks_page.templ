@@ -4,16 +4,21 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/badge"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/pagination"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
 	"strconv"
 )
 
 type TasksPageVModel struct {
-	Navbar      commonComp.NavbarVModel
-	Tasks       []port.TaskStateHeader
-	CurrentPage int
-	PageSize    int
-	TotalTasks  int
-	Collections []CollectionOption
+	AppLayoutVModel commonComp.AppLayoutVModel
+	Tasks           []port.TaskStateHeader
+	CurrentPage     int
+	PageSize        int
+	TotalTasks      int
+	Collections     []CollectionOption
 }
 
 type CollectionOption struct {
@@ -22,119 +27,142 @@ type CollectionOption struct {
 }
 
 templ TasksPage(vmodel TasksPageVModel) {
-	@AdminPage(vmodel.Navbar, "tasks", commonComp.WithTitle("Tâches")) {
-		<div class="level is-mobile">
-			<div class="level-left">
-				<div class="level-item">
-					<h1 class="title is-size-3">Tâches</h1>
-				</div>
-			</div>
-			<div class="level-right">
-				<div class="level-item">
-					<span class="tag is-info">
+	@commonComp.AppLayout(vmodel.AppLayoutVModel, commonComp.WithTitle("Tâches")) {
+		<div class="space-y-6">
+			<!-- Header -->
+			<div class="flex items-center justify-between">
+				<div>
+					<h1 class="text-2xl font-semibold">Tâches</h1>
+					<p class="text-sm text-muted-foreground">
 						{ strconv.Itoa(vmodel.TotalTasks) } tâche(s) au total
-					</span>
+					</p>
 				</div>
 			</div>
-		</div>
-		if len(vmodel.Tasks) == 0 {
-			<div class="notification is-info is-light">
-				<p>Aucune tâche en cours ou récente.</p>
-				<p>Les tâches apparaissent ici lors de l'indexation de documents ou d'autres opérations en arrière-plan.</p>
-			</div>
-		} else {
-			<div class="table-container">
-				<table class="table is-fullwidth is-striped">
-					<thead>
-						<tr>
-							<th>ID</th>
-							<th>Type</th>
-							<th>Statut</th>
-							<th>Planifiée le</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						for _, task := range vmodel.Tasks {
-							<tr>
-								<td>
-									<code class="is-size-7">{ string(task.ID) }</code>
-								</td>
-								<td>
-									<span class="tag is-light">{ string(task.Type) }</span>
-								</td>
-								<td>
-									@taskStatusBadge(task.Status)
-								</td>
-								<td>{ task.ScheduledAt.Format("02/01/2006 15:04:05") }</td>
-								<td>
-									<div class="buttons">
-										<a href={ templ.SafeURL("/admin/tasks/" + string(task.ID)) } class="button is-primary is-small">
-											<span class="icon">
-												<i class="fas fa-eye"></i>
-											</span>
-											<span>Voir</span>
-										</a>
-									</div>
-								</td>
-							</tr>
+			if len(vmodel.Tasks) == 0 {
+				<div class="rounded-lg border border-border p-6 text-center">
+					<div class="flex flex-col items-center gap-2">
+						@icon.Info(icon.Props{Class: "h-8 w-8 text-muted-foreground"})
+						<p class="text-muted-foreground">Aucune tâche en cours ou récente.</p>
+						<p class="text-sm text-muted-foreground">Les tâches apparaissent ici lors de l'indexation de documents ou d'autres opérations en arrière-plan.</p>
+					</div>
+				</div>
+			} else {
+				<!-- Tasks table -->
+				<div class="rounded-md border">
+					@table.Table() {
+						@table.Header() {
+							@table.Head() {
+								ID
+							}
+							@table.Head() {
+								Type
+							}
+							@table.Head() {
+								Statut
+							}
+							@table.Head() {
+								Planifiée le
+							}
+							@table.Head() {
+								Actions
+							}
 						}
-					</tbody>
-				</table>
-			</div>
-			<!-- Pagination -->
-			if vmodel.CurrentPage > 1 || vmodel.TotalTasks > (vmodel.CurrentPage * vmodel.PageSize) {
-				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
-					if vmodel.CurrentPage > 1 {
-						<a class="pagination-previous" href={ templ.SafeURL("/admin/tasks?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+						@table.Body() {
+							for _, task := range vmodel.Tasks {
+								@table.Row() {
+									@table.Cell() {
+										<code class="text-xs">{ string(task.ID) }</code>
+									}
+									@table.Cell() {
+										@badge.Badge(badge.Props{Variant: badge.VariantSecondary}) {
+											{ string(task.Type) }
+										}
+									}
+									@table.Cell() {
+										@taskStatusBadge(task.Status)
+									}
+									@table.Cell() {
+										{ task.ScheduledAt.Format("02/01/2006 15:04:05") }
+									}
+									@table.Cell() {
+										@viewTaskButton(task)
+									}
+								}
+							}
+						}
 					}
-					if vmodel.TotalTasks > (vmodel.CurrentPage * vmodel.PageSize) {
-						<a class="pagination-next" href={ templ.SafeURL("/admin/tasks?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
-					} else {
-						<a class="pagination-next is-disabled">Suivant</a>
-					}
-					<ul class="pagination-list">
-						<li>
-							<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) }</span>
-						</li>
-					</ul>
-				</nav>
+				</div>
+				@tasksPagination(vmodel)
 			}
-		}
+		</div>
 	}
 }
 
 templ taskStatusBadge(status port.TaskStatus) {
 	switch status {
 		case port.TaskStatusPending:
-			<span class="tag is-warning">
-				<span class="icon">
-					<i class="fas fa-clock"></i>
-				</span>
+			@badge.Badge(badge.Props{Variant: badge.VariantOutline}) {
+				@icon.Clock(icon.Props{Class: "h-3 w-3 mr-1"})
 				<span>En attente</span>
-			</span>
+			}
 		case port.TaskStatusRunning:
-			<span class="tag is-info">
-				<span class="icon">
-					<i class="fas fa-spinner fa-spin"></i>
-				</span>
+			@badge.Badge(badge.Props{Variant: badge.VariantSecondary}) {
+				@icon.Loader(icon.Props{Class: "h-3 w-3 mr-1 animate-spin"})
 				<span>En cours</span>
-			</span>
+			}
 		case port.TaskStatusSucceeded:
-			<span class="tag is-success">
-				<span class="icon">
-					<i class="fas fa-check"></i>
-				</span>
+			@badge.Badge(badge.Props{Variant: badge.VariantDefault}) {
+				@icon.Check(icon.Props{Class: "h-3 w-3 mr-1"})
 				<span>Réussie</span>
-			</span>
+			}
 		case port.TaskStatusFailed:
-			<span class="tag is-danger">
-				<span class="icon">
-					<i class="fas fa-times"></i>
-				</span>
+			@badge.Badge(badge.Props{Variant: badge.VariantDestructive}) {
+				@icon.X(icon.Props{Class: "h-3 w-3 mr-1"})
 				<span>Échouée</span>
-			</span>
+			}
 		default:
-			<span class="tag">{ string(status) }</span>
+			@badge.Badge(badge.Props{}) {
+				{ string(status) }
+			}
+	}
+}
+
+templ viewTaskButton(task port.TaskStateHeader) {
+	@button.Button(button.Props{
+		Href:    string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/tasks", string(task.ID)))),
+		Size:    button.SizeSm,
+		Variant: button.VariantDefault,
+	}) {
+		@icon.Eye(icon.Props{Class: "h-4 w-4"})
+		<span>Voir</span>
+	}
+}
+
+templ tasksPagination(vmodel TasksPageVModel) {
+	{{ totalPages := (vmodel.TotalTasks + vmodel.PageSize - 1) / vmodel.PageSize }}
+	{{ paginator := pagination.CreatePagination(vmodel.CurrentPage, totalPages, 5) }}
+	@pagination.Pagination() {
+		@pagination.Content() {
+			@pagination.Previous(pagination.PreviousProps{
+				Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1)))),
+				Disabled: !paginator.HasPrevious,
+				Label:    "Précédent",
+			})
+			for _, page := range paginator.Pages {
+				@pagination.Item() {
+					@pagination.Link(pagination.LinkProps{
+						Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(page)))),
+						IsActive: page == vmodel.CurrentPage,
+					}) {
+						{ strconv.Itoa(page) }
+					}
+				}
+			}
+			@pagination.Next(pagination.NextProps{
+				Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1)))),
+				Disabled: !paginator.HasNext,
+				Label:    "Suivant",
+			})
+		}
 	}
 }

@@ -3,64 +3,73 @@ package component
 import (
 	"github.com/bornholm/corpus/internal/core/model"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
-	"github.com/bornholm/go-x/templx/form"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/templx/form/renderer/templui"
+	formx "github.com/bornholm/go-x/templx/form"
 )
 
 type EditPublicSharePageVModel struct {
-	Navbar          commonComp.NavbarVModel
+	AppLayoutVModel commonComp.AppLayoutVModel
 	PublicShare     model.PersistedPublicShare
-	PublicShareForm *form.Form
+	PublicShareForm *formx.Form
 }
 
 templ EditPublicSharePage(vmodel EditPublicSharePageVModel) {
-	@AdminPage(vmodel.Navbar, "public-shares", commonComp.WithTitle("Modifier le partage public")) {
-		<div class="level is-mobile">
-			<div class="level-left">
-				<div class="level-item">
-					<a href={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares")) } class="button is-text mr-3 is-medium" style="text-decoration:none">
-						<span class="icon">
-							<i class="fas fa-arrow-left"></i>
-						</span>
+	@commonComp.AppLayout(vmodel.AppLayoutVModel,
+		commonComp.WithTitle("Modifier le partage public"),
+		commonComp.WithScripts(templui.Script()),
+	) {
+		<div class="space-y-6">
+			<!-- Header with back button and title -->
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-4">
+					<a href={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares")) } class="inline-flex items-center justify-center rounded-md border border-input bg-background px-2 py-2 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 cursor-pointer">
+						@icon.ArrowLeft(icon.Props{Class: "h-4 w-4"})
 					</a>
-					<h2 class="title is-size-3">
-						Modifier le partage public
-					</h2>
+					<h1 class="text-2xl font-semibold">Modifier le partage public</h1>
 				</div>
+				<button
+					class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-destructive text-white shadow-xs hover:bg-destructive/90 h-9 px-3 cursor-pointer"
+					hx-delete={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()))) }
+					hx-confirm="Êtes-vous sûr de vouloir supprimer ce partage public ? Cette action ne peut pas être annulée."
+					hx-target="body"
+				>
+					@icon.Trash2(icon.Props{Class: "h-4 w-4"})
+					<span>Supprimer</span>
+				</button>
 			</div>
-			<div class="level-right">
-				<div class="level-item">
-					<button
-						class="button is-danger"
-						hx-delete={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()))) }
-						hx-confirm="Êtes-vous sûr de vouloir supprimer ce partage public ? Cette action ne peut pas être annulée."
-						hx-target="body"
-					>
-						<span class="icon">
-							<i class="fas fa-trash"></i>
-						</span>
-						<span>Supprimer</span>
-					</button>
+			<!-- Editable Settings -->
+			<div class="rounded-lg border bg-card text-card-foreground shadow-sm">
+				<div class="flex flex-col space-y-1.5 p-6">
+					<h3 class="text-lg font-semibold">
+						@icon.Settings(icon.Props{Class: "h-4 w-4 inline mr-2"})
+						Informations
+					</h3>
 				</div>
-			</div>
-		</div>
-		<div class="columns">
-			<div class="column is-half">
-				<h3 class="title is-size-5">Modifier le partage</h3>
-				@form.FormWrapper(vmodel.PublicShareForm, commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()), "edit")), "POST") {
-					<div class="field is-grouped">
-						<div class="control">
-							<button type="submit" class="button is-primary">
-								<span class="icon">
-									<i class="fas fa-save"></i>
-								</span>
+				<div class="p-6 pt-0">
+					@formx.FormWrapper(vmodel.PublicShareForm, commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares", string(vmodel.PublicShare.ID()), "edit")), "POST") {
+						<div class="my-5">
+							<label class="text-sm font-medium">Créé le</label>
+							<div class="p-3 rounded-md border bg-muted/50">{ vmodel.PublicShare.CreatedAt().Format("02/01/2006 15:04") }</div>
+						</div>
+						<!-- Action buttons -->
+						<div class="flex items-center gap-2 pt-2">
+							<button
+								type="submit"
+								class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-10 rounded-md px-4 cursor-pointer"
+							>
+								@icon.Save(icon.Props{Class: "h-4 w-4"})
 								<span>Enregistrer</span>
 							</button>
+							<a
+								href={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares")) }
+								class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 cursor-pointer"
+							>
+								Annuler
+							</a>
 						</div>
-						<div class="control">
-							<a href={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/public-shares")) } class="button is-light">Annuler</a>
-						</div>
-					</div>
-				}
+					}
+				</div>
 			</div>
 		</div>
 	}

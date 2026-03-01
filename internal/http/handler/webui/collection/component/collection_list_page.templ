@@ -3,52 +3,52 @@ package component
 import (
 	"github.com/bornholm/corpus/internal/core/model"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
 	"strconv"
 )
 
 type CollectionListPageVModel struct {
+	AppLayoutVModel  common.AppLayoutVModel
 	TotalCollections int64
 	Collections      []model.PersistedCollection
 	CollectionStats  map[model.CollectionID]*model.CollectionStats
 	CurrentUserID    model.UserID
-	Navbar           common.NavbarVModel
 }
 
 templ CollectionListPage(vmodel CollectionListPageVModel) {
-	@common.NavbarPage(vmodel.Navbar, common.WithTitle("Collections")) {
-		<div class="level is-mobile">
-			<div class="level-left">
-				<h2 class="title is-size-3">Collections</h2>
-			</div>
-			<div class="level-right">
-				<a href={ common.BaseURL(ctx, common.WithPath("/collections/new")) } class="button is-primary">
-					<span class="icon">
-						<i class="fas fa-plus"></i>
-					</span>
+	@common.AppLayout(vmodel.AppLayoutVModel) {
+		<div class="space-y-6">
+			<!-- Header with title and create button -->
+			<div class="flex items-center justify-between">
+				<h1 class="text-2xl font-semibold">Collections</h1>
+				<a href={ common.BaseURL(ctx, common.WithPath("/collections/new")) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-10 rounded-md px-4 cursor-pointer">
+					@icon.Plus()
 					<span>Nouvelle collection</span>
 				</a>
 			</div>
+			if len(vmodel.Collections) == 0 {
+				<div class="text-center py-12">
+					<div class="flex justify-center mb-4">
+						@icon.FolderOpen(icon.Props{Class: "h-12 w-12 text-muted-foreground"})
+					</div>
+					<h3 class="text-lg font-semibold mb-2">Aucune collection pour l'instant</h3>
+					<p class="text-muted-foreground mb-4">Créez votre première collection pour organiser vos documents.</p>
+					<a href={ common.BaseURL(ctx, common.WithPath("/collections/new")) } class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-10 rounded-md px-4 cursor-pointer">
+						Créer une collection
+					</a>
+				</div>
+			} else {
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					for _, collection := range vmodel.Collections {
+						@CollectionCard(CollectionCardVModel{
+							Collection: collection,
+							Stats:      vmodel.CollectionStats[collection.ID()],
+							IsOwner:    collection.Owner().ID() == vmodel.CurrentUserID,
+						})
+					}
+				</div>
+			}
 		</div>
-		if len(vmodel.Collections) == 0 {
-			<div class="has-text-centered py-6">
-				<i class="fas fa-folder-open fa-4x has-text-grey-light mb-4"></i>
-				<h3 class="title is-size-4">Aucune collection pour l'instant</h3>
-				<p class="subtitle">Créez votre première collection pour organiser vos documents.</p>
-				<a href={ common.BaseURL(ctx, common.WithPath("/collections/new")) } class="button is-primary">
-					Créer une collection
-				</a>
-			</div>
-		} else {
-			<div class="columns is-multiline">
-				for _, collection := range vmodel.Collections {
-					@CollectionCard(CollectionCardVModel{
-						Collection: collection,
-						Stats:      vmodel.CollectionStats[collection.ID()],
-						IsOwner:    collection.Owner().ID() == vmodel.CurrentUserID,
-					})
-				}
-			</div>
-		}
 	}
 }
 
@@ -59,55 +59,45 @@ type CollectionCardVModel struct {
 }
 
 templ CollectionCard(vmodel CollectionCardVModel) {
-	<div class="column is-one-third">
-		<div class="card">
-			<header class="card-header">
-				<p class="card-header-title">{ vmodel.Collection.Label() }</p>
+	<div class="border rounded-lg bg-card text-card-foreground shadow-sm hover:shadow-md transition-shadow">
+		<div class="p-4 space-y-3">
+			<div class="flex items-start justify-between gap-2">
+				<h3 class="font-semibold">{ vmodel.Collection.Label() }</h3>
 				if !vmodel.IsOwner {
-					<span class="card-header-icon" title="Partagée avec vous">
-						<span class="tag is-info is-light">
-							<span class="icon is-small">
-								<i class="fas fa-share-alt"></i>
-							</span>
-							<span>Partagée</span>
-						</span>
+					<span class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-secondary-foreground border-transparent bg-secondary/50 text-secondary-foreground hover:bg-secondary/80" title="Partagée avec vous">
+						@icon.Share2(icon.Props{Class: "h-3 w-3 mr-1"})
+						<span>Partagée</span>
 					</span>
 				}
-			</header>
-			<div class="card-content">
-				<div class="content">
-					if vmodel.Collection.Description() != "" {
-						<p>{ vmodel.Collection.Description() }</p>
-					} else {
-						<p class="is-italic">Aucune description pour l'instant.</p>
-					}
-				</div>
-				<div class="tags mt-3">
-					<span class="tag is-light">
-						<span class="icon">
-							<i class="fas fa-file-alt"></i>
-						</span>
-						<span>
-							if vmodel.Stats != nil {
-								{ strconv.FormatInt(vmodel.Stats.TotalDocuments, 10) } documents
-							} else {
-								0 documents
-							}
-						</span>
-					</span>
-				</div>
 			</div>
-			<footer class="card-footer">
-				<a
-					href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit")) }
-					class="card-footer-item"
-				>
-					<span class="icon">
-						<i class="fas fa-edit"></i>
+			<div class="text-sm text-muted-foreground">
+				if vmodel.Collection.Description() != "" {
+					<p>{ vmodel.Collection.Description() }</p>
+				} else {
+					<p class="italic">Aucune description pour l'instant.</p>
+				}
+			</div>
+			<div class="flex items-center gap-2 pt-2">
+				<span class="inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-secondary-foreground border-transparent bg-secondary/50 text-secondary-foreground">
+					@icon.FileText(icon.Props{Class: "h-3 w-3 mr-1"})
+					<span>
+						if vmodel.Stats != nil {
+							{ strconv.FormatInt(vmodel.Stats.TotalDocuments, 10) } documents
+						} else {
+							0 documents
+						}
 					</span>
-					<span>Modifier</span>
-				</a>
-			</footer>
+				</span>
+			</div>
+		</div>
+		<div class="flex items-center border-t bg-muted/20 px-4 py-2">
+			<a
+				href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit")) }
+				class="inline-flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+			>
+				@icon.Pencil(icon.Props{Class: "h-4 w-4"})
+				<span>Modifier</span>
+			</a>
 		</div>
 	</div>
 }

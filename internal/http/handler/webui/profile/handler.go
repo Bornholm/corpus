@@ -64,8 +64,15 @@ func (h *Handler) getProfilePage(w http.ResponseWriter, r *http.Request) {
 		TokenForm:    newTokenForm(),
 		CreatedToken: createdToken,
 		DeletedToken: deletedToken != "",
-		Navbar: &common.NavbarVModel{
-			User: user,
+		AppLayoutVModel: common.AppLayoutVModel{
+			User:         user,
+			SelectedItem: "profile",
+			NavigationItems: func(vmodel common.AppLayoutVModel) templ.Component {
+				return common.AppNavigationItems(vmodel)
+			},
+			FooterItems: func(vmodel common.AppLayoutVModel) templ.Component {
+				return common.AppFooterItems(vmodel)
+			},
 		},
 	}
 
@@ -99,8 +106,9 @@ func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
 			TokenForm:    tokenForm,
 			CreatedToken: "",
 			DeletedToken: false,
-			Navbar: &common.NavbarVModel{
-				User: user,
+			AppLayoutVModel: common.AppLayoutVModel{
+				User:         user,
+				SelectedItem: "profile",
 			},
 		}
 
@@ -183,15 +191,19 @@ func (h *Handler) deleteToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getForbiddenPage(w http.ResponseWriter, r *http.Request) {
-	forbiddenPage := common.ErrorPage(common.ErrorPageVModel{
+	ctx := r.Context()
+
+	vmodel := common.ErrorPageVModel{
 		Message: "L'accès à cette page ne vous est pas autorisé. Veuillez contacter l'administrateur.",
 		Links: []common.LinkItem{
 			{
-				URL:   string(common.BaseURL(r.Context(), common.WithPath("/auth/oidc/logout"))),
+				URL:   string(common.BaseURL(ctx, common.WithPath("/auth/oidc/logout"))),
 				Label: "Se déconnecter",
 			},
 		},
-	})
+	}
+
+	forbiddenPage := common.ErrorPage(vmodel)
 
 	w.WriteHeader(http.StatusForbidden)
 	templ.Handler(forbiddenPage).ServeHTTP(w, r)

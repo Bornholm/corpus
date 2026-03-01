@@ -3,85 +3,130 @@ package component
 import (
 	"github.com/bornholm/corpus/internal/core/model"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/pagination"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
 	"strconv"
 )
 
 type CollectionsPageVModel struct {
-	Navbar      commonComp.NavbarVModel
-	Collections []model.PersistedCollection
-	CurrentPage int
-	PageSize    int
+	AppLayoutVModel  commonComp.AppLayoutVModel
+	Collections      []model.PersistedCollection
+	CurrentPage      int
+	PageSize         int
+	TotalCollections int
 }
 
 templ CollectionsPage(vmodel CollectionsPageVModel) {
-	@AdminPage(vmodel.Navbar, "collections", commonComp.WithTitle("Collections")) {
-		<div class="level is-mobile">
-			<div class="level-left">
-				<div class="level-item">
-					<h1 class="title is-size-3">Collections</h1>
+	@commonComp.AppLayout(vmodel.AppLayoutVModel, commonComp.WithTitle("Collections")) {
+		<div class="space-y-6">
+			<!-- Header -->
+			<div class="flex items-center justify-between">
+				<div>
+					<h1 class="text-2xl font-semibold">Collections</h1>
+					<p class="text-sm text-muted-foreground">
+						{ strconv.Itoa(vmodel.TotalCollections) } collection(s) au total
+					</p>
 				</div>
 			</div>
-		</div>
-		if len(vmodel.Collections) == 0 {
-			<div class="notification is-info is-light">
-				<p>Aucune collection trouvée.</p>
-			</div>
-		} else {
-			<div class="table-container">
-				<table class="table is-fullwidth is-striped">
-					<thead>
-						<tr>
-							<th>Nom</th>
-							<th>Description</th>
-							<th>Propriétaire</th>
-							<th>Créée le</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						for _, collection := range vmodel.Collections {
-							<tr>
-								<td>{ collection.Label() }</td>
-								<td>
-									if collection.Description() != "" {
-										{ collection.Description() }
-									} else {
-										<span class="has-text-grey">-</span>
-									}
-								</td>
-								<td>{ collection.Owner().DisplayName() }</td>
-								<td>{ collection.CreatedAt().Format("02/01/2006") }</td>
-								<td>
-									<div class="buttons">
-										<a href={ templ.SafeURL("/admin/collections/" + string(collection.ID())) } class="button is-primary is-small">
-											<span class="icon">
-												<i class="fas fa-eye"></i>
-											</span>
-											<span>Voir</span>
-										</a>
-									</div>
-								</td>
-							</tr>
+			if len(vmodel.Collections) == 0 {
+				<div class="rounded-lg border border-border p-6 text-center">
+					<div class="flex flex-col items-center gap-2">
+						@icon.Info(icon.Props{Class: "h-8 w-8 text-muted-foreground"})
+						<p class="text-muted-foreground">Aucune collection trouvée.</p>
+					</div>
+				</div>
+			} else {
+				<!-- Collections table -->
+				<div class="rounded-md border">
+					@table.Table() {
+						@table.Header() {
+							@table.Head() {
+								Nom
+							}
+							@table.Head() {
+								Description
+							}
+							@table.Head() {
+								Propriétaire
+							}
+							@table.Head() {
+								Créée le
+							}
+							@table.Head() {
+								Actions
+							}
 						}
-					</tbody>
-				</table>
-			</div>
-			<!-- Pagination -->
-			if vmodel.CurrentPage > 1 || len(vmodel.Collections) == vmodel.PageSize {
-				<nav class="pagination is-centered" role="navigation" aria-label="pagination">
-					if vmodel.CurrentPage > 1 {
-						<a class="pagination-previous" href={ templ.SafeURL("/admin/collections?page=" + strconv.Itoa(vmodel.CurrentPage-1)) }>Précédent</a>
+						@table.Body() {
+							for _, collection := range vmodel.Collections {
+								@table.Row() {
+									@table.Cell() {
+										{ collection.Label() }
+									}
+									@table.Cell() {
+										if collection.Description() != "" {
+											{ collection.Description() }
+										} else {
+											<span class="text-muted-foreground">-</span>
+										}
+									}
+									@table.Cell() {
+										{ collection.Owner().DisplayName() }
+									}
+									@table.Cell() {
+										{ collection.CreatedAt().Format("02/01/2006") }
+									}
+									@table.Cell() {
+										@viewCollectionButton(collection)
+									}
+								}
+							}
+						}
 					}
-					if len(vmodel.Collections) == vmodel.PageSize {
-						<a class="pagination-next" href={ templ.SafeURL("/admin/collections?page=" + strconv.Itoa(vmodel.CurrentPage+1)) }>Suivant</a>
-					}
-					<ul class="pagination-list">
-						<li>
-							<span class="pagination-link is-current">{ strconv.Itoa(vmodel.CurrentPage) }</span>
-						</li>
-					</ul>
-				</nav>
+				</div>
+				@collectionsPagination(vmodel)
 			}
+		</div>
+	}
+}
+
+templ viewCollectionButton(collection model.PersistedCollection) {
+	@button.Button(button.Props{
+		Href:    string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/collections", string(collection.ID())))),
+		Size:    button.SizeSm,
+		Variant: button.VariantDefault,
+	}) {
+		@icon.Eye(icon.Props{Class: "h-4 w-4"})
+		<span>Voir</span>
+	}
+}
+
+templ collectionsPagination(vmodel CollectionsPageVModel) {
+	{{ totalPages := (vmodel.TotalCollections + vmodel.PageSize - 1) / vmodel.PageSize }}
+	{{ paginator := pagination.CreatePagination(vmodel.CurrentPage, totalPages, 5) }}
+	@pagination.Pagination() {
+		@pagination.Content() {
+			@pagination.Previous(pagination.PreviousProps{
+				Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1)))),
+				Disabled: !paginator.HasPrevious,
+				Label:    "Précédent",
+			})
+			for _, page := range paginator.Pages {
+				@pagination.Item() {
+					@pagination.Link(pagination.LinkProps{
+						Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(page)))),
+						IsActive: page == vmodel.CurrentPage,
+					}) {
+						{ strconv.Itoa(page) }
+					}
+				}
+			}
+			@pagination.Next(pagination.NextProps{
+				Href:     string(commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1)))),
+				Disabled: !paginator.HasNext,
+				Label:    "Suivant",
+			})
 		}
 	}
 }

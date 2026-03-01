@@ -15,6 +15,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	corpusLLM "github.com/bornholm/corpus/internal/llm"
 	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/go-x/slogx"
@@ -112,10 +113,9 @@ func (h *Handler) fillAskPageViewModel(r *http.Request) (*component.AskPageVMode
 		vmodel, r,
 		h.fillAskPageVModelTotalDocuments,
 		h.fillAskPageVModelQuery,
-		h.fillAskPageVModelFileUploadModal,
 		h.fillAskPageVModelSelectedCollectionIDs,
 		h.fillAskPageVModelCollections,
-		h.fillAskPageVModelNavbar,
+		h.fillAskPageVModelAppLayout,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -147,30 +147,6 @@ func (h *Handler) fillAskPageVModelQuery(ctx context.Context, vmodel *component.
 	}
 
 	vmodel.Query = r.FormValue("q")
-
-	return nil
-}
-
-func (h *Handler) fillAskPageVModelFileUploadModal(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
-	enabled := r.URL.Query().Get("action") == "upload"
-	if !enabled {
-		return nil
-	}
-
-	user := httpCtx.User(ctx)
-	writableCollections, _, err := h.documentManager.DocumentStore.QueryUserWritableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
-	if err != nil {
-		return errors.WithStack(err)
-	}
-
-	baseURL := httpCtx.BaseURL(ctx)
-	createCollectionURL := baseURL.JoinPath("/collections/create")
-
-	vmodel.UploadFileModal = &component.UploadFileModalVModel{
-		SupportedExtensions: h.documentManager.SupportedExtensions(),
-		WritableCollections: writableCollections,
-		CreateCollectionURL: createCollectionURL.String(),
-	}
 
 	return nil
 }
@@ -234,14 +210,24 @@ func (h *Handler) fillAskPageVModelSelectedCollectionIDs(ctx context.Context, vm
 	return nil
 }
 
-func (h *Handler) fillAskPageVModelNavbar(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
+func (h *Handler) fillAskPageVModelAppLayout(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "ask",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppFooterItems(vmodel)
+		},
 	}
 
 	return nil

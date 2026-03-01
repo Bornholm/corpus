@@ -5,7 +5,11 @@ import (
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
-	"github.com/bornholm/corpus/internal/http/middleware/authz"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/accordion"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/badge"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/card"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/textarea"
 	"slices"
 	"strconv"
 	"strings"
@@ -13,6 +17,7 @@ import (
 )
 
 type AskPageVModel struct {
+	AppLayoutVModel     common.AppLayoutVModel
 	Query               string
 	TotalDocuments      int64
 	Results             []*port.IndexSearchResult
@@ -21,157 +26,206 @@ type AskPageVModel struct {
 	CollectionStats     map[model.CollectionID]*model.CollectionStats
 	SelectedCollections []model.CollectionID
 
-	Response        string
-	Duration        time.Duration
-	UploadFileModal *UploadFileModalVModel
-
-	Navbar common.NavbarVModel
+	Response string
+	Duration time.Duration
 }
 
 const defaultMaxCollections = 3
 
 templ AskPage(vmodel AskPageVModel) {
-	@common.NavbarPage(vmodel.Navbar, common.WithTitle("Posez votre question")) {
-		if vmodel.UploadFileModal != nil {
-			@UploadFileModal(*vmodel.UploadFileModal)
-		}
-		<div class="level is-mobile">
-			<div class="level-left"></div>
-			<div class="level-right">
-				if common.AssertUser(ctx, authz.OneOf(authz.Has(authz.RoleUser), authz.Has(authz.RoleAdmin))) {
-					<a class="button is-outlined is-link" href={ common.CurrentURL(ctx, common.WithValues("action", "upload")) }><span>Indexer un fichier</span><span class="icon"><i class="fa fa-plus"></i></span></a>
-				}
-			</div>
-		</div>
-		<form method="post" hx-on:submit="htmx.addClass(htmx.find('#submit-button'), 'is-loading')">
-			<div class="columns">
-				<div class="column is-9">
-					<div class="field is-large">
-						<label class="label" for="query">Posez votre question <span class="has-text-weight-normal has-text-grey">({ strconv.FormatInt(vmodel.TotalDocuments, 10) } documents indexés)</span></label>
-						<div class="control">
-							<textarea id="query" name="q" class="textarea is-large">{ vmodel.Query }</textarea>
+	@common.AppLayout(vmodel.AppLayoutVModel) {
+		<div class="space-y-6">
+			<!-- Search form card -->
+			@card.Card() {
+				@card.Content(card.ContentProps{Class: "space-y-4"}) {
+					<form id="ask-form" method="post" hx-post="/" hx-target="#results" hx-boost="false" hx-indicator="#submit-btn">
+						<!-- Question textarea -->
+						<div class="space-y-2">
+							<label for="query" class="text-lg font-semibold">
+								Posez votre question
+								<span class="text-muted-foreground font-normal">({ strconv.FormatInt(vmodel.TotalDocuments, 10) } documents indexés)</span>
+							</label>
+							@textarea.Textarea(textarea.Props{
+								Name:        "q",
+								Value:       vmodel.Query,
+								Placeholder: "Tapez votre question ici...",
+								Rows:        3,
+								Class:       "min-h-[100px]",
+							})
 						</div>
-					</div>
-				</div>
-				<div class="column is-3">
-					<label class="label">Collections</label>
-					<div class="tags are-large" style="overflow-x:auto">
-						for i, c := range vmodel.Collections {
-							{{ selected := slices.Contains(vmodel.SelectedCollections, c.ID()) }}
-							{{ stats := vmodel.CollectionStats[c.ID()] }}
-							{{ url := common.CurrentURL(ctx, common.WithValues("collection", string(c.ID()))) }}
-							if selected {
-								{{ url = common.CurrentURL(ctx, common.WithoutValues("collection", string(c.ID()))) }}
-							}
-							{{ label := c.Label() }}
-							if label == "" {
-								{{ label = string(c.ID()) }}
-							}
-							<a href={ url } title={ c.Description() } class={ "tag", "is-light", templ.KV("is-link", selected), templ.KV("is-hidden", i > defaultMaxCollections-1) }>
-								{ label }
-								if stats != nil {
-									({ strconv.FormatInt(stats.TotalDocuments, 10) })
+						<!-- Collections -->
+						<div class="space-y-2">
+							<label class="text-sm font-medium">Collections</label>
+							<div class="flex flex-wrap items-center gap-2">
+								for i, c := range vmodel.Collections {
+									{{ selected := slices.Contains(vmodel.SelectedCollections, c.ID()) }}
+									{{ stats := vmodel.CollectionStats[c.ID()] }}
+									{{ url := common.CurrentURL(ctx, common.WithValues("collection", string(c.ID()))) }}
+									if selected {
+										{{ url = common.CurrentURL(ctx, common.WithoutValues("collection", string(c.ID()))) }}
+									}
+									{{ label := c.Label() }}
+									if label == "" {
+										{{ label = string(c.ID()) }}
+									}
+									<a
+										href={ url }
+										hx-boost="false"
+										title={ c.Description() }
+										class={ templ.KV("hidden", i >= defaultMaxCollections) }
+									>
+										{{ variant := badge.VariantSecondary }}
+										if selected {
+											{{ variant = badge.VariantDefault }}
+										}
+										@badge.Badge(badge.Props{
+											Variant: variant,
+										}) {
+											{ label }
+											if stats != nil {
+												<span class="text-xs opacity-70">({ strconv.FormatInt(stats.TotalDocuments, 10) })</span>
+											}
+										}
+									</a>
 								}
-							</a>
-						}
-						if len(vmodel.Collections) > defaultMaxCollections {
-							<span class="tag is-clickable is-hoverable" hx-on:click="this.closest('.tags').querySelectorAll('.tag').forEach(t => t.classList.remove('is-hidden')); this.parentNode.removeChild(this)"><span class="icon"><i class="fas fa-ellipsis-h"></i></span></span>
-						}
-					</div>
-					<p class="help">Sélectionnez les collections de documents que vous souhaitez incorporer à votre recherche. Par défaut, toutes sont utilisées.</p>
-				</div>
-			</div>
-			<button id="submit-button" type="submit" class="button is-link is-fullwidth is-large">
-				<span>Interroger</span>
-				<span class="icon"><i class="far fa-comment"></i></span>
-			</button>
-		</form>
-		if vmodel.Query != "" {
-			<hr class="mt-5"/>
-			<div class="mt-5">
-				<div class="level">
-					<div class="level-left">
-						<h2 class="title is-size-2 level-item">
-							<span>Réponse</span>
-							<span class="has-text-weight-normal has-text-grey subtitle ml-3">(générée en { vmodel.Duration.Round(time.Second).String() })</span>
+								if len(vmodel.Collections) > defaultMaxCollections {
+									<button
+										type="button"
+										class="inline-flex items-center justify-center rounded-md border border-input bg-background px-2 py-0.5 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground cursor-pointer"
+										hx-on:click="this.previousElementSibling.querySelectorAll('a').forEach(a => a.classList.remove('hidden')); this.remove()"
+									>
+										@icon.Ellipsis()
+									</button>
+								}
+							</div>
+							<p class="text-xs text-muted-foreground">Sélectionnez les collections de documents que vous souhaitez incorporer à votre recherche. Par défaut, toutes sont utilisées.</p>
+						</div>
+						<!-- Submit button -->
+						<div class="flex justify-end">
+							<button
+								id="submit-btn"
+								type="submit"
+								class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all bg-primary text-primary-foreground shadow-xs hover:bg-primary/90 h-10 rounded-md px-6 has-[>svg]:px-4 mt-4 cursor-pointer"
+							>
+								<span class="btn-text inline-flex items-center gap-2">
+									@icon.MessageSquare()
+									<span>Interroger</span>
+								</span>
+								<span class="btn-loader htmx-indicator inline-flex items-center gap-2">
+									<svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+										<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+										<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+									</svg>
+									<span>Traitement en cours...</span>
+								</span>
+							</button>
+							<style>
+								.htmx-indicator { display: none; }
+								.htmx-request .btn-text { display: none; }
+								.htmx-request .btn-loader { display: inline-flex; }
+							</style>
+						</div>
+					</form>
+				}
+			}
+		</div>
+		<!-- Results area - full width -->
+		<div id="results" hx-swap-oob="true" class="mt-6">
+			if vmodel.Query != "" {
+				<!-- Response section -->
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<h2 class="text-2xl font-semibold">
+							Réponse
+							<span class="text-sm font-normal text-muted-foreground ml-2">(générée en { vmodel.Duration.Round(time.Second).String() })</span>
 						</h2>
-					</div>
-					<div class="level-right">
-						<div class="buttons level-item">
-							if vmodel.Response != "" {
-								<button
-									class="button"
-									hx-on:click="copyResponseToClipboard(this)"
-									data-encoded-response={ base64.RawStdEncoding.EncodeToString([]byte(vmodel.Response)) }
-								>
-									<span>Copier</span>
-									<span class="icon"><i class="fas fa-copy"></i></span>
-								</button>
-								<script type="text/javascript">
-											function copyResponseToClipboard(el) {
-												const encodedResponse = el.dataset.encodedResponse;
-												const text = new TextDecoder().decode(Uint8Array.from(atob(encodedResponse), m => m.charCodeAt(0)))
-												if (navigator.clipboard) {
-													navigator.clipboard.writeText(text);
-												} else {
-													unsecuredCopyToClipboard(text);
-												}
-												el.innerHTML = '<span>Copié !</span><span class="icon"><i class="fas fa-check"></i></span>'
-											}
+						if vmodel.Response != "" {
+							<button
+								class="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground cursor-pointer"
+								hx-on:click="copyResponseToClipboard(this)"
+								data-encoded-response={ base64.RawStdEncoding.EncodeToString([]byte(vmodel.Response)) }
+							>
+								@icon.Copy()
+								<span>Copier</span>
+							</button>
+							<script type="text/javascript">
+									function copyResponseToClipboard(el) {
+										const encodedResponse = el.dataset.encodedResponse;
+										const text = new TextDecoder().decode(Uint8Array.from(atob(encodedResponse), m => m.charCodeAt(0)))
+										if (navigator.clipboard) {
+											navigator.clipboard.writeText(text);
+										} else {
+											unsecuredCopyToClipboard(text);
+										}
+										el.querySelector('span').textContent = 'Copié !';
+										setTimeout(() => el.querySelector('span').textContent = 'Copier', 2000);
+									}
 
-											function unsecuredCopyToClipboard(text) {
-												const textArea = document.createElement("textarea");
-												textArea.value = text;
-												document.body.appendChild(textArea);
-												textArea.focus({ preventScroll: true });
-												textArea.select();
-												try {
-													document.execCommand('copy');
-												} catch (err) {
-													console.error('Unable to copy to clipboard', err);
-												}
-												document.body.removeChild(textArea);
-											}
-										</script>
+									function unsecuredCopyToClipboard(text) {
+										const textArea = document.createElement("textarea");
+										textArea.value = text;
+										document.body.appendChild(textArea);
+										textArea.focus({ preventScroll: true });
+										textArea.select();
+										try {
+											document.execCommand('copy');
+										} catch (err) {
+											console.error('Unable to copy to clipboard', err);
+										}
+										document.body.removeChild(textArea);
+									}
+								</script>
+						}
+					</div>
+					if len(vmodel.Results) == 0 {
+						@card.Card() {
+							@card.Content(card.ContentProps{Class: "py-6"}) {
+								<div class="flex items-center gap-2 text-amber-600">
+									@icon.CircleAlert()
+									<span>Aucun résultat correspondant à votre question n'a été trouvé dans la base documentaire.</span>
+								</div>
 							}
-						</div>
-					</div>
-				</div>
-				if len(vmodel.Results) == 0 {
-					<div class="message is-warning is-medium">
-						<div class="message-body">
-							Aucun résultat correspondant à votre question n'a été trouvé dans la base documentaire.
-						</div>
-					</div>
-				} else {
-					<div class="content is-size-4">
-						@common.Markdown(vmodel.Response)
-					</div>
-					<h3 class="title is-size-3">Sources</h3>
-					<div class="content">
-						<ol>
+						}
+					} else {
+						@card.Card() {
+							@card.Content(card.ContentProps{}) {
+								<div class="prose prose-sm max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>li]:my-1 [&>ul]:list-disc [&>ol]:list-decimal [&>ul]:pl-4 [&>ol]:pl-4">
+									@common.Markdown(vmodel.Response)
+								</div>
+							}
+						}
+						<!-- Sources section -->
+						<h3 class="text-xl font-semibold">Sources</h3>
+						@accordion.Accordion() {
 							for _, r := range vmodel.Results {
-								<li>
-									<details>
-										<summary><code class="is-clickable">{ r.Source.String() }</code> <a target="_blank" href={ templ.SafeURL(r.Source.String()) }><span class="icon"><i class="fas fa-external-link-alt"></i></span></a></summary>
+								@accordion.Item() {
+									@accordion.Trigger() {
+										<div class="flex items-center justify-between w-full gap-2 pr-2">
+											<code class="text-xs break-all">{ r.Source.String() }</code>
+											<a target="_blank" href={ templ.SafeURL(r.Source.String()) } class="shrink-0" onclick="event.stopPropagation()">
+												@icon.ExternalLink(icon.Props{Class: "h-3.5 w-3.5"})
+											</a>
+										</div>
+									}
+									@accordion.Content() {
 										for idx, sectionID := range r.Sections {
 											{{ content, ok := vmodel.SectionContents[sectionID] }}
 											if ok {
 												if idx != 0 {
-													<hr/>
+													<hr class="my-2"/>
 												}
-												<div class={ "content is-size-6 mt-5 has-background-light has-text-grey-dark	px-5 py-3 is-family-monospace", templ.KV("mt-5", idx == 0) }>
+												<div class="text-xs text-muted-foreground font-mono bg-muted/50 p-2 rounded [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>li]:my-1 [&>ul]:list-disc [&>ol]:list-decimal [&>ul]:pl-4 [&>ol]:pl-4">
 													@common.Markdown(strings.TrimSpace(content))
 												</div>
 											}
 										}
-									</details>
-								</li>
+									}
+								}
 							}
-						</ol>
-					</div>
-				}
-			</div>
-		}
+						}
+					}
+				</div>
+			}
+		</div>
 	}
 }

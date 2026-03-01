@@ -1,12 +1,13 @@
 package component
 
-import "github.com/bornholm/corpus/internal/build"
+const VariantDark string = "dark"
 
 type PageOptions struct {
-	Title         string
-	IncludeFooter bool
-	Head          func() templ.Component
-	Description   string
+	Title       string
+	Head        func() templ.Component
+	Description string
+	Variant     string
+	Scripts     []templ.Component
 }
 
 type PageOptionFunc func(opts *PageOptions)
@@ -29,17 +30,24 @@ func WithHead(fn func() templ.Component) PageOptionFunc {
 	}
 }
 
-func WithFooter(includeFooter bool) PageOptionFunc {
+func WithVariant(variant string) PageOptionFunc {
 	return func(opts *PageOptions) {
-		opts.IncludeFooter = includeFooter
+		opts.Variant = variant
+	}
+}
+
+func WithScripts(scripts ...templ.Component) PageOptionFunc {
+	return func(opts *PageOptions) {
+		opts.Scripts = append(opts.Scripts, scripts...)
 	}
 }
 
 func NewPageOptions(funcs ...PageOptionFunc) *PageOptions {
 	opts := &PageOptions{
-		Title:         "",
-		Head:          nil,
-		IncludeFooter: true,
+		Title:   "",
+		Head:    nil,
+		Variant: "",
+		Scripts: make([]templ.Component, 0),
 	}
 	for _, fn := range funcs {
 		fn(opts)
@@ -51,7 +59,7 @@ func NewPageOptions(funcs ...PageOptionFunc) *PageOptions {
 templ Page(funcs ...PageOptionFunc) {
 	{{ opts := NewPageOptions(funcs...) }}
 	<!DOCTYPE html>
-	<html data-theme="light">
+	<html class={ opts.Variant }>
 		<head>
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -66,28 +74,20 @@ templ Page(funcs ...PageOptionFunc) {
 				<meta name="description" content={ opts.Description }/>
 			}
 			<link rel="icon" type="image/png" href={ string(BaseURL(ctx, WithPath("/assets/favicon.png"))) }/>
-			<link rel="stylesheet" href={ string(BaseURL(ctx, WithPath("/assets/bulma.min.css"))) }/>
+			<link rel="stylesheet" href={ string(BaseURL(ctx, WithPath("/assets/templui.css"))) }/>
 			<link rel="stylesheet" href={ string(BaseURL(ctx, WithPath("/assets/fontawesome/css/all.min.css"))) }/>
 			<link rel="stylesheet" href={ string(BaseURL(ctx, WithPath("/assets/style.css"))) }/>
 			<script src={ string(BaseURL(ctx, WithPath("/assets/htmx.min.js"))) }></script>
 			if opts.Head != nil {
 				@opts.Head()
 			}
+			if len(opts.Scripts) > 0 {
+				@templ.Join(opts.Scripts...)
+			}
 		</head>
-		{{ isDesktopApp := IsDesktopApp(ctx) }}
-		<body hx-boost="true" class={ "is-fullheight" }>
-			<div id="main" class="is-fullheight">
+		<body>
+			<div id="main">
 				{ children... }
-				if opts.IncludeFooter && !isDesktopApp {
-					<footer class="footer">
-						<div class="content has-text-centered">
-							<p>
-								<b>Corpus</b> (version <a href="https://github.com/Bornholm/corpus" target="_blank">{ build.ShortVersion }</a>) | 
-								<a target="_blank" href={ BaseURL(ctx, WithPath("/docs/index.html")) }>Documentation API</a>
-							</p>
-						</div>
-					</footer>
-				}
 			</div>
 			<script type="text/javascript">
 				htmx.config.responseHandling = [

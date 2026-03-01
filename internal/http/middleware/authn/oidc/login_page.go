@@ -4,15 +4,19 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
-	"github.com/bornholm/corpus/internal/http/middleware/authn/oidc/component"
+	"github.com/bornholm/corpus/internal/build"
+	"github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	oidccomponent "github.com/bornholm/corpus/internal/http/middleware/authn/oidc/component"
 )
 
 func (h *Handler) getLoginPage(w http.ResponseWriter, r *http.Request) {
-	vmodel := component.LoginPageVModel{
+	vmodel := oidccomponent.LoginPageVModel{
 		Providers: h.providers,
+		Version:   build.ShortVersion,
+		APIDocURL: string(component.BaseURL(r.Context(), component.WithPath("/docs/index.html"))),
 	}
 
-	loginPage := component.LoginPage(vmodel)
+	loginPage := oidccomponent.LoginPage(vmodel)
 
 	templ.Handler(loginPage).ServeHTTP(w, r)
 }

@@ -15,7 +15,7 @@ type ServerPortalVModel struct {
 templ ServerPortalPage(vmodel ServerPortalVModel) {
 	@DesktopPage(DesktopPageVModel{
 		PageOptions: []common.PageOptionFunc{
-			common.WithTitle(vmodel.Server.Label), common.WithFooter(false),
+			common.WithTitle(vmodel.Server.Label),
 		},
 		SidebarActiveItem: "home",
 	}) {

@@ -42,6 +42,7 @@ release:
 
 generate: tools/templ/bin/templ
 	tools/templ/bin/templ generate
+	npx @tailwindcss/cli -i misc/tailwind/templui.css -o internal/http/handler/webui/common/assets/templui.css
 
 bin/templ: tools/templ/bin/templ
 	mkdir -p bin
@@ -49,7 +50,7 @@ bin/templ: tools/templ/bin/templ
 
 tools/templ/bin/templ:
 	mkdir -p tools/templ/bin
-	GOBIN=$(PWD)/tools/templ/bin go install github.com/a-h/templ/cmd/templ@v0.3.833
+	GOBIN=$(PWD)/tools/templ/bin go install github.com/a-h/templ/cmd/templ@v0.3.1001
 
 tools/modd/bin/modd:
 	mkdir -p tools/modd/bin
@@ -65,6 +66,10 @@ ci: tools/act/bin/act
 tools/goreleaser/bin/goreleaser:
 	mkdir -p tools/goreleaser/bin
 	GOBIN=$(PWD)/tools/goreleaser/bin go install github.com/goreleaser/goreleaser/v2@latest
+
+tools/templui/bin/templui:
+	mkdir -p tools/templui/bin
+	GOBIN=$(PWD)/tools/templui/bin go install github.com/templui/templui/cmd/templui@latest
 
 goreleaser: tools/goreleaser/bin/goreleaser
 	REPO_OWNER=$(shell whoami) tools/goreleaser/bin/goreleaser $(GORELEASER_ARGS)

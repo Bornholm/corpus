@@ -31,7 +31,7 @@ func (h *Handler) getCollectionEditPage(w http.ResponseWriter, r *http.Request) 
 func (h *Handler) handleCollectionUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 	if collectionID == "" {
 		common.HandleError(w, r, errors.New("collection ID is required"))
 		return
@@ -89,7 +89,7 @@ func (h *Handler) handleCollectionUpdate(w http.ResponseWriter, r *http.Request)
 func (h *Handler) handleCollectionShareCreate(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 	if collectionID == "" {
 		common.HandleError(w, r, errors.New("collection ID is required"))
 		return
@@ -159,7 +159,7 @@ func (h *Handler) handleCollectionShareCreate(w http.ResponseWriter, r *http.Req
 func (h *Handler) handleCollectionShareDelete(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 	shareID := model.CollectionShareID(r.PathValue("shareID"))
 
 	if collectionID == "" {
@@ -216,7 +216,7 @@ func (h *Handler) fillCollectionEditPageViewModel(r *http.Request) (*component.C
 
 	ctx := r.Context()
 
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 	if collectionID == "" {
 		return nil, errors.New("collection ID is required")
 	}
@@ -227,7 +227,8 @@ func (h *Handler) fillCollectionEditPageViewModel(r *http.Request) (*component.C
 		h.fillCollectionEditPageVModelCollection,
 		h.fillCollectionEditPageVModelShares,
 		h.fillCollectionEditPageVModelDocuments,
-		h.fillCollectionEditPageVModelNavbar,
+		h.fillCollectionEditPageVModelAppLayout,
+		h.fillCollectionEditPageVModelUploadModal,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -237,7 +238,7 @@ func (h *Handler) fillCollectionEditPageViewModel(r *http.Request) (*component.C
 }
 
 func (h *Handler) fillCollectionEditPageVModelCollection(ctx context.Context, vmodel *component.CollectionEditPageVModel, r *http.Request) error {
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 
 	collection, err := h.documentManager.DocumentStore.GetCollectionByID(ctx, collectionID, false)
 	if err != nil {
@@ -266,7 +267,7 @@ func (h *Handler) fillCollectionEditPageVModelShares(ctx context.Context, vmodel
 		return nil
 	}
 
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 
 	shares, err := h.documentManager.DocumentStore.GetCollectionShares(ctx, collectionID)
 	if err != nil {
@@ -302,21 +303,28 @@ func (h *Handler) fillCollectionEditPageVModelShares(ctx context.Context, vmodel
 	return nil
 }
 
-func (h *Handler) fillCollectionEditPageVModelNavbar(ctx context.Context, vmodel *component.CollectionEditPageVModel, r *http.Request) error {
+func (h *Handler) fillCollectionEditPageVModelAppLayout(ctx context.Context, vmodel *component.CollectionEditPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		SelectedItem: "collections",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppFooterItems(vmodel)
+		},
 	}
 
 	return nil
 }
 
 func (h *Handler) fillCollectionEditPageVModelDocuments(ctx context.Context, vmodel *component.CollectionEditPageVModel, r *http.Request) error {
-	collectionID := model.CollectionID(r.PathValue("id"))
+	collectionID := model.CollectionID(r.PathValue("collectionID"))
 
 	// Get page from query params, default to 0
 	page := 0
@@ -347,6 +355,20 @@ func (h *Handler) fillCollectionEditPageVModelDocuments(ctx context.Context, vmo
 		vmodel.TotalPages = int((total + int64(pageSize) - 1) / int64(pageSize))
 	} else {
 		vmodel.TotalPages = 0
+	}
+
+	return nil
+}
+
+func (h *Handler) fillCollectionEditPageVModelUploadModal(ctx context.Context, vmodel *component.CollectionEditPageVModel, r *http.Request) error {
+	enabled := r.URL.Query().Get("action") == "upload"
+	if !enabled {
+		return nil
+	}
+
+	vmodel.UploadFileModal = &component.UploadFileModalVModel{
+		Collection:          vmodel.Collection.ID(),
+		SupportedExtensions: h.documentManager.SupportedExtensions(),
 	}
 
 	return nil

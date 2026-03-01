@@ -14,9 +14,9 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
+	"github.com/bornholm/corpus/templx/form/renderer/templui"
 	"github.com/bornholm/go-x/templx/form"
 	formx "github.com/bornholm/go-x/templx/form"
-	"github.com/bornholm/go-x/templx/form/renderer/bulma"
 	"github.com/pkg/errors"
 )
 
@@ -65,7 +65,7 @@ func (h *Handler) postEditUser(w http.ResponseWriter, r *http.Request) {
 
 	form := h.newUserForm()
 	if err := form.Handle(r); err != nil {
-		common.HandleError(w, r, errors.WithStack(err))
+		common.HandleError(w, r, errors.Wrap(err, "could not handle form"))
 		return
 	}
 
@@ -114,7 +114,7 @@ func (h *Handler) fillUsersPageViewModel(r *http.Request) (*component.UsersPageV
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillUsersPageVModelNavbar,
+		h.fillUsersPageVModelAppLayout,
 		h.fillUsersPageVModelUsers,
 	)
 	if err != nil {
@@ -136,7 +136,7 @@ func (h *Handler) fillEditUserPageViewModel(r *http.Request) (*component.EditUse
 	err := common.FillViewModel(
 		ctx,
 		vmodel, r,
-		h.fillEditUserPageVModelNavbar,
+		h.fillEditUserPageVModelAppLayout,
 		h.fillEditUserPageVModelUser,
 		h.fillEditUserPageVModelForm,
 	)
@@ -147,14 +147,24 @@ func (h *Handler) fillEditUserPageViewModel(r *http.Request) (*component.EditUse
 	return vmodel, nil
 }
 
-func (h *Handler) fillUsersPageVModelNavbar(ctx context.Context, vmodel *component.UsersPageVModel, r *http.Request) error {
+func (h *Handler) fillUsersPageVModelAppLayout(ctx context.Context, vmodel *component.UsersPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "users",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil
@@ -189,18 +199,29 @@ func (h *Handler) fillUsersPageVModelUsers(ctx context.Context, vmodel *componen
 	vmodel.Users = users
 	vmodel.CurrentPage = page + 1 // Convert back to 1-based
 	vmodel.PageSize = limit
+	vmodel.TotalUsers = len(users)
 
 	return nil
 }
 
-func (h *Handler) fillEditUserPageVModelNavbar(ctx context.Context, vmodel *component.EditUserPageVModel, r *http.Request) error {
+func (h *Handler) fillEditUserPageVModelAppLayout(ctx context.Context, vmodel *component.EditUserPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "users",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AdminFooterItems(vmodel)
+		},
 	}
 
 	return nil
@@ -249,7 +270,6 @@ func (h *Handler) newUserForm() *form.Form {
 			formx.WithLabel("Rôles"),
 			formx.WithDescription("Rôles assignés à l'utilisateur"),
 			formx.WithType("select"),
-			formx.WithAttribute("multiple", true),
 			formx.WithSelectOptions(slices.Collect(func(yield func(formx.SelectOption) bool) {
 				for _, role := range availableRoles {
 					if !yield(formx.SelectOption{
@@ -277,7 +297,7 @@ func (h *Handler) newUserForm() *form.Form {
 				},
 			),
 		),
-	}, form.WithDefaultRenderer(bulma.NewFieldRenderer()))
+	}, form.WithDefaultRenderer(templui.NewFieldRenderer()))
 
 	return form
 }

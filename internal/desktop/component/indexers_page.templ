@@ -12,7 +12,7 @@ type IndexersPageVModel struct {
 templ IndexersPage(vmodel IndexersPageVModel) {
 	@DesktopPage(DesktopPageVModel{
 		PageOptions: []common.PageOptionFunc{
-			common.WithTitle("Indexation"), common.WithFooter(false),
+			common.WithTitle("Indexation"),
 		},
 		SidebarActiveItem: "indexers",
 	}) {

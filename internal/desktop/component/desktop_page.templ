@@ -8,7 +8,7 @@ type DesktopPageVModel struct {
 }
 
 templ DesktopPage(vmodel DesktopPageVModel) {
-	{{ pageOptions := append(vmodel.PageOptions, common.WithFooter(false)) }}
+	{{ pageOptions := append(vmodel.PageOptions) }}
 	@common.Page(pageOptions...) {
 		@Sidebar(SidebarVModel{
 			ActiveItem: vmodel.SidebarActiveItem,

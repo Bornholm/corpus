@@ -3,7 +3,6 @@ package ask
 import (
 	"net/http"
 
-	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/bornholm/genai/llm"
@@ -12,7 +11,6 @@ import (
 type Handler struct {
 	mux             *http.ServeMux
 	documentManager *service.DocumentManager
-	taskRunner      port.TaskRunner
 	llm             llm.Client
 }
 
@@ -21,11 +19,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner) *Handler {
+func NewHandler(documentManager *service.DocumentManager, llm llm.Client) *Handler {
 	h := &Handler{
 		mux:             http.NewServeMux(),
 		documentManager: documentManager,
-		taskRunner:      taskRunner,
 		llm:             llm,
 	}
 
@@ -33,8 +30,6 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRu
 
 	h.mux.Handle("GET /", assertUser(http.HandlerFunc(h.getAskPage)))
 	h.mux.Handle("POST /", assertUser(http.HandlerFunc(h.handleAsk)))
-	h.mux.Handle("POST /index", assertUser(http.HandlerFunc(h.handleIndex)))
-	h.mux.Handle("GET /tasks/{taskID}", assertUser(http.HandlerFunc(h.getTaskPage)))
 
 	return h
 }

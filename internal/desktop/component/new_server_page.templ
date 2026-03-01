@@ -12,7 +12,7 @@ type NewServerPageVModel struct {
 templ NewServerPage(vmodel NewServerPageVModel) {
 	@DesktopPage(DesktopPageVModel{
 		PageOptions: []common.PageOptionFunc{
-			common.WithTitle("Ajouter un serveur"), common.WithFooter(false),
+			common.WithTitle("Ajouter un serveur"),
 		},
 		SidebarActiveItem: "servers",
 	}) {

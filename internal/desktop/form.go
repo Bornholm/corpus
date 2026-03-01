@@ -1,9 +1,9 @@
 package desktop
 
 import (
+	"github.com/bornholm/corpus/templx/form/renderer/templui"
 	"github.com/bornholm/go-x/templx/form"
 	formx "github.com/bornholm/go-x/templx/form"
-	"github.com/bornholm/go-x/templx/form/renderer/bulma"
 )
 
 func newServerForm() *form.Form {
@@ -31,7 +31,7 @@ func newServerForm() *form.Form {
 			formx.WithType("checkbox"),
 			formx.WithDescription("Sélectionner automatiquement ce serveur au démarrage de l'application"),
 		),
-	}, form.WithDefaultRenderer(bulma.NewFieldRenderer()))
+	}, form.WithDefaultRenderer(templui.NewFieldRenderer()))
 
 	return form
 }

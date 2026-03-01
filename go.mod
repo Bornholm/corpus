@@ -5,6 +5,7 @@ go 1.25.5
 require (
 	github.com/Bornholm/amatl v0.21.1
 	github.com/Davincible/chromedp-undetected v1.3.8
+	github.com/Oudwins/tailwind-merge-go v0.2.1
 	github.com/abadojack/whatlanggo v1.0.1
 	github.com/asg017/sqlite-vec-go-bindings v0.0.0-00010101000000-000000000000
 	github.com/blevesearch/bleve/v2 v2.5.0
@@ -189,7 +190,7 @@ require (
 )
 
 require (
-	github.com/a-h/templ v0.3.977
+	github.com/a-h/templ v0.3.1001
 	golang.org/x/net v0.50.0 // indirect
 )
 

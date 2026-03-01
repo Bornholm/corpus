@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"net/http"
+	"slices"
 
 	"github.com/a-h/templ"
 	"github.com/bornholm/corpus/internal/core/model"
@@ -12,6 +13,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/collection/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	"github.com/pkg/errors"
 )
 
@@ -36,7 +38,7 @@ func (h *Handler) fillCollectionListPageViewModel(r *http.Request) (*component.C
 		ctx,
 		vmodel, r,
 		h.fillCollectionListPageVModelCollections,
-		h.fillCollectionListPageVModelNavbar,
+		h.fillCollectionListPageVModelAppLayout,
 	)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -73,14 +75,24 @@ func (h *Handler) fillCollectionListPageVModelCollections(ctx context.Context, v
 	return nil
 }
 
-func (h *Handler) fillCollectionListPageVModelNavbar(ctx context.Context, vmodel *component.CollectionListPageVModel, r *http.Request) error {
+func (h *Handler) fillCollectionListPageVModelAppLayout(ctx context.Context, vmodel *component.CollectionListPageVModel, r *http.Request) error {
 	user := httpCtx.User(ctx)
 	if user == nil {
 		return errors.New("could not retrieve user from context")
 	}
 
-	vmodel.Navbar = commonComp.NavbarVModel{
-		User: user,
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
+
+	vmodel.AppLayoutVModel = commonComp.AppLayoutVModel{
+		User:         user,
+		IsAdmin:      isAdmin,
+		SelectedItem: "collections",
+		NavigationItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppNavigationItems(vmodel)
+		},
+		FooterItems: func(vmodel commonComp.AppLayoutVModel) templ.Component {
+			return commonComp.AppFooterItems(vmodel)
+		},
 	}
 
 	return nil

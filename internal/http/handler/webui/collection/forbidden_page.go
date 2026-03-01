@@ -8,15 +8,19 @@ import (
 )
 
 func (h *Handler) getForbiddenPage(w http.ResponseWriter, r *http.Request) {
-	forbiddenPage := common.ErrorPage(common.ErrorPageVModel{
+	ctx := r.Context()
+
+	vmodel := common.ErrorPageVModel{
 		Message: "L'accès à cette page ne vous est pas autorisé. Veuillez contacter l'administrateur.",
 		Links: []common.LinkItem{
-			common.LinkItem{
-				URL:   string(common.BaseURL(r.Context(), common.WithPath("/auth/oidc/logout"))),
+			{
+				URL:   string(common.BaseURL(ctx, common.WithPath("/auth/oidc/logout"))),
 				Label: "Se déconnecter",
 			},
 		},
-	})
+	}
+
+	forbiddenPage := common.ErrorPage(vmodel)
 
 	w.WriteHeader(http.StatusForbidden)
 

@@ -13,7 +13,7 @@ type SettingsPageVModel struct {
 templ SettingsPage(vmodel SettingsPageVModel) {
 	@DesktopPage(DesktopPageVModel{
 		PageOptions: []common.PageOptionFunc{
-			common.WithTitle("Paramètres"), common.WithFooter(false),
+			common.WithTitle("Paramètres"),
 		},
 		SidebarActiveItem: "settings",
 	}) {
