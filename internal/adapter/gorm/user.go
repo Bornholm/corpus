@@ -25,7 +25,27 @@ type User struct {
 
 	Roles []*UserRole `gorm:"constraint:OnDelete:CASCADE;"`
 
-	Active bool
+	Active      bool
+	Preferences *UserPreferences `gorm:"foreignKey:UserID;constraint:OnDelete:CASCADE"`
+}
+
+// wrappedUserPreference implements model.UserPreferences
+type wrappedUserPreference struct {
+	p *UserPreferences
+}
+
+// DarkMode implements model.UserPreferences.
+func (p *wrappedUserPreference) DarkMode() bool {
+	return p.p.DarkMode
+}
+
+var _ model.UserPreferences = &wrappedUserPreference{}
+
+// UserPreference is a separate table for storing user preferences
+type UserPreferences struct {
+	ID       uint   `gorm:"primaryKey"`
+	UserID   string `gorm:"unique;index"`
+	DarkMode bool
 }
 
 // fromUser converts a model.User to a GORM User
@@ -37,6 +57,12 @@ func fromUser(u model.User) *User {
 		DisplayName: u.DisplayName(),
 		Email:       u.Email(),
 		Active:      u.Active(),
+	}
+
+	prefs := u.Preferences()
+	user.Preferences = &UserPreferences{
+		UserID:   string(u.ID()),
+		DarkMode: prefs.DarkMode(),
 	}
 
 	for _, r := range u.Roles() {
@@ -118,6 +144,14 @@ func (w *wrappedUser) Roles() []string {
 			}
 		}
 	})
+}
+
+// Preferences implements model.User.
+func (w *wrappedUser) Preferences() model.UserPreferences {
+	if w.u.Preferences == nil {
+		return model.NewUserPreferences()
+	}
+	return &wrappedUserPreference{w.u.Preferences}
 }
 
 var _ model.User = &wrappedUser{}

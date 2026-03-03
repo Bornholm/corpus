@@ -55,6 +55,11 @@ templ PublicShareFooterItems(vmodel AppLayoutVModel) {
 // AppLayout is the main responsive layout shell with sidebar navigation.
 templ AppLayout(vmodel AppLayoutVModel, funcs ...PageOptionFunc) {
 	{{ funcs = append(funcs, WithScripts(dialog.Script())) }}
+	{{
+		if vmodel.User != nil && vmodel.User.Preferences().DarkMode() {
+			funcs = append(funcs, WithVariant(VariantDark))
+		}
+	}}
 	@Page(funcs...) {
 		<div class="flex h-screen overflow-hidden bg-background">
 			<!-- Mobile overlay sidebar -->

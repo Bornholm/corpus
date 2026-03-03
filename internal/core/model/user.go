@@ -23,6 +23,8 @@ type User interface {
 	Roles() []string
 
 	Active() bool
+
+	Preferences() UserPreferences
 }
 
 type BaseUser struct {
@@ -33,6 +35,12 @@ type BaseUser struct {
 	provider    string
 	roles       []string
 	active      bool
+	preferences UserPreferences
+}
+
+// Preferences implements [User].
+func (u *BaseUser) Preferences() UserPreferences {
+	return u.preferences
 }
 
 // Active implements [User].
@@ -79,6 +87,8 @@ func CopyUser(user User) *BaseUser {
 		email:       user.Email(),
 		subject:     user.Subject(),
 		provider:    user.Provider(),
+		active:      user.Active(),
+		preferences: user.Preferences(),
 		roles:       append([]string{}, user.Roles()...),
 	}
 }
@@ -109,6 +119,10 @@ func (u *BaseUser) SetEmail(email string) {
 
 func (u *BaseUser) SetRoles(roles ...string) {
 	u.roles = roles
+}
+
+func (u *BaseUser) SetPreferences(preferences UserPreferences) {
+	u.preferences = preferences
 }
 
 type AuthTokenID string
@@ -162,3 +176,40 @@ func NewAuthToken(owner User, label, value string) *BaseAuthToken {
 		value: value,
 	}
 }
+
+type UserPreferences interface {
+	DarkMode() bool
+}
+
+type BaseUserPreferences struct {
+	darkMode bool
+}
+
+// DarkMode implements [UserPreferences].
+func (p *BaseUserPreferences) DarkMode() bool {
+	return p.darkMode
+}
+
+func SetUserPrefencesDarkMode(darkMode bool) BaseUserPreferencesSetter {
+	return func(p *BaseUserPreferences) {
+		p.darkMode = darkMode
+	}
+}
+
+func (p *BaseUserPreferences) Set(setters ...BaseUserPreferencesSetter) {
+	for _, s := range setters {
+		s(p)
+	}
+}
+
+type BaseUserPreferencesSetter func(p *BaseUserPreferences)
+
+func NewUserPreferences(setters ...BaseUserPreferencesSetter) *BaseUserPreferences {
+	preferences := &BaseUserPreferences{
+		darkMode: false,
+	}
+	preferences.Set(setters...)
+	return preferences
+}
+
+var _ UserPreferences = &BaseUserPreferences{}

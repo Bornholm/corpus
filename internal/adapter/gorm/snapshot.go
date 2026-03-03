@@ -209,6 +209,11 @@ func (w *wrappedSnapshottedUser) Subject() string {
 	return w.u.Subject
 }
 
+// Preferences implements [model.User].
+func (w *wrappedSnapshottedUser) Preferences() model.UserPreferences {
+	return model.NewUserPreferences()
+}
+
 var _ model.User = &wrappedSnapshottedUser{}
 
 func toSnapshottedUser(user model.User) SnapshottedUser {

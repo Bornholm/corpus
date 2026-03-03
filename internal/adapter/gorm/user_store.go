@@ -29,6 +29,7 @@ func (s *Store) FindOrCreateUser(ctx context.Context, provider, subject string) 
 
 		err := db.Where("provider = ? AND subject = ?", provider, subject).
 			Preload("Roles").
+			Preload("Preferences").
 			Attrs(&User{
 				ID:       string(model.NewUserID()),
 				Provider: provider,
@@ -55,7 +56,7 @@ func (s *Store) GetUserByID(ctx context.Context, userID model.UserID) (model.Use
 	var user User
 
 	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
-		if err := db.Preload("Roles").First(&user, "id = ?", string(userID)).Error; err != nil {
+		if err := db.Preload("Roles").Preload("Preferences").First(&user, "id = ?", string(userID)).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errors.WithStack(port.ErrNotFound)
 			}
@@ -79,8 +80,19 @@ func (s *Store) SaveUser(ctx context.Context, user model.User) error {
 		if err := db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "id"}},
 			UpdateAll: true,
-		}).Omit("Roles").Create(gormUser).Error; err != nil {
+		}).Omit("Roles", "Preferences").Create(gormUser).Error; err != nil {
 			return errors.WithStack(err)
+		}
+
+		// Handle preferences separately with the correct conflict column
+		if gormUser.Preferences != nil {
+			gormUser.Preferences.UserID = gormUser.ID
+			if err := db.Clauses(clause.OnConflict{
+				Columns:   []clause.Column{{Name: "user_id"}},
+				UpdateAll: true,
+			}).Create(gormUser.Preferences).Error; err != nil {
+				return errors.WithStack(err)
+			}
 		}
 
 		newRoles := gormUser.Roles[:]

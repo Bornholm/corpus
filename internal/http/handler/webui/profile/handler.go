@@ -38,6 +38,7 @@ func NewHandler(userStore port.UserStore) *Handler {
 	h.mux.Handle("GET /", assertUser(http.HandlerFunc(h.getProfilePage)))
 	h.mux.Handle("POST /tokens", assertUser(http.HandlerFunc(h.createToken)))
 	h.mux.Handle("DELETE /tokens/{tokenID}", assertUser(http.HandlerFunc(h.deleteToken)))
+	h.mux.Handle("POST /preferences", assertUser(http.HandlerFunc(h.updatePreferences)))
 
 	return h
 }
@@ -64,6 +65,7 @@ func (h *Handler) getProfilePage(w http.ResponseWriter, r *http.Request) {
 		TokenForm:    newTokenForm(),
 		CreatedToken: createdToken,
 		DeletedToken: deletedToken != "",
+		Preferences:  user.Preferences(),
 		AppLayoutVModel: common.AppLayoutVModel{
 			User:         user,
 			SelectedItem: "profile",
@@ -78,6 +80,40 @@ func (h *Handler) getProfilePage(w http.ResponseWriter, r *http.Request) {
 
 	profilePage := component.ProfilePage(vmodel)
 	templ.Handler(profilePage).ServeHTTP(w, r)
+}
+
+func (h *Handler) updatePreferences(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	user := httpCtx.User(ctx)
+
+	// Parse form values
+	darkMode := r.FormValue("dark_mode") == "on"
+
+	// Fetch the full user from the database (with preferences loaded)
+	existingUser, err := h.userStore.GetUserByID(ctx, user.ID())
+	if err != nil {
+		slog.ErrorContext(ctx, "could not fetch user", slogx.Error(err))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	// Copy user to get a mutable BaseUser and update preferences
+	updatedUser := model.CopyUser(existingUser)
+	updatedUser.SetPreferences(model.NewUserPreferences(
+		model.SetUserPrefencesDarkMode(darkMode),
+	))
+
+	// Save user with updated preferences
+	if err := h.userStore.SaveUser(ctx, updatedUser); err != nil {
+		slog.ErrorContext(ctx, "could not save user preferences", slogx.Error(err))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("HX-Refresh", "true")
+
+	// Redirect back to profile page
+	http.Redirect(w, r, "/profile/", http.StatusSeeOther)
 }
 
 func (h *Handler) createToken(w http.ResponseWriter, r *http.Request) {
