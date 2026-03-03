@@ -2,6 +2,7 @@ package component
 
 import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/dialog"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/sheet"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
@@ -53,6 +54,7 @@ templ PublicShareFooterItems(vmodel AppLayoutVModel) {
 
 // AppLayout is the main responsive layout shell with sidebar navigation.
 templ AppLayout(vmodel AppLayoutVModel, funcs ...PageOptionFunc) {
+	{{ funcs = append(funcs, WithScripts(dialog.Script())) }}
 	@Page(funcs...) {
 		<div class="flex h-screen overflow-hidden bg-background">
 			<!-- Mobile overlay sidebar -->
