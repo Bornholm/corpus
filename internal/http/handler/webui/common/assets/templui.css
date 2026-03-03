@@ -3607,9 +3607,19 @@
       margin-block: calc(var(--spacing) * 1);
     }
   }
+  .\[\&\>li\]\:my-2 {
+    &>li {
+      margin-block: calc(var(--spacing) * 2);
+    }
+  }
   .\[\&\>ol\]\:my-2 {
     &>ol {
       margin-block: calc(var(--spacing) * 2);
+    }
+  }
+  .\[\&\>ol\]\:my-4 {
+    &>ol {
+      margin-block: calc(var(--spacing) * 4);
     }
   }
   .\[\&\>ol\]\:list-decimal {
@@ -3625,6 +3635,11 @@
   .\[\&\>p\]\:my-2 {
     &>p {
       margin-block: calc(var(--spacing) * 2);
+    }
+  }
+  .\[\&\>p\]\:my-4 {
+    &>p {
+      margin-block: calc(var(--spacing) * 4);
     }
   }
   .\[\&\>span\:last-child\]\:truncate {
@@ -3678,6 +3693,11 @@
   .\[\&\>ul\]\:my-2 {
     &>ul {
       margin-block: calc(var(--spacing) * 2);
+    }
+  }
+  .\[\&\>ul\]\:my-4 {
+    &>ul {
+      margin-block: calc(var(--spacing) * 4);
     }
   }
   .\[\&\>ul\]\:list-disc {

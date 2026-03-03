@@ -189,7 +189,7 @@ templ AskPage(vmodel AskPageVModel) {
 					} else {
 						@card.Card() {
 							@card.Content(card.ContentProps{}) {
-								<div class="prose prose-sm max-w-none [&>p]:my-2 [&>ul]:my-2 [&>ol]:my-2 [&>li]:my-1 [&>ul]:list-disc [&>ol]:list-decimal [&>ul]:pl-4 [&>ol]:pl-4">
+								<div class="prose max-w-none">
 									@common.Markdown(vmodel.Response)
 								</div>
 							}
