@@ -109,7 +109,7 @@ func fromDocument(d model.OwnedDocument) (*Document, error) {
 
 	document := &Document{
 		ID:          string(d.ID()),
-		Owner:       fromUser(d.Owner()),
+		OwnerID:     string(d.Owner().ID()),
 		ETag:        d.ETag(),
 		Source:      d.Source().String(),
 		Collections: make([]*Collection, 0, len(d.Collections())),

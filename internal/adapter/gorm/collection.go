@@ -64,7 +64,7 @@ var _ model.PersistedCollection = &wrappedCollection{}
 func fromCollection(c model.OwnedCollection) *Collection {
 	collection := &Collection{
 		ID:          string(c.ID()),
-		Owner:       fromUser(c.Owner()),
+		OwnerID:     string(c.Owner().ID()),
 		Label:       c.Label(),
 		Description: c.Description(),
 	}
