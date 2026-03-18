@@ -9,7 +9,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/bornholm/genai/llm/provider"
-	_ "github.com/bornholm/genai/llm/provider/all"
 	"github.com/bornholm/genai/llm/provider/mistral"
 	"github.com/bornholm/genai/llm/provider/openai"
 	"github.com/bornholm/genai/llm/provider/openrouter"
