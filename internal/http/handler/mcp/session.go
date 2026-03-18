@@ -42,7 +42,7 @@ func (h *Handler) getSession(r *http.Request) *SessionData {
 func (h *Handler) saveSession(w http.ResponseWriter, r *http.Request, data *SessionData) error {
 	sess, _ := h.sessions.Get(r, sessionName)
 
-	sess.Values[sessionKeySession] = &data
+	sess.Values[sessionKeySession] = data
 
 	if err := h.sessions.Save(r, w, sess); err != nil {
 		return errors.WithStack(err)

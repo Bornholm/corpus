@@ -2,12 +2,15 @@ package mcp
 
 import (
 	"context"
+	"log/slog"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
+	"github.com/bornholm/go-x/slogx"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/pkg/errors"
 )
@@ -63,9 +66,19 @@ func (h *Handler) handleListCollections(ctx context.Context, request mcp.CallToo
 			sb.WriteString(string(c.ID()))
 			sb.WriteString("\n\n")
 
+			stats, err := h.documentManager.DocumentStore.GetCollectionStats(ctx, c.ID())
+			if err != nil {
+				slog.WarnContext(ctx, "could not retrieve collection stats", slog.String("collectionID", string(c.ID())), slogx.Error(err))
+			} else {
+				sb.WriteString("**Total documents:** ")
+				sb.WriteString(strconv.FormatInt(stats.TotalDocuments, 10))
+				sb.WriteString("\n\n")
+			}
+
 			sb.WriteString("**Description:**\n")
 			sb.WriteString(c.Description())
 			sb.WriteString("\n\n")
+
 		}
 
 	}

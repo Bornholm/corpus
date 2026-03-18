@@ -74,20 +74,43 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 
 func getAskTool() mcp.Tool {
 	return mcp.NewTool("ask",
-		mcp.WithDescription("Ask a question to the knowledge database about a topic"),
+		mcp.WithDescription(`Use this tool to ask questions and get answers from indexed documents using Retrieval-Augmented Generation (RAG). This tool searches the knowledge base for relevant context and generates a natural language response based on the found information.
+
+**When to use:**
+- When you need to find specific information about a topic covered by the document corpus
+- When you want to summarize or extract information from the document corpus
+- When the user asks "what", "how", "why", "who", "where" questions about stored content
+
+**Note:** If no relevant documents are found, the tool will return an error indicating no matching information was available.`),
 		mcp.WithString("question",
-			mcp.Description(`A properly formulated question to submit to the knowledge base.`),
+			mcp.Description(`The question to ask the knowledge base. For best results:
+- Use complete, natural language sentences
+- Be specific about what information you're looking for
+- Include relevant context if needed
+- Always use the language of the user
+- Examples: "What is the company's return policy for electronics?", "Quelle est la date de création de l'association ?"`),
 			mcp.Required(),
 		),
 		mcp.WithString("collection",
-			mcp.Description("Collection identifier. Restrict the knowledge base search to this collection"),
+			mcp.Description(`Optional. The collection ID to restrict the search to. If not provided, searches across all collections the user has access to.
+
+**How to get collection IDs:** Use the 'list_collections' tool first to retrieve available collections with their IDs.
+
+**Example collection ID format:** "c9v3jk2p3n4f9d8e7h6g5r4t3" (xid format)`),
 		),
 	)
 }
 
 func getListCollectionsTool() mcp.Tool {
 	return mcp.NewTool("list_collections",
-		mcp.WithDescription("List available documents collections in the knowledge database"),
+		mcp.WithDescription(`List all document collections available to the authenticated user.
+
+**When to use:**
+- Before using the 'ask' tool when you need to know which collections are available
+- To retrieve collection IDs for the 'collection' parameter in the 'ask' tool
+- To show users what document sets they can query
+
+**Returns:** A list of collections with their ID (use this in the 'collection' parameter), label (display name), and description.`),
 	)
 }
 

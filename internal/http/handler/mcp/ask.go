@@ -2,10 +2,13 @@ package mcp
 
 import (
 	"context"
+	"slices"
 	"strings"
 
+	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/core/port"
 	"github.com/bornholm/corpus/internal/core/service"
+	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/pkg/errors"
 )
@@ -28,6 +31,19 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 
 	query, results, err := h.doSearch(ctx, question)
 	if err != nil {
+		var invalidCollectionErr InvalidCollectionError
+		if errors.As(err, &invalidCollectionErr) {
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{
+					mcp.TextContent{
+						Type: "text",
+						Text: invalidCollectionErr.Error(),
+					},
+				},
+				IsError: true,
+			}, nil
+		}
+
 		return nil, errors.WithStack(err)
 	}
 
@@ -97,7 +113,34 @@ func (h *Handler) doSearch(ctx context.Context, query string) (string, []*port.I
 	options := make([]service.DocumentManagerSearchOptionFunc, 0)
 
 	sessionData := contextSessionData(ctx)
+
 	if len(sessionData.Collections) > 0 {
+		// Validate that all provided collection IDs are valid
+		user := httpCtx.User(ctx)
+		readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{
+			HeaderOnly: true,
+		})
+		if err != nil {
+			return "", nil, errors.WithStack(err)
+		}
+
+		// Check if any of the session collections are invalid
+		var invalidCollections []model.CollectionID
+		for _, collectionID := range sessionData.Collections {
+			isValid := slices.ContainsFunc(readableCollections, func(c model.PersistedCollection) bool {
+				return collectionID == c.ID()
+			})
+			if !isValid {
+				invalidCollections = append(invalidCollections, collectionID)
+			}
+		}
+
+		if len(invalidCollections) > 0 {
+			return "", nil, InvalidCollectionError{
+				InvalidCollections: invalidCollections,
+			}
+		}
+
 		options = append(options, service.WithDocumentManagerSearchCollections(sessionData.Collections...))
 	}
 
@@ -107,4 +150,24 @@ func (h *Handler) doSearch(ctx context.Context, query string) (string, []*port.I
 	}
 
 	return "", results, nil
+}
+
+// InvalidCollectionError is returned when an invalid collection identifier is provided.
+type InvalidCollectionError struct {
+	InvalidCollections []model.CollectionID
+}
+
+func (e InvalidCollectionError) Error() string {
+	var sb strings.Builder
+	sb.WriteString("invalid collection identifier(s): ")
+	for i, id := range e.InvalidCollections {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(string(id))
+	}
+	sb.WriteString(". Please provide a valid collection ID (e.g., ")
+	sb.WriteString(string(e.InvalidCollections[0]))
+	sb.WriteString("). Collection identifiers must be the collection ID, not the name or slug. Use the 'list_collections' tool to retrieve available collection IDs.")
+	return sb.String()
 }
