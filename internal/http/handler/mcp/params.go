@@ -16,6 +16,11 @@ import (
 
 func (h *Handler) withParams(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		slog.DebugContext(r.Context(), "mcp withParams: checking path",
+			slog.String("path", r.URL.Path),
+			slog.Bool("is_sse", strings.HasSuffix(r.URL.Path, "/mcp/sse")),
+		)
+
 		if !strings.HasSuffix(r.URL.Path, "/mcp/sse") {
 			next.ServeHTTP(w, r)
 			return
@@ -69,6 +74,7 @@ func (h *Handler) withParams(next http.Handler) http.Handler {
 				}
 			})
 
+			sessionData.Collections = collections
 			shouldSave = true
 		}
 

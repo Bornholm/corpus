@@ -29,7 +29,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 		}, nil
 	}
 
-	query, results, err := h.doSearch(ctx, question)
+	results, err := h.doSearch(ctx, question)
 	if err != nil {
 		var invalidCollectionErr InvalidCollectionError
 		if errors.As(err, &invalidCollectionErr) {
@@ -61,7 +61,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 		}, nil
 	}
 
-	response, sections, err := h.documentManager.Ask(ctx, query, results)
+	response, sections, err := h.documentManager.Ask(ctx, question, results)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
@@ -109,7 +109,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 	}, nil
 }
 
-func (h *Handler) doSearch(ctx context.Context, query string) (string, []*port.IndexSearchResult, error) {
+func (h *Handler) doSearch(ctx context.Context, query string) ([]*port.IndexSearchResult, error) {
 	options := make([]service.DocumentManagerSearchOptionFunc, 0)
 
 	sessionData := contextSessionData(ctx)
@@ -121,7 +121,7 @@ func (h *Handler) doSearch(ctx context.Context, query string) (string, []*port.I
 			HeaderOnly: true,
 		})
 		if err != nil {
-			return "", nil, errors.WithStack(err)
+			return nil, errors.WithStack(err)
 		}
 
 		// Check if any of the session collections are invalid
@@ -136,7 +136,7 @@ func (h *Handler) doSearch(ctx context.Context, query string) (string, []*port.I
 		}
 
 		if len(invalidCollections) > 0 {
-			return "", nil, InvalidCollectionError{
+			return nil, InvalidCollectionError{
 				InvalidCollections: invalidCollections,
 			}
 		}
@@ -146,10 +146,10 @@ func (h *Handler) doSearch(ctx context.Context, query string) (string, []*port.I
 
 	results, err := h.documentManager.Search(ctx, query, options...)
 	if err != nil {
-		return "", nil, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
-	return "", results, nil
+	return results, nil
 }
 
 // InvalidCollectionError is returned when an invalid collection identifier is provided.

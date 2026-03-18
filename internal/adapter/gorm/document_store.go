@@ -228,7 +228,7 @@ func (s *Store) QueryCollections(ctx context.Context, opts port.QueryCollections
 
 	query := db.Model(&Collection{})
 
-	if opts.IDs != nil {
+	if len(opts.IDs) > 0 {
 		rawCollectionIDs := slices.Collect(func(yield func(string) bool) {
 			for _, id := range opts.IDs {
 				if !yield(string(id)) {

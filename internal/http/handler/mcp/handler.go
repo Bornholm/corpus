@@ -25,6 +25,13 @@ type Handler struct {
 
 // ServeHTTP implements http.Handler.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	slog.DebugContext(r.Context(), "mcp handler received request",
+		slog.String("method", r.Method),
+		slog.String("path", r.URL.Path),
+		slog.String("query", r.URL.RawQuery),
+		slog.Int64("contentLength", r.ContentLength),
+	)
+
 	currentPath := r.URL.Path
 	r.URL.Path = h.basePath
 	r.URL = r.URL.JoinPath(currentPath)
