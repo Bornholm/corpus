@@ -168,6 +168,8 @@ github.com/blevesearch/zapx/v16 v16.2.3 h1:7Y0r+a3diEvlazsncexq1qoFOcBd64xwMS7aD
 github.com/blevesearch/zapx/v16 v16.2.3/go.mod h1:wVJ+GtURAaRG9KQAMNYyklq0egV+XJlGcXNCE0OFjjA=
 github.com/bornholm/genai v0.16.0 h1:WBzWYKUPKIv1RdO3hEcqWz5Iftb7TjrwhNK2pcdPcsE=
 github.com/bornholm/genai v0.16.0/go.mod h1:hGc42LcP3Ha2gNq+grJW4Vyy7qP8U5EW6JmpteCyKjA=
+github.com/bornholm/genai v0.16.1 h1:hFUDd2ToSQSYt0Y4bhOdw3i/0vuXPP3k/cqTCl2QRec=
+github.com/bornholm/genai v0.16.1/go.mod h1:E3A7NullfFAwslweAkSXPdgli5EuuR5dYa3hI2aDcNI=
 github.com/bornholm/go-x v0.0.0-20260127104343-c6737ea35324 h1:urrNBFQGXI3uvAivANnjEBdZVMDfmWn/okKIwDDqJ/w=
 github.com/bornholm/go-x v0.0.0-20260127104343-c6737ea35324/go.mod h1:LrDsNbXXqkdlQ/tlcbWKUF/FoFA/WjUEtNDRa/Xl19c=
 github.com/bornholm/lorca v0.0.0-20240121134933-d5e83569cb4c h1:ZpouqOtVUkkHYcU4ZxML4v5VuFcRnFp5orEBYiD7PPU=
