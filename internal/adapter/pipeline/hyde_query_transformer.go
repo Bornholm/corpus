@@ -11,6 +11,7 @@ import (
 	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/genai/llm/prompt"
 	"github.com/bornholm/go-x/slogx"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/pkg/errors"
 )
 
@@ -62,6 +63,8 @@ func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string,
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
+
+	spew.Dump(prompt)
 
 	ctx = slogx.WithAttrs(ctx, slog.Int("seed", seed))
 

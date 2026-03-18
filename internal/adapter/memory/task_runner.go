@@ -209,7 +209,7 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 			s.Status = port.TaskStatusRunning
 		})
 
-		events := make(chan port.TaskEvent)
+		events := make(chan port.TaskEvent, 100)
 
 		var eventsWg sync.WaitGroup
 		eventsWg.Add(1)
@@ -233,8 +233,6 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 			slog.String("taskID", string(taskID)),
 			slog.String("taskType", string(task.Type())),
 		)
-
-		slog.DebugContext(taskCtx, "executing task")
 
 		err := handler.Handle(taskCtx, task, events)
 

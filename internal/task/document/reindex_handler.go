@@ -2,6 +2,7 @@ package document
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/bornholm/corpus/internal/core/model"
@@ -9,14 +10,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type ReindexCollectionHandler struct {
+type ReindexHandler struct {
 	documentStore     port.DocumentStore
 	index             port.Index
 	maxWordPerSection int
 }
 
-func NewReindexCollectionHandler(documentStore port.DocumentStore, index port.Index, maxWordPerSection int) *ReindexCollectionHandler {
-	return &ReindexCollectionHandler{
+func NewReindexHandler(documentStore port.DocumentStore, index port.Index, maxWordPerSection int) *ReindexHandler {
+	return &ReindexHandler{
 		documentStore:     documentStore,
 		index:             index,
 		maxWordPerSection: maxWordPerSection,
@@ -24,33 +25,56 @@ func NewReindexCollectionHandler(documentStore port.DocumentStore, index port.In
 }
 
 // Handle implements [port.TaskHandler].
-func (h *ReindexCollectionHandler) Handle(ctx context.Context, task model.Task, events chan port.TaskEvent) error {
+func (h *ReindexHandler) Handle(ctx context.Context, task model.Task, events chan port.TaskEvent) error {
+	slog.DebugContext(ctx, "reindex handler started")
+
 	select {
 	case <-ctx.Done():
+		slog.DebugContext(ctx, "reindex handler context cancelled at start")
 		return errors.WithStack(ctx.Err())
 	default:
 	}
 
-	reindexTask, ok := task.(*ReindexCollectionTask)
-	if !ok {
+	var collectionID model.CollectionID
+
+	switch t := task.(type) {
+	case *ReindexCollectionTask:
+		collectionID = t.collectionID
+	case *ReindexBleveTask:
+		// No collection filter - reindex all
+	default:
 		return errors.Errorf("unexpected task type '%T'", task)
 	}
 
-	events <- port.NewTaskEvent(port.WithTaskMessage("retrieving total documents in collection"))
+	slog.DebugContext(ctx, "reindex handler sending first event")
+	events <- port.NewTaskEvent(port.WithTaskMessage("retrieving total documents"))
+	slog.DebugContext(ctx, "reindex handler first event sent")
 
-	// Get all documents in the collection
+	// Get all documents (optionally filtered by collection)
 	limit := 1
 	page := 1
 	var totalDocuments int64 = 0
 
+	var err error
+	var total int64
+
 	// First, get the total count
-	_, total, err := h.documentStore.QueryDocumentsByCollectionID(ctx, reindexTask.collectionID, port.QueryDocumentsOptions{
-		Limit:      &limit,
-		Page:       &page,
-		HeaderOnly: true,
-	})
+	if collectionID != "" {
+		_, total, err = h.documentStore.QueryDocumentsByCollectionID(ctx, collectionID, port.QueryDocumentsOptions{
+			Limit:      &limit,
+			Page:       &page,
+			HeaderOnly: true,
+		})
+	} else {
+		_, total, err = h.documentStore.QueryDocuments(ctx, port.QueryDocumentsOptions{
+			Limit:      &limit,
+			Page:       &page,
+			HeaderOnly: true,
+		})
+	}
+
 	if err != nil {
-		return errors.Wrap(err, "could not query documents in collection")
+		return errors.Wrap(err, "could not query documents")
 	}
 	totalDocuments = total
 
@@ -59,8 +83,8 @@ func (h *ReindexCollectionHandler) Handle(ctx context.Context, task model.Task, 
 		return nil
 	}
 
-	// First, delete all existing index entries for this collection
-	events <- port.NewTaskEvent(port.WithTaskMessage("deleting already existing index"))
+	// First, delete all existing index entries
+	events <- port.NewTaskEvent(port.WithTaskMessage("deleting existing index entries"))
 
 	deletedCount := 0
 
@@ -75,10 +99,21 @@ func (h *ReindexCollectionHandler) Handle(ctx context.Context, task model.Task, 
 		default:
 		}
 
-		documents, count, err := h.documentStore.QueryDocumentsByCollectionID(ctx, reindexTask.collectionID, port.QueryDocumentsOptions{
-			Limit: &docLimit,
-			Page:  &docPage,
-		})
+		var documents []model.PersistedDocument
+		var count int64
+
+		if collectionID != "" {
+			documents, count, err = h.documentStore.QueryDocumentsByCollectionID(ctx, collectionID, port.QueryDocumentsOptions{
+				Limit: &docLimit,
+				Page:  &docPage,
+			})
+		} else {
+			documents, count, err = h.documentStore.QueryDocuments(ctx, port.QueryDocumentsOptions{
+				Limit: &docLimit,
+				Page:  &docPage,
+			})
+		}
+
 		if err != nil {
 			return errors.Wrap(err, "could not query documents")
 		}
@@ -87,6 +122,8 @@ func (h *ReindexCollectionHandler) Handle(ctx context.Context, task model.Task, 
 			allDocumentsProcessed = true
 			break
 		}
+
+		events <- port.NewTaskEvent(port.WithTaskMessage(fmt.Sprintf("deleting documents (total: %d, batch: %d, batch size: %d)", count, docPage, docLimit)))
 
 		// Delete index entries for these documents
 		for _, doc := range documents {
@@ -133,10 +170,21 @@ func (h *ReindexCollectionHandler) Handle(ctx context.Context, task model.Task, 
 		default:
 		}
 
-		documents, count, err := h.documentStore.QueryDocumentsByCollectionID(ctx, reindexTask.collectionID, port.QueryDocumentsOptions{
-			Limit: &docLimit,
-			Page:  &docPage,
-		})
+		var documents []model.PersistedDocument
+		var count int64
+
+		if collectionID != "" {
+			documents, count, err = h.documentStore.QueryDocumentsByCollectionID(ctx, collectionID, port.QueryDocumentsOptions{
+				Limit: &docLimit,
+				Page:  &docPage,
+			})
+		} else {
+			documents, count, err = h.documentStore.QueryDocuments(ctx, port.QueryDocumentsOptions{
+				Limit: &docLimit,
+				Page:  &docPage,
+			})
+		}
+
 		if err != nil {
 			return errors.Wrap(err, "could not query documents")
 		}
@@ -175,4 +223,4 @@ func (h *ReindexCollectionHandler) Handle(ctx context.Context, task model.Task, 
 	return nil
 }
 
-var _ port.TaskHandler = &ReindexCollectionHandler{}
+var _ port.TaskHandler = &ReindexHandler{}

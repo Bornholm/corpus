@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-var getReindexCollectionTaskHandler = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (*documentTask.ReindexCollectionHandler, error) {
+var getReindexCollectionTaskHandler = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (*documentTask.ReindexHandler, error) {
 	documentStore, err := getDocumentStoreFromConfig(ctx, conf)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not create document store from config")
@@ -19,7 +19,7 @@ var getReindexCollectionTaskHandler = createFromConfigOnce(func(ctx context.Cont
 		return nil, errors.Wrap(err, "could not create index from config")
 	}
 
-	handler := documentTask.NewReindexCollectionHandler(documentStore, index, conf.LLM.Index.MaxWords)
+	handler := documentTask.NewReindexHandler(documentStore, index, conf.LLM.Index.MaxWords)
 
 	return handler, nil
 })

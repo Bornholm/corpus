@@ -102,5 +102,25 @@ func setupTaskHandlers(ctx context.Context, conf *config.Config, taskRunner port
 
 	taskRunner.RegisterTask(documentTask.TaskTypeReindexCollection, reindexCollectionHandler)
 
+	reindexBleveHandler, err := getReindexBleveTaskHandler(ctx, conf)
+	if err != nil {
+		return errors.Wrap(err, "could not reindex bleve task handler from config")
+	}
+
+	taskRunner.RegisterTask(documentTask.TaskTypeReindexBleve, reindexBleveHandler)
+
+	// Schedule bleve reindex if a mapping change was detected during startup.
+	// This is done here, after all handlers are registered, to avoid a race where
+	// the task goroutine fires before TaskTypeReindexBleve has a handler.
+	if bleveReindexNeeded {
+		bleveReindexNeeded = false
+		reindexTask := documentTask.NewReindexBleveTask(nil)
+		if err := taskRunner.ScheduleTask(ctx, reindexTask); err != nil {
+			slog.ErrorContext(ctx, "could not schedule bleve reindex task", slog.Any("error", errors.WithStack(err)))
+		} else {
+			slog.InfoContext(ctx, "scheduled bleve index reindex task", slog.String("task_id", string(reindexTask.ID())))
+		}
+	}
+
 	return nil
 }

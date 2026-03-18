@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/url"
 	"slices"
-	"strings"
 
 	"github.com/blevesearch/bleve/v2"
 	bleveQuery "github.com/blevesearch/bleve/v2/search/query"
@@ -48,10 +47,6 @@ func (i *Index) DeleteBySource(ctx context.Context, source *url.URL) error {
 		}
 
 		for _, r := range result.Hits {
-			if !strings.HasPrefix(r.ID, source.String()) {
-				continue
-			}
-
 			slog.DebugContext(ctx, "deleting resource", slog.String("source", source.String()), slog.String("id", r.ID))
 
 			if err := i.index.Delete(r.ID); err != nil {
