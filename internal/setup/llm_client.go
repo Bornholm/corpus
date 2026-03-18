@@ -10,6 +10,9 @@ import (
 
 	"github.com/bornholm/genai/llm/provider"
 	_ "github.com/bornholm/genai/llm/provider/all"
+	"github.com/bornholm/genai/llm/provider/mistral"
+	"github.com/bornholm/genai/llm/provider/openai"
+	"github.com/bornholm/genai/llm/provider/openrouter"
 	"github.com/bornholm/genai/llm/retry"
 
 	corpusLLM "github.com/bornholm/corpus/internal/llm"
@@ -18,21 +21,50 @@ import (
 )
 
 var getLLMClientFromConfig = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (llm.Client, error) {
-	client, err := provider.Create(ctx,
-		provider.WithChatCompletionOptions(provider.ClientOptions{
-			Provider: provider.Name(conf.LLM.Provider.Name),
-			BaseURL:  conf.LLM.Provider.BaseURL,
-			APIKey:   conf.LLM.Provider.Key,
-			Model:    conf.LLM.Provider.ChatCompletionModel,
-		}),
-		provider.WithEmbeddingsOptions(provider.ClientOptions{
-			Provider: provider.Name(conf.LLM.Provider.Name),
-			BaseURL:  conf.LLM.Provider.BaseURL,
-			APIKey:   conf.LLM.Provider.Key,
-			Model:    conf.LLM.Provider.EmbeddingsModel,
-		}),
-	)
+	options := make([]provider.OptionFunc, 0)
 
+	chatCompletionOptions := provider.CommonOptions{
+		Model:   conf.LLM.Provider.ChatCompletionModel,
+		BaseURL: conf.LLM.Provider.BaseURL,
+		APIKey:  conf.LLM.Provider.Key,
+	}
+
+	embeddingsOptions := provider.CommonOptions{
+		Model:   conf.LLM.Provider.EmbeddingsModel,
+		BaseURL: conf.LLM.Provider.BaseURL,
+		APIKey:  conf.LLM.Provider.Key,
+	}
+
+	switch provider.Name(conf.LLM.Provider.Name) {
+	case openai.Name:
+		options = append(options, provider.WithChatCompletion(openai.Name, openai.Options{
+			CommonOptions: chatCompletionOptions,
+		}))
+
+		options = append(options, provider.WithEmbeddings(openai.Name, openai.Options{
+			CommonOptions: embeddingsOptions,
+		}))
+
+	case mistral.Name:
+		options = append(options, provider.WithChatCompletion(mistral.Name, mistral.Options{
+			CommonOptions: chatCompletionOptions,
+		}))
+
+		options = append(options, provider.WithEmbeddings(mistral.Name, mistral.Options{
+			CommonOptions: embeddingsOptions,
+		}))
+
+	case openrouter.Name:
+		options = append(options, provider.WithChatCompletion(openrouter.Name, openrouter.Options{
+			CommonOptions: chatCompletionOptions,
+		}))
+
+		options = append(options, provider.WithEmbeddings(openrouter.Name, mistral.Options{
+			CommonOptions: embeddingsOptions,
+		}))
+	}
+
+	client, err := provider.Create(ctx, options...)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}

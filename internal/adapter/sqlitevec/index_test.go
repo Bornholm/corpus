@@ -61,15 +61,17 @@ func TestIndex(t *testing.T) {
 	}
 
 	client, err := provider.Create(ctx,
-		provider.WithChatCompletionOptions(provider.ClientOptions{
-			Provider: openai.Name,
-			BaseURL:  connectionStr + "/v1/",
-			Model:    chatCompletionModel,
+		provider.WithChatCompletion(openai.Name, openai.Options{
+			CommonOptions: provider.CommonOptions{
+				BaseURL: connectionStr + "/v1/",
+				Model:   chatCompletionModel,
+			},
 		}),
-		provider.WithEmbeddingsOptions(provider.ClientOptions{
-			Provider: openai.Name,
-			BaseURL:  connectionStr + "/v1/",
-			Model:    embeddingsModel,
+		provider.WithEmbeddings(openai.Name, openai.Options{
+			CommonOptions: provider.CommonOptions{
+				BaseURL: connectionStr + "/v1/",
+				Model:   embeddingsModel,
+			},
 		}),
 	)
 	if err != nil {
