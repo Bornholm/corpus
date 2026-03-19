@@ -13,6 +13,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/extension"
 )
 
 // Markdown renders markdown content with default prose styling.
@@ -110,8 +111,13 @@ func MarkdownWithVariants(source string, class string) templ.Component {
 }
 
 func convert(source string) (string, error) {
+	md := goldmark.New(
+		goldmark.WithExtensions(
+			extension.GFM,
+		),
+	)
 	var buf bytes.Buffer
-	if err := goldmark.Convert([]byte(source), &buf); err != nil {
+	if err := md.Convert([]byte(source), &buf); err != nil {
 		return "", errors.WithStack(err)
 	}
 
