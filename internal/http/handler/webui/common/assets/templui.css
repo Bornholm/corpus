@@ -3932,6 +3932,37 @@
   border-top: 1px solid var(--border);
   margin: 1rem 0;
 }
+.prose table {
+  width: 100%;
+  caption-side: bottom;
+  font-size: 0.875rem;
+  margin: 0.75rem 0;
+}
+.prose thead tr {
+  border-bottom: 1px solid var(--border);
+}
+.prose tbody tr:last-child {
+  border-bottom: 0;
+}
+.prose tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 0.15s;
+}
+.prose tr:hover {
+  background-color: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+.prose th {
+  height: 2.5rem;
+  padding: 0 0.5rem;
+  text-align: left;
+  vertical-align: middle;
+  font-weight: 500;
+  color: var(--muted-foreground);
+}
+.prose td {
+  padding: 0.5rem;
+  vertical-align: middle;
+}
 .prose-sm {
   font-size: 0.875rem;
 }
