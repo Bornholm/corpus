@@ -3,7 +3,7 @@ package context
 import (
 	"context"
 
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 )
 
 const keyUser contextKey = "user"

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/bornholm/corpus/internal/command/common"
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/internal/scraper"
 	"github.com/bornholm/corpus/internal/scraper/chromedp"
 	"github.com/bornholm/corpus/internal/scraper/surf"

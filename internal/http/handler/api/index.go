@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"slices"
 
-	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"

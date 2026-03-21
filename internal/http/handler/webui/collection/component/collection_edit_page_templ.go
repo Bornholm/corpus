@@ -9,7 +9,6 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/bornholm/corpus/internal/core/model"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/accordion"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/alert"
@@ -20,6 +19,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/pagination"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/textarea"
+	"github.com/bornholm/corpus/pkg/model"
 	"strconv"
 )
 

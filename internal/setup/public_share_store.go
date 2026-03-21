@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/pkg/errors"
 
 	_ "github.com/asg017/sqlite-vec-go-bindings/ncruces"

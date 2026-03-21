@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 	"github.com/pkg/errors"
 )
 

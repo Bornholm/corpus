@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/desktop"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/bornholm/corpus/internal/http/middleware/authn"

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/internal/core/service"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
 	"github.com/bornholm/corpus/internal/http/handler/webui/pubshare/component"

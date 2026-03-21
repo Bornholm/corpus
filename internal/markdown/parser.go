@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"slices"
 
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 	corpusText "github.com/bornholm/corpus/internal/text"
 	"github.com/pkg/errors"
 	meta "github.com/yuin/goldmark-meta"

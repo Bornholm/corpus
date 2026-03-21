@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/genai/extract"
 	"github.com/pkg/errors"
 )

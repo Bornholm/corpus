@@ -2,7 +2,7 @@ package component
 
 import (
 	"github.com/a-h/templ"
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 )
 
 // AppLayoutVModel defines the view model for the app layout.

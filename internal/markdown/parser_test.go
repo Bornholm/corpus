@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
@@ -31,17 +31,17 @@ func TestParser(t *testing.T) {
 			MaxWordPerSection: 200,
 		},
 		{
-			File:              "../core/port/testsuite/testdata/documents/programming_go.md",
+			File:              "../../pkg/port/testsuite/testdata/documents/programming_go.md",
 			ExpectedSections:  4,
 			MaxWordPerSection: 200,
 		},
 		{
-			File:              "../core/port/testsuite/testdata/documents/programming_rust.md",
+			File:              "../../pkg/port/testsuite/testdata/documents/programming_rust.md",
 			ExpectedSections:  3,
 			MaxWordPerSection: 200,
 		},
 		{
-			File:              "../core/port/testsuite/testdata/documents/cooking_boeuf_bourguignon.md",
+			File:              "../../pkg/port/testsuite/testdata/documents/cooking_boeuf_bourguignon.md",
 			ExpectedSections:  4,
 			MaxWordPerSection: 200,
 		},

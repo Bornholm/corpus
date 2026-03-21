@@ -3,7 +3,7 @@ package backup
 import (
 	"context"
 
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 )
 
 type Restorable interface {

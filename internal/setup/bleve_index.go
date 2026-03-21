@@ -11,9 +11,9 @@ import (
 
 	"github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
-	bleveAdapter "github.com/bornholm/corpus/internal/adapter/bleve"
+	bleveAdapter "github.com/bornholm/corpus/pkg/adapter/bleve"
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/pkg/errors"
 )
 

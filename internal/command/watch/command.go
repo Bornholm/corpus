@@ -17,7 +17,7 @@ import (
 	"github.com/urfave/cli/v2/altsrc"
 
 	"github.com/bornholm/corpus/internal/command/common"
-	"github.com/bornholm/corpus/internal/core/model"
+	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/internal/filesystem"
 	"github.com/bornholm/corpus/internal/filesystem/backend"
 	"github.com/bornholm/go-x/slogx"

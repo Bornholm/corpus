@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/Bornholm/amatl/pkg/log"
-	"github.com/bornholm/corpus/internal/adapter/memory/syncx"
-	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/adapter/memory/syncx"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/filesystem"
 	"github.com/bornholm/corpus/pkg/client"
 	"github.com/bornholm/go-x/slogx"

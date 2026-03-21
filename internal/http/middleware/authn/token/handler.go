@@ -3,7 +3,7 @@ package token
 import (
 	"net/http"
 
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/gorilla/sessions"
 )
 

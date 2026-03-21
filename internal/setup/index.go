@@ -3,9 +3,9 @@ package setup
 import (
 	"context"
 
-	"github.com/bornholm/corpus/internal/adapter/pipeline"
+	"github.com/bornholm/corpus/pkg/adapter/pipeline"
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/pkg/errors"
 )
 

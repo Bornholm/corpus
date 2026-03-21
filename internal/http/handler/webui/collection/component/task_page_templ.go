@@ -11,12 +11,12 @@ import templruntime "github.com/a-h/templ/runtime"
 import (
 	"fmt"
 
-	"github.com/bornholm/corpus/internal/core/port"
 	webCommon "github.com/bornholm/corpus/internal/http/handler/webui/common"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/alert"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/progress"
+	"github.com/bornholm/corpus/pkg/port"
 )
 
 type TaskPageVModel struct {

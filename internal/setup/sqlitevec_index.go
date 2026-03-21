@@ -3,9 +3,9 @@ package setup
 import (
 	"context"
 
-	"github.com/bornholm/corpus/internal/adapter/sqlitevec"
+	"github.com/bornholm/corpus/pkg/adapter/sqlitevec"
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/ncruces/go-sqlite3"
 	"github.com/pkg/errors"
 )

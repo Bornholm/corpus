@@ -9,14 +9,14 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/port"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/badge"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/pagination"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	"strconv"
 )
 

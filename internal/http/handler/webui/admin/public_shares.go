@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"github.com/a-h/templ"
-	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/crypto"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/internal/http/handler/webui/admin/component"

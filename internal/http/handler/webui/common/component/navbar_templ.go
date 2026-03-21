@@ -9,8 +9,8 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/bornholm/corpus/internal/core/model"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
+	"github.com/bornholm/corpus/pkg/model"
 )
 
 type NavbarVModel struct {

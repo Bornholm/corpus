@@ -17,9 +17,9 @@ import (
 	"github.com/zserge/lorca"
 
 	// Adapters
-	_ "github.com/bornholm/corpus/internal/adapter/genai"
-	_ "github.com/bornholm/corpus/internal/adapter/memory"
-	_ "github.com/bornholm/corpus/internal/adapter/pandoc"
+	_ "github.com/bornholm/corpus/pkg/adapter/genai"
+	_ "github.com/bornholm/corpus/pkg/adapter/memory"
+	_ "github.com/bornholm/corpus/pkg/adapter/pandoc"
 
 	// GenAI text extractors
 	_ "github.com/bornholm/genai/extract/provider/marker"

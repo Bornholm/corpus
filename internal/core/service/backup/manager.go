@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 
 	"github.com/bornholm/corpus/internal/backup"
-	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/util"
 	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"

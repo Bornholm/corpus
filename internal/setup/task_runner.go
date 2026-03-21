@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/core/service/backup"
 	"github.com/bornholm/corpus/internal/metrics"
 	documentTask "github.com/bornholm/corpus/internal/task/document"

@@ -5,8 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	documentTask "github.com/bornholm/corpus/internal/task/document"
 	"github.com/pkg/errors"
 )

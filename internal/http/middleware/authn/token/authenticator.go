@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/http/middleware/authn"
 	"github.com/pkg/errors"
 )

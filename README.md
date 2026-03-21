@@ -4,7 +4,7 @@
 
 # Corpus
 
-A "good enough" and easy to deploy [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) service.
+An easy to deploy [RAG](https://en.wikipedia.org/wiki/Retrieval-augmented_generation) service.
 
 > ⚠️ **Disclaimer**
 >
@@ -61,6 +61,67 @@ CORPUS_LLM_PROVIDER_BASE_URL=https://api.mistral.ai/v1/
 CORPUS_LLM_PROVIDER_CHAT_COMPLETION_MODEL=mistral-small-latest
 CORPUS_LLM_PROVIDER_EMBEDDINGS_MODEL=mistral-embed
 ```
+
+## Usage as a library
+
+Corpus can be embedded directly in a Go project to index and search documents without running a server.
+
+### Installation
+
+```bash
+go get github.com/bornholm/corpus
+```
+
+> **Note:** The `sqlitevec` adapter uses CGO. Make sure a C compiler is available in your build environment.
+
+### Quick start
+
+```go
+import (
+    "context"
+
+    "github.com/bornholm/corpus/pkg/corpus"
+    "github.com/bornholm/genai/llm/provider"
+    providerenv "github.com/bornholm/genai/llm/provider/env"
+)
+
+// Create a client from environment variables (see configuration below)
+llmClient, _ := provider.Create(ctx, providerenv.With("LLM_", ".env"))
+
+// Initialise an embedded corpus (SQLite + Bleve + SQLiteVec, auto-composed)
+c, err := corpus.New(ctx,
+    corpus.WithStoragePath("./data"),
+    corpus.WithLLMClient(llmClient),
+)
+
+// Create a collection, index a file, search, ask
+collID, _ := c.CreateCollection(ctx, "my-docs")
+taskID, _ := c.IndexFile(ctx, collID, "notes.md", reader)
+
+results, _ := c.Search(ctx, "my question",
+    corpus.WithSearchCollections(collID),
+    corpus.WithSearchMaxResults(5),
+)
+
+answer, _, _ := c.Ask(ctx, "my question", results)
+```
+
+### LLM configuration
+
+The `providerenv.With(prefix)` helper reads LLM configuration from environment variables:
+
+| Variable                              | Description              | Example (ollama)            |
+| ------------------------------------- | ------------------------ | --------------------------- |
+| `LLM_CHAT_COMPLETION_PROVIDER`        | Chat completion provider | `openai`                    |
+| `LLM_CHAT_COMPLETION_OPENAI_BASE_URL` | Chat completion endpoint | `http://localhost:11434/v1` |
+| `LLM_CHAT_COMPLETION_OPENAI_MODEL`    | Chat completion model    | `qwen2.5:7b`                |
+| `LLM_EMBEDDINGS_PROVIDER`             | Embeddings provider      | `openai`                    |
+| `LLM_EMBEDDINGS_OPENAI_BASE_URL`      | Embeddings endpoint      | `http://localhost:11434/v1` |
+| `LLM_EMBEDDINGS_OPENAI_MODEL`         | Embeddings model         | `mxbai-embed-large`         |
+
+Variables can also be loaded from a `.env` file by passing its path to `providerenv.With`.
+
+More advanced options are available. A full runnable example is available in [`example/embedded/`](example/embedded/).
 
 ## Sponsors
 

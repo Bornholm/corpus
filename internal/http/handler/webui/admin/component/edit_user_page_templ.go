@@ -9,9 +9,9 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/bornholm/corpus/internal/core/model"
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/templx/form/renderer/templui"
 	formx "github.com/bornholm/go-x/templx/form"
 )

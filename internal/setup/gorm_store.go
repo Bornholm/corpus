@@ -3,8 +3,8 @@ package setup
 import (
 	"context"
 
-	"github.com/bornholm/corpus/internal/adapter/gorm"
-	gormAdapter "github.com/bornholm/corpus/internal/adapter/gorm"
+	"github.com/bornholm/corpus/pkg/adapter/gorm"
+	gormAdapter "github.com/bornholm/corpus/pkg/adapter/gorm"
 	"github.com/bornholm/corpus/internal/config"
 	"github.com/pkg/errors"
 

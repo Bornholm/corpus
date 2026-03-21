@@ -9,7 +9,6 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/bornholm/corpus/internal/core/model"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/alert"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
@@ -18,6 +17,7 @@ import (
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/input"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/switch"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
+	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/go-x/templx/form"
 )
 

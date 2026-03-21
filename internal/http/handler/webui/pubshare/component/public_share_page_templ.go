@@ -10,13 +10,13 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"encoding/base64"
-	"github.com/bornholm/corpus/internal/core/model"
-	"github.com/bornholm/corpus/internal/core/port"
 	common "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/accordion"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/card"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/textarea"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	"strings"
 	"time"
 )

@@ -5,7 +5,7 @@ import (
 	"io"
 	"time"
 
-	"github.com/bornholm/corpus/internal/core/port"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 )
