@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/bornholm/corpus/internal/build"
 	"github.com/bornholm/corpus/internal/core/service"
@@ -70,6 +71,8 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 		server.WithBaseURL(baseURL),
 		server.WithStaticBasePath(basePath),
 		server.WithHTTPContextFunc(h.updateSessionContext),
+		server.WithKeepAlive(true),
+		server.WithKeepAliveInterval(15*time.Second),
 	)
 
 	assertAuthenticated := authz.Middleware(nil, authz.IsAuthenticated)
