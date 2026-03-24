@@ -63,7 +63,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
 
-	collections, err := h.getReadableCollections(ctx, r.Form["collection"])
+	collections, err := h.getReadableCollections(ctx, r.URL.Query()["collection"])
 	if err != nil {
 		common.HandleError(w, r, errors.WithStack(err))
 		return
