@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/url"
 	"slices"
+	"strings"
 
 	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/pkg/port"
@@ -1014,11 +1015,26 @@ func (s *Store) QueryDocumentsByCollectionID(ctx context.Context, collectionID m
 			string(collectionID),
 		)
 
+		// Apply source pattern filter before count so total reflects the filter
+		if opts.SourcePattern != nil && *opts.SourcePattern != "" {
+			query = query.Where("source LIKE ?", "%"+*opts.SourcePattern+"%")
+		}
+
 		if err := query.Count(&total).Error; err != nil {
 			return errors.WithStack(err)
 		}
 
-		query = query.Limit(limit).Offset(page * limit).Order("created_at DESC")
+		// Build ORDER BY from whitelist to prevent SQL injection
+		sortColumn := "created_at"
+		if opts.SortBy != nil && *opts.SortBy == "source" {
+			sortColumn = "source"
+		}
+		sortDir := "DESC"
+		if opts.SortOrder != nil && strings.ToLower(*opts.SortOrder) == "asc" {
+			sortDir = "ASC"
+		}
+
+		query = query.Limit(limit).Offset(page * limit).Order(sortColumn + " " + sortDir)
 
 		if !opts.HeaderOnly {
 			query = query.Preload(clause.Associations).Preload("Sections")

@@ -1955,9 +1955,6 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  .\[rows\:\%v\] {
-    rows: %v;
-  }
   .group-data-\[tui-selectbox-selected\=true\]\:opacity-100 {
     &:is(:where(.group)[data-tui-selectbox-selected="true"] *) {
       opacity: 100%;

@@ -68,6 +68,15 @@ type QueryDocumentsOptions struct {
 
 	// Documents without parent collection
 	Orphaned *bool
+
+	// Documents matching the given source pattern (LIKE %pattern%)
+	SourcePattern *string
+
+	// Column to sort by: "source" or "created_at" (default)
+	SortBy *string
+
+	// Sort direction: "asc" or "desc" (default)
+	SortOrder *string
 }
 
 type QueryCollectionsOptions struct {

@@ -336,10 +336,28 @@ func (h *Handler) fillCollectionEditPageVModelDocuments(ctx context.Context, vmo
 		}
 	}
 
+	// Source pattern filter
+	sourcePattern := r.URL.Query().Get("source")
+
+	// Sort column (whitelist)
+	sortBy := r.URL.Query().Get("sort")
+	if sortBy != "source" && sortBy != "created_at" {
+		sortBy = "created_at"
+	}
+
+	// Sort direction (whitelist)
+	sortOrder := r.URL.Query().Get("order")
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+
 	opts := port.QueryDocumentsOptions{
-		Page:       &page,
-		Limit:      &pageSize,
-		HeaderOnly: true,
+		Page:          &page,
+		Limit:         &pageSize,
+		HeaderOnly:    true,
+		SourcePattern: &sourcePattern,
+		SortBy:        &sortBy,
+		SortOrder:     &sortOrder,
 	}
 
 	documents, total, err := h.documentManager.DocumentStore.QueryDocumentsByCollectionID(ctx, collectionID, opts)
@@ -351,6 +369,9 @@ func (h *Handler) fillCollectionEditPageVModelDocuments(ctx context.Context, vmo
 	vmodel.CurrentPage = page
 	vmodel.PageSize = pageSize
 	vmodel.TotalDocuments = total
+	vmodel.SourceFilter = sourcePattern
+	vmodel.SortBy = sortBy
+	vmodel.SortOrder = sortOrder
 	if pageSize > 0 {
 		vmodel.TotalPages = int((total + int64(pageSize) - 1) / int64(pageSize))
 	} else {

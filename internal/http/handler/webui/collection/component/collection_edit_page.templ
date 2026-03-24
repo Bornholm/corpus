@@ -28,6 +28,9 @@ type CollectionEditPageVModel struct {
 	TotalDocuments  int64
 	PageSize        int
 	UploadFileModal *UploadFileModalVModel
+	SourceFilter    string
+	SortBy          string
+	SortOrder       string
 }
 
 templ CollectionEditPage(vmodel CollectionEditPageVModel) {
@@ -232,6 +235,29 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 					</h3>
 				</div>
 				<div class="p-6 pt-0">
+					<!-- Filter form -->
+					<form method="get" class="flex items-center gap-2 mb-4">
+						<input type="hidden" name="sort" value={ vmodel.SortBy }/>
+						<input type="hidden" name="order" value={ vmodel.SortOrder }/>
+						@input.Input(input.Props{
+							Name:        "source",
+							ID:          "source-filter",
+							Value:       vmodel.SourceFilter,
+							Placeholder: "Filtrer par source...",
+							Class:       "flex-1",
+						})
+						<button type="submit" class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 cursor-pointer">
+							@icon.Search(icon.Props{Class: "h-4 w-4"})
+						</button>
+						if vmodel.SourceFilter != "" {
+							<a
+								href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("sort", vmodel.SortBy, "order", vmodel.SortOrder)) }
+								class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
+							>
+								@icon.X(icon.Props{Class: "h-4 w-4"})
+							</a>
+						}
+					</form>
 					if len(vmodel.Documents) == 0 {
 						<p class="text-sm text-muted-foreground italic">Aucun document dans cette collection.</p>
 					} else {
@@ -239,8 +265,46 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 							@table.Table() {
 								@table.Header() {
 									<tr>
-										<th class="text-left p-3 text-sm font-medium">Source</th>
-										<th class="text-left p-3 text-sm font-medium">Date d'ajout</th>
+										<th class="text-left p-3 text-sm font-medium">
+											if vmodel.SortBy == "source" {
+												if vmodel.SortOrder == "asc" {
+													<a href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("sort", "source", "order", "desc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Source
+														@icon.ChevronUp(icon.Props{Class: "h-3 w-3"})
+													</a>
+												} else {
+													<a href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("sort", "source", "order", "asc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Source
+														@icon.ChevronDown(icon.Props{Class: "h-3 w-3"})
+													</a>
+												}
+											} else {
+												<a href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("sort", "source", "order", "asc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground text-muted-foreground">
+													Source
+													@icon.ChevronsUpDown(icon.Props{Class: "h-3 w-3"})
+												</a>
+											}
+										</th>
+										<th class="text-left p-3 text-sm font-medium">
+											if vmodel.SortBy == "created_at" {
+												if vmodel.SortOrder == "asc" {
+													<a href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("sort", "created_at", "order", "desc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Date d&apos;ajout
+														@icon.ChevronUp(icon.Props{Class: "h-3 w-3"})
+													</a>
+												} else {
+													<a href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("sort", "created_at", "order", "asc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Date d&apos;ajout
+														@icon.ChevronDown(icon.Props{Class: "h-3 w-3"})
+													</a>
+												}
+											} else {
+												<a href={ common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("sort", "created_at", "order", "desc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground text-muted-foreground">
+													Date d&apos;ajout
+													@icon.ChevronsUpDown(icon.Props{Class: "h-3 w-3"})
+												</a>
+											}
+										</th>
 										if vmodel.IsWritable {
 											<th class="text-right p-3 text-sm font-medium"></th>
 										}
@@ -281,7 +345,7 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 										if vmodel.CurrentPage > 0 {
 											@pagination.Item() {
 												@pagination.Previous(pagination.PreviousProps{
-													Href: string(common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1)))),
+													Href: string(common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1), "source", vmodel.SourceFilter, "sort", vmodel.SortBy, "order", vmodel.SortOrder))),
 												})
 											}
 										}
@@ -291,7 +355,7 @@ templ CollectionEditPage(vmodel CollectionEditPageVModel) {
 										if vmodel.CurrentPage < vmodel.TotalPages-1 {
 											@pagination.Item() {
 												@pagination.Next(pagination.NextProps{
-													Href: string(common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1)))),
+													Href: string(common.BaseURL(ctx, common.WithPath("/collections", string(vmodel.Collection.ID()), "edit"), common.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1), "source", vmodel.SourceFilter, "sort", vmodel.SortBy, "order", vmodel.SortOrder))),
 												})
 											}
 										}
