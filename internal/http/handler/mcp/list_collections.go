@@ -7,15 +7,15 @@ import (
 	"strconv"
 	"strings"
 
+	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/pkg/port"
-	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/go-x/slogx"
-	"github.com/mark3labs/mcp-go/mcp"
+	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pkg/errors"
 )
 
-func (h *Handler) handleListCollections(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *Handler) handleListCollections(ctx context.Context, request *sdkmcp.CallToolRequest) (*sdkmcp.CallToolResult, error) {
 	user := httpCtx.User(ctx)
 
 	collections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{
@@ -83,12 +83,9 @@ func (h *Handler) handleListCollections(ctx context.Context, request mcp.CallToo
 
 	}
 
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			mcp.TextContent{
-				Type: "text",
-				Text: sb.String(),
-			},
+	return &sdkmcp.CallToolResult{
+		Content: []sdkmcp.Content{
+			&sdkmcp.TextContent{Text: sb.String()},
 		},
 	}, nil
 }

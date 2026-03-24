@@ -1,52 +1,37 @@
 package mcp
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"slices"
-	"strings"
 
+	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/go-x/slogx"
 	"github.com/pkg/errors"
-
-	httpCtx "github.com/bornholm/corpus/internal/http/context"
 )
 
 func (h *Handler) withParams(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		slog.DebugContext(r.Context(), "mcp withParams: checking path",
-			slog.String("path", r.URL.Path),
-			slog.Bool("is_sse", strings.HasSuffix(r.URL.Path, "/mcp/sse")),
-		)
-
-		if !strings.HasSuffix(r.URL.Path, "/mcp/sse") {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		shouldSave := false
-
+		ctx := r.Context()
 		sessionData := h.getSession(r)
 
 		query := r.URL.Query()
-
-		ctx := r.Context()
-		user := httpCtx.User(ctx)
-
-		collections := make([]model.CollectionID, 0)
-
-		readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
-		if err != nil {
-			slog.ErrorContext(ctx, "could not retrieve user readable collections", slogx.Error(err))
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-			return
-		}
-
 		rawCollections := query["collection"]
 
 		if len(rawCollections) > 0 {
+			user := httpCtx.User(ctx)
+
+			readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
+			if err != nil {
+				slog.ErrorContext(ctx, "could not retrieve user readable collections", slogx.Error(err))
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+
+			collections := make([]model.CollectionID, 0, len(rawCollections))
 			for _, rawCollectionID := range rawCollections {
 				collectionID := model.CollectionID(rawCollectionID)
 
@@ -63,10 +48,22 @@ func (h *Handler) withParams(next http.Handler) http.Handler {
 			}
 
 			sessionData.Collections = collections
-			shouldSave = true
-		} else {
+			if err := h.saveSession(w, r, sessionData); err != nil {
+				slog.ErrorContext(ctx, "could not save session", slog.Any("error", errors.WithStack(err)))
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+		} else if len(sessionData.Collections) == 0 {
+			user := httpCtx.User(ctx)
 
-			collections = slices.Collect(func(yield func(model.CollectionID) bool) {
+			readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{})
+			if err != nil {
+				slog.ErrorContext(ctx, "could not retrieve user readable collections", slogx.Error(err))
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+				return
+			}
+
+			sessionData.Collections = slices.Collect(func(yield func(model.CollectionID) bool) {
 				for _, c := range readableCollections {
 					if !yield(c.ID()) {
 						return
@@ -74,17 +71,15 @@ func (h *Handler) withParams(next http.Handler) http.Handler {
 				}
 			})
 
-			sessionData.Collections = collections
-			shouldSave = true
-		}
-
-		if shouldSave {
 			if err := h.saveSession(w, r, sessionData); err != nil {
-				slog.ErrorContext(r.Context(), "could not save session", slog.Any("error", errors.WithStack(err)))
+				slog.ErrorContext(ctx, "could not save session", slog.Any("error", errors.WithStack(err)))
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
 		}
+
+		ctx = context.WithValue(ctx, contextKeySessionData, sessionData)
+		r = r.WithContext(ctx)
 
 		next.ServeHTTP(w, r)
 	}

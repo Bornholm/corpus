@@ -2,28 +2,34 @@ package mcp
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strings"
 
-	"github.com/bornholm/corpus/pkg/model"
-	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/core/service"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
+	sdkmcp "github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/pkg/errors"
 )
 
-func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	arguments := request.Params.Arguments
+func (h *Handler) handleAsk(ctx context.Context, request *sdkmcp.CallToolRequest) (*sdkmcp.CallToolResult, error) {
+	var args map[string]any
+	if err := json.Unmarshal(request.Params.Arguments, &args); err != nil {
+		return &sdkmcp.CallToolResult{
+			Content: []sdkmcp.Content{
+				&sdkmcp.TextContent{Text: "Invalid arguments: " + err.Error()},
+			},
+			IsError: true,
+		}, nil
+	}
 
-	question, ok := arguments["question"].(string)
-	if !ok {
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				mcp.TextContent{
-					Type: "text",
-					Text: "The 'question' required argument is missing.",
-				},
+	question, ok := args["question"].(string)
+	if !ok || question == "" {
+		return &sdkmcp.CallToolResult{
+			Content: []sdkmcp.Content{
+				&sdkmcp.TextContent{Text: "The 'question' required argument is missing."},
 			},
 			IsError: true,
 		}, nil
@@ -33,12 +39,9 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 	if err != nil {
 		var invalidCollectionErr InvalidCollectionError
 		if errors.As(err, &invalidCollectionErr) {
-			return &mcp.CallToolResult{
-				Content: []mcp.Content{
-					mcp.TextContent{
-						Type: "text",
-						Text: invalidCollectionErr.Error(),
-					},
+			return &sdkmcp.CallToolResult{
+				Content: []sdkmcp.Content{
+					&sdkmcp.TextContent{Text: invalidCollectionErr.Error()},
 				},
 				IsError: true,
 			}, nil
@@ -47,15 +50,14 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 		return nil, errors.WithStack(err)
 	}
 
-	content := make([]mcp.Content, 0)
+	content := make([]sdkmcp.Content, 0)
 
 	if len(results) == 0 {
-		content = append(content, mcp.TextContent{
-			Type: "text",
+		content = append(content, &sdkmcp.TextContent{
 			Text: "No information available matching the given question.",
 		})
 
-		return &mcp.CallToolResult{
+		return &sdkmcp.CallToolResult{
 			Content: content,
 			IsError: true,
 		}, nil
@@ -71,8 +73,7 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 	sb.WriteString("# Response \n\n")
 	sb.WriteString(response)
 
-	content = append(content, mcp.TextContent{
-		Type: "text",
+	content = append(content, &sdkmcp.TextContent{
 		Text: sb.String(),
 	})
 
@@ -98,13 +99,12 @@ func (h *Handler) handleAsk(ctx context.Context, request mcp.CallToolRequest) (*
 			sb.WriteString(content)
 		}
 
-		content = append(content, mcp.TextContent{
-			Type: "text",
+		content = append(content, &sdkmcp.TextContent{
 			Text: sb.String(),
 		})
 	}
 
-	return &mcp.CallToolResult{
+	return &sdkmcp.CallToolResult{
 		Content: content,
 	}, nil
 }
