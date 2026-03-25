@@ -167,8 +167,9 @@ func (h *Handler) fillCollectionsPageVModelCollections(ctx context.Context, vmod
 	}
 
 	opts := port.QueryCollectionsOptions{
-		Page:  &page,
-		Limit: &limit,
+		Page:       &page,
+		Limit:      &limit,
+		HeaderOnly: true,
 	}
 
 	collections, err := h.documentStore.QueryCollections(ctx, opts)
@@ -177,7 +178,7 @@ func (h *Handler) fillCollectionsPageVModelCollections(ctx context.Context, vmod
 	}
 
 	// Get total count for pagination
-	totalOpts := port.QueryCollectionsOptions{}
+	totalOpts := port.QueryCollectionsOptions{HeaderOnly: true}
 	allCollections, err := h.documentStore.QueryCollections(ctx, totalOpts)
 	if err != nil {
 		return errors.WithStack(err)
@@ -220,7 +221,7 @@ func (h *Handler) fillCollectionPageVModelCollection(ctx context.Context, vmodel
 		return errors.New("collection ID is required")
 	}
 
-	collection, err := h.documentStore.GetCollectionByID(ctx, collectionID, true)
+	collection, err := h.documentStore.GetCollectionByID(ctx, collectionID, false)
 	if err != nil {
 		if errors.Is(err, port.ErrNotFound) {
 			return common.NewHTTPError(http.StatusNotFound)
@@ -238,12 +239,12 @@ func (h *Handler) fillCollectionPageVModelCollection(ctx context.Context, vmodel
 		return errors.New("could not retrieve user from context")
 	}
 
-	// Check if current user is the owner
+	isAdmin := slices.Contains(user.Roles(), authz.RoleAdmin)
 	isOwner := collection.Owner().ID() == user.ID()
 
 	vmodel.Collection = collection
 	vmodel.Stats = stats
-	vmodel.IsOwner = isOwner
+	vmodel.IsOwner = isOwner || isAdmin
 
 	return nil
 }
@@ -324,7 +325,7 @@ func (h *Handler) handleCollectionShareDelete(w http.ResponseWriter, r *http.Req
 
 	// Get collection ID before deleting (we need it for redirect)
 	var collectionID model.CollectionID
-	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{HeaderOnly: true})
 	if err == nil {
 		for _, coll := range collections {
 			shares, err := h.documentStore.GetCollectionShares(ctx, coll.ID())
@@ -383,9 +384,25 @@ func (h *Handler) fillCollectionPageVModelDocuments(ctx context.Context, vmodel 
 		}
 	}
 
+	sourcePattern := r.URL.Query().Get("source")
+
+	sortBy := r.URL.Query().Get("sort")
+	if sortBy != "source" && sortBy != "created_at" {
+		sortBy = "created_at"
+	}
+
+	sortOrder := r.URL.Query().Get("order")
+	if sortOrder != "asc" && sortOrder != "desc" {
+		sortOrder = "desc"
+	}
+
 	opts := port.QueryDocumentsOptions{
-		Page:  &page,
-		Limit: &limit,
+		Page:          &page,
+		Limit:         &limit,
+		HeaderOnly:    true,
+		SourcePattern: &sourcePattern,
+		SortBy:        &sortBy,
+		SortOrder:     &sortOrder,
 	}
 
 	documents, total, err := h.documentStore.QueryDocumentsByCollectionID(ctx, collectionID, opts)
@@ -401,6 +418,9 @@ func (h *Handler) fillCollectionPageVModelDocuments(ctx context.Context, vmodel 
 	if int(total)%limit > 0 {
 		vmodel.TotalPages++
 	}
+	vmodel.SourceFilter = sourcePattern
+	vmodel.SortBy = sortBy
+	vmodel.SortOrder = sortOrder
 
 	return nil
 }

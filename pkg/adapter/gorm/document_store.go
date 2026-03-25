@@ -255,6 +255,8 @@ func (s *Store) QueryCollections(ctx context.Context, opts port.QueryCollections
 
 	if !opts.HeaderOnly {
 		query = query.Preload(clause.Associations)
+	} else {
+		query = query.Preload("Owner")
 	}
 
 	var collections []*Collection

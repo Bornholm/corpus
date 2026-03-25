@@ -5,6 +5,8 @@ import (
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/badge"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/input"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/pagination"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/selectbox"
 	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
 	"github.com/bornholm/corpus/templx/form/renderer/templui"
@@ -21,6 +23,9 @@ type CollectionPageVModel struct {
 	PageSize        int
 	TotalDocuments  int64
 	TotalPages      int
+	SourceFilter    string
+	SortBy          string
+	SortOrder       string
 	Shares          []model.PersistedCollectionShare
 	AllUsers        []model.User
 }
@@ -223,51 +228,122 @@ templ CollectionPage(vmodel CollectionPageVModel) {
 						Documents ({ strconv.FormatInt(vmodel.TotalDocuments, 10) })
 					</h3>
 				</div>
-				<div class="p-6 pt-0 overflow-x-auto">
+				<div class="p-6 pt-0">
+					<!-- Filter form -->
+					<form method="get" class="flex items-center gap-2 mb-4">
+						<input type="hidden" name="sort" value={ vmodel.SortBy }/>
+						<input type="hidden" name="order" value={ vmodel.SortOrder }/>
+						@input.Input(input.Props{
+							Name:        "source",
+							ID:          "source-filter",
+							Value:       vmodel.SourceFilter,
+							Placeholder: "Filtrer par source...",
+							Class:       "flex-1",
+						})
+						<button type="submit" class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50 cursor-pointer">
+							@icon.Search(icon.Props{Class: "h-4 w-4"})
+						</button>
+						if vmodel.SourceFilter != "" {
+							<a
+								href={ commonComp.CurrentURL(ctx, commonComp.WithoutValues("source", "*"), commonComp.WithValues("sort", vmodel.SortBy, "order", vmodel.SortOrder)) }
+								class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50"
+							>
+								@icon.X(icon.Props{Class: "h-4 w-4"})
+							</a>
+						}
+					</form>
 					if len(vmodel.Documents) == 0 {
 						<p class="text-muted-foreground italic">Aucun document dans cette collection.</p>
 					} else {
-						@table.Table() {
-							@table.Header() {
-								@table.Head() {
-									Source 
+						<div class="rounded-md border mb-4 overflow-x-auto">
+							@table.Table() {
+								@table.Header() {
+									<tr>
+										<th class="text-left p-3 text-sm font-medium">
+											if vmodel.SortBy == "source" {
+												if vmodel.SortOrder == "asc" {
+													<a href={ commonComp.CurrentURL(ctx, commonComp.WithoutValues("sort", "*", "order", "*"), commonComp.WithValues("sort", "source", "order", "desc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Source
+														@icon.ChevronUp(icon.Props{Class: "h-3 w-3"})
+													</a>
+												} else {
+													<a href={ commonComp.CurrentURL(ctx, commonComp.WithoutValues("sort", "*", "order", "*"), commonComp.WithValues("sort", "source", "order", "asc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Source
+														@icon.ChevronDown(icon.Props{Class: "h-3 w-3"})
+													</a>
+												}
+											} else {
+												<a href={ commonComp.CurrentURL(ctx, commonComp.WithoutValues("sort", "*", "order", "*"), commonComp.WithValues("sort", "source", "order", "asc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground text-muted-foreground">
+													Source
+													@icon.ChevronsUpDown(icon.Props{Class: "h-3 w-3"})
+												</a>
+											}
+										</th>
+										<th class="text-left p-3 text-sm font-medium">
+											if vmodel.SortBy == "created_at" {
+												if vmodel.SortOrder == "asc" {
+													<a href={ commonComp.CurrentURL(ctx, commonComp.WithoutValues("sort", "*", "order", "*"), commonComp.WithValues("sort", "created_at", "order", "desc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Date d&apos;ajout
+														@icon.ChevronUp(icon.Props{Class: "h-3 w-3"})
+													</a>
+												} else {
+													<a href={ commonComp.CurrentURL(ctx, commonComp.WithoutValues("sort", "*", "order", "*"), commonComp.WithValues("sort", "created_at", "order", "asc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground">
+														Date d&apos;ajout
+														@icon.ChevronDown(icon.Props{Class: "h-3 w-3"})
+													</a>
+												}
+											} else {
+												<a href={ commonComp.CurrentURL(ctx, commonComp.WithoutValues("sort", "*", "order", "*"), commonComp.WithValues("sort", "created_at", "order", "desc", "source", vmodel.SourceFilter)) } class="inline-flex items-center gap-1 hover:text-foreground text-muted-foreground">
+													Date d&apos;ajout
+													@icon.ChevronsUpDown(icon.Props{Class: "h-3 w-3"})
+												</a>
+											}
+										</th>
+									</tr>
 								}
-								@table.Head() {
-									Date d'ajout 
-								}
-							}
-							@table.Body() {
-								for _, doc := range vmodel.Documents {
-									@table.Row() {
-										@table.Cell() {
-											<a href={ templ.SafeURL(doc.Source().String()) } target="_blank" class="text-primary hover:underline">{ doc.Source().String() }</a>
-										}
-										@table.Cell() {
-											<span>{ doc.CreatedAt().Format("02/01/2006") }</span>
+								@table.Body() {
+									for _, doc := range vmodel.Documents {
+										@table.Row() {
+											<td class="p-3">
+												<a href={ templ.SafeURL(doc.Source().String()) } target="_blank" class="text-primary hover:underline">
+													{ doc.Source().String() }
+												</a>
+											</td>
+											<td class="p-3 text-sm text-muted-foreground">
+												{ doc.CreatedAt().Format("02/01/2006") }
+											</td>
 										}
 									}
 								}
 							}
+						</div>
+						if vmodel.TotalPages > 1 {
+							<div class="flex justify-center">
+								@pagination.Pagination() {
+									@pagination.Content() {
+										if vmodel.CurrentPage > 1 {
+											@pagination.Item() {
+												@pagination.Previous(pagination.PreviousProps{
+													Href: string(commonComp.CurrentURL(ctx, commonComp.WithoutValues("page", "*"), commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1), "source", vmodel.SourceFilter, "sort", vmodel.SortBy, "order", vmodel.SortOrder))),
+												})
+											}
+										}
+										@pagination.Item(pagination.ItemProps{}) {
+											{ strconv.Itoa(vmodel.CurrentPage) } / { strconv.Itoa(vmodel.TotalPages) }
+										}
+										if vmodel.CurrentPage < vmodel.TotalPages {
+											@pagination.Item() {
+												@pagination.Next(pagination.NextProps{
+													Href: string(commonComp.CurrentURL(ctx, commonComp.WithoutValues("page", "*"), commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1), "source", vmodel.SourceFilter, "sort", vmodel.SortBy, "order", vmodel.SortOrder))),
+												})
+											}
+										}
+									}
+								}
+							</div>
 						}
 					}
 				</div>
-				if vmodel.TotalPages > 1 {
-					<nav class="flex justify-center gap-2 my-3" role="navigation" aria-label="pagination">
-						<a
-							href={ commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage-1))) }
-							class={ "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground", templ.KV("pointer-events-none opacity-50", vmodel.CurrentPage <= 1) }
-						>
-							Précédent
-						</a>
-						<span class="px-3 py-1.5 text-sm">{ strconv.Itoa(vmodel.CurrentPage) } / { strconv.Itoa(vmodel.TotalPages) }</span>
-						<a
-							href={ commonComp.CurrentURL(ctx, commonComp.WithValues("page", strconv.Itoa(vmodel.CurrentPage+1))) }
-							class={ "inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground", templ.KV("pointer-events-none opacity-50", vmodel.CurrentPage >= vmodel.TotalPages) }
-						>
-							Suivant
-						</a>
-					</nav>
-				}
 			</div>
 		</div>
 	}

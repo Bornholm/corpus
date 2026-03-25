@@ -41,7 +41,8 @@ This this the available collections of documents in the database. Use them to or
 // TransformQuery implements QueryTransformer.
 func (t *HyDEQueryTransformer) TransformQuery(ctx context.Context, query string, opts port.IndexSearchOptions) (string, error) {
 	collections, err := t.store.QueryCollections(ctx, port.QueryCollectionsOptions{
-		IDs: opts.Collections,
+		IDs:        opts.Collections,
+		HeaderOnly: true,
 	})
 	if err != nil {
 		return "", errors.WithStack(err)

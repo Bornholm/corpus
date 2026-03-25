@@ -39,6 +39,10 @@ templ AskPage(vmodel AskPageVModel) {
 			@card.Card() {
 				@card.Content(card.ContentProps{Class: "space-y-4"}) {
 					<form id="ask-form" method="post" hx-post="/" hx-target="#results" hx-boost="false" hx-indicator="#submit-btn">
+						<!-- Selected collections as hidden inputs -->
+						for _, collectionID := range vmodel.SelectedCollections {
+							<input type="hidden" name="collection" value={ string(collectionID) }/>
+						}
 						<!-- Question textarea -->
 						<div class="space-y-2">
 							<label for="query" class="text-lg font-semibold">

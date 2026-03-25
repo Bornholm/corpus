@@ -76,7 +76,7 @@ func (h *Handler) postEditPublicShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{HeaderOnly: true})
 	if err != nil {
 		common.HandleError(w, r, errors.WithStack(err))
 		return
@@ -152,7 +152,7 @@ func (h *Handler) postPublicShare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{HeaderOnly: true})
 	if err != nil {
 		common.HandleError(w, r, errors.WithStack(err))
 		return
@@ -380,7 +380,7 @@ func (h *Handler) fillNewPublicSharePageVModelAppLayout(ctx context.Context, vmo
 }
 
 func (h *Handler) fillNewPublicSharePageVModelForm(ctx context.Context, vmodel *component.NewPublicSharePageVModel, r *http.Request) error {
-	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{HeaderOnly: true})
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -449,7 +449,7 @@ func (h *Handler) fillEditPublicSharePageVModelPublicShare(ctx context.Context, 
 }
 
 func (h *Handler) fillEditPublicSharePageVModelForm(ctx context.Context, vmodel *component.EditPublicSharePageVModel, r *http.Request) error {
-	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
+	collections, err := h.documentStore.QueryCollections(ctx, port.QueryCollectionsOptions{HeaderOnly: true})
 	if err != nil {
 		return errors.WithStack(err)
 	}

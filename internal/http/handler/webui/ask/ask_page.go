@@ -63,7 +63,15 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
 
-	collections, err := h.getReadableCollections(ctx, r.URL.Query()["collection"])
+	rawSelectedCollections := slices.Collect(func(yield func(string) bool) {
+		for _, id := range vmodel.SelectedCollections {
+			if !yield(string(id)) {
+				return
+			}
+		}
+	})
+
+	collections, err := h.getReadableCollections(ctx, rawSelectedCollections)
 	if err != nil {
 		common.HandleError(w, r, errors.WithStack(err))
 		return
@@ -192,8 +200,21 @@ func (h *Handler) fillAskPageVModelCollections(ctx context.Context, vmodel *comp
 }
 
 func (h *Handler) fillAskPageVModelSelectedCollectionIDs(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
-	rawCollections, exists := r.URL.Query()["collection"]
-	if !exists {
+	var rawCollections []string
+
+	if r.Method == http.MethodPost {
+		if err := r.ParseForm(); err != nil {
+			slog.ErrorContext(ctx, "could not parse form", slog.Any("error", errors.WithStack(err)))
+		} else {
+			rawCollections = r.Form["collection"]
+		}
+	}
+
+	if len(rawCollections) == 0 {
+		rawCollections = r.URL.Query()["collection"]
+	}
+
+	if len(rawCollections) == 0 {
 		return nil
 	}
 

@@ -56,7 +56,7 @@ func (h *Handler) handleCollectionCreate(w http.ResponseWriter, r *http.Request)
 
 	// Update collection with description if provided
 	if description != "" {
-		collections, err := h.documentManager.DocumentStore.QueryCollections(ctx, port.QueryCollectionsOptions{})
+		collections, err := h.documentManager.DocumentStore.QueryCollections(ctx, port.QueryCollectionsOptions{HeaderOnly: true})
 		if err != nil {
 			common.HandleError(w, r, errors.WithStack(err))
 			return
