@@ -68,13 +68,27 @@ func NewHandler(baseURL string, basePath string, documentManager *service.Docume
 		return h.mcp
 	}, nil)
 
+	// The mount middleware strips the basePath prefix (e.g. "/mcp") from
+	// req.URL.Path before reaching this handler. The SSEHandler builds the
+	// endpoint URL from req.URL.Path, so the client would receive "/sse?sessionid=..."
+	// instead of "/mcp/sse?sessionid=..." and its subsequent POST would miss
+	// the /mcp/ mount entirely (returning the webui HTML page).
+	// Restore the full path so the SSEHandler emits the correct endpoint URL.
+	withRestoredPath := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = basePath + r.URL.Path
+			next.ServeHTTP(w, r2)
+		})
+	}
+
 	assertAuthenticated := authz.Middleware(nil, authz.IsAuthenticated)
 
 	// Internal routing: /sse → SSE transport, everything else → Streamable HTTP.
 	// Note: the /mcp prefix is already stripped by the server's mount middleware.
 	innerMux := http.NewServeMux()
-	innerMux.Handle("/sse", assertAuthenticated(h.withParams(sseHandler)))
-	innerMux.Handle("/sse/", assertAuthenticated(h.withParams(sseHandler)))
+	innerMux.Handle("/sse", assertAuthenticated(h.withParams(withRestoredPath(sseHandler))))
+	innerMux.Handle("/sse/", assertAuthenticated(h.withParams(withRestoredPath(sseHandler))))
 	innerMux.Handle("/", assertAuthenticated(h.withParams(streamableHandler)))
 
 	h.handler = innerMux
