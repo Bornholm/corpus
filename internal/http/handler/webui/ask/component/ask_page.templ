@@ -19,6 +19,7 @@ import (
 type AskPageVModel struct {
 	AppLayoutVModel     common.AppLayoutVModel
 	Query               string
+	Submitted           bool
 	TotalDocuments      int64
 	Results             []*port.IndexSearchResult
 	SectionContents     map[model.SectionID]string
@@ -50,6 +51,7 @@ templ AskPage(vmodel AskPageVModel) {
 								<span class="text-muted-foreground font-normal">({ strconv.FormatInt(vmodel.TotalDocuments, 10) } documents indexés)</span>
 							</label>
 							@textarea.Textarea(textarea.Props{
+								Attributes:  templ.Attributes{"data-sync-query": true},
 								Name:        "q",
 								Value:       vmodel.Query,
 								Placeholder: "Tapez votre question ici...",
@@ -73,6 +75,7 @@ templ AskPage(vmodel AskPageVModel) {
 										{{ label = string(c.ID()) }}
 									}
 									<a
+										data-sync-query-link
 										href={ url }
 										hx-boost="false"
 										title={ c.Description() }
@@ -130,12 +133,13 @@ templ AskPage(vmodel AskPageVModel) {
 							</style>
 						</div>
 					</form>
+					<script defer nonce={ templ.GetNonce(ctx) } src="/assets/js/query-sync.js"></script>
 				}
 			}
 		</div>
 		<!-- Results area - full width -->
 		<div id="results" hx-swap-oob="true" class="mt-6">
-			if vmodel.Query != "" {
+			if vmodel.Submitted {
 				<!-- Response section -->
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">

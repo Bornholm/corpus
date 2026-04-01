@@ -146,6 +146,7 @@ func (h *Handler) fillAskPageVModelTotalDocuments(ctx context.Context, vmodel *c
 
 func (h *Handler) fillAskPageVModelQuery(ctx context.Context, vmodel *component.AskPageVModel, r *http.Request) error {
 	if r.Method != http.MethodPost {
+		vmodel.Query = r.URL.Query().Get("q")
 		return nil
 	}
 
@@ -155,6 +156,7 @@ func (h *Handler) fillAskPageVModelQuery(ctx context.Context, vmodel *component.
 	}
 
 	vmodel.Query = r.FormValue("q")
+	vmodel.Submitted = true
 
 	return nil
 }
