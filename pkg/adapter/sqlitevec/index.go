@@ -67,12 +67,13 @@ func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
 		}
 		defer colStmt.Close()
 
-		jsonColIDs, err := json.Marshal(idsToDelete)
+		jsonColIDsBytes, err := json.Marshal(idsToDelete)
 		if err != nil {
 			return errors.WithStack(err)
 		}
+		jsonColIDs := string(jsonColIDsBytes)
 
-		if err := colStmt.BindBlob(1, jsonColIDs); err != nil {
+		if err := colStmt.BindText(1, jsonColIDs); err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -87,7 +88,7 @@ func (i *Index) DeleteByID(ctx context.Context, ids ...model.SectionID) error {
 		}
 		defer vecStmt.Close()
 
-		if err := vecStmt.BindBlob(1, jsonColIDs); err != nil {
+		if err := vecStmt.BindText(1, jsonColIDs); err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -150,12 +151,13 @@ func (i *Index) deleteBySourceLocked(ctx context.Context, source *url.URL) error
 		}
 		defer colStmt.Close()
 
-		jsonColIDs, err := json.Marshal(idsToDelete)
+		jsonColIDsBytes, err := json.Marshal(idsToDelete)
 		if err != nil {
 			return errors.WithStack(err)
 		}
+		jsonColIDs := string(jsonColIDsBytes)
 
-		if err := colStmt.BindBlob(1, jsonColIDs); err != nil {
+		if err := colStmt.BindText(1, jsonColIDs); err != nil {
 			return errors.WithStack(err)
 		}
 
@@ -170,7 +172,7 @@ func (i *Index) deleteBySourceLocked(ctx context.Context, source *url.URL) error
 		}
 		defer vecStmt.Close()
 
-		if err := vecStmt.BindBlob(1, jsonColIDs); err != nil {
+		if err := vecStmt.BindText(1, jsonColIDs); err != nil {
 			return errors.WithStack(err)
 		}
 
