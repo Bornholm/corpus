@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"log"
 	"log/slog"
 	"net/url"
 	"os"
@@ -297,7 +298,15 @@ func newGormDB(dsn string) (*gorm.DB, error) {
 	dialector := gormlite.Open(dsn)
 
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: gormlogger.Default.LogMode(gormlogger.Error),
+		Logger: gormlogger.New(
+			log.New(os.Stderr, "\r\n", log.LstdFlags),
+			gormlogger.Config{
+				SlowThreshold:             time.Second,
+				LogLevel:                  gormlogger.Error,
+				IgnoreRecordNotFoundError: true,
+				Colorful:                  false,
+			},
+		),
 	})
 	if err != nil {
 		return nil, errors.WithStack(err)
