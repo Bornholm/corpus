@@ -17,7 +17,7 @@ ARG GOCACHE=/root/.cache/go-build
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=cache,target="/root/.cache/go-build" \
     --mount=type=cache,target=./tools \
-    make goreleaser GORELEASER_ARGS="build --clean --auto-snapshot --single-target"
+    make goreleaser GORELEASER_ARGS="build --clean --auto-snapshot --single-target --id corpus-server --id corpus-client"
 
 FROM alpine:3.21 AS runtime
 
