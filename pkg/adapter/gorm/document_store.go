@@ -15,6 +15,43 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// ListDocumentDigests implements port.DocumentStore.
+func (s *Store) ListDocumentDigests(ctx context.Context, sourcePrefix string, page int, pageSize int) ([]port.DocumentDigest, error) {
+	if pageSize <= 0 {
+		pageSize = 500
+	}
+
+	type row struct {
+		ID     string
+		Source string
+		ETag   string
+	}
+
+	var rows []row
+
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
+		q := db.Model(&Document{}).Select("id, source, etag")
+		if sourcePrefix != "" {
+			q = q.Where("source LIKE ?", sourcePrefix+"%")
+		}
+		return q.Offset(page * pageSize).Limit(pageSize).Scan(&rows).Error
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	digests := make([]port.DocumentDigest, len(rows))
+	for i, r := range rows {
+		digests[i] = port.DocumentDigest{
+			ID:     model.DocumentID(r.ID),
+			Source: r.Source,
+			ETag:   r.ETag,
+		}
+	}
+
+	return digests, nil
+}
+
 // DeleteDocumentByID implements port.DocumentStore.
 func (s *Store) DeleteDocumentByID(ctx context.Context, ids ...model.DocumentID) error {
 	err := s.withRetry(ctx, true, func(ctx context.Context, db *gorm.DB) error {

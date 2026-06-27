@@ -92,6 +92,41 @@ func (c *Client) QueryDocuments(ctx context.Context, funcs ...QueryDocumentsOpti
 	return res.Documents, res.Total, nil
 }
 
+type DocumentDigest struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	ETag   string `json:"etag,omitempty"`
+}
+
+type listDocumentDigestsResponse struct {
+	Digests  []DocumentDigest `json:"digests"`
+	Page     int              `json:"page"`
+	PageSize int              `json:"page_size"`
+}
+
+func (c *Client) ListDocumentDigests(ctx context.Context, sourcePrefix string, page int, pageSize int) ([]DocumentDigest, error) {
+	endpoint := &url.URL{
+		Path: "/documents/digests",
+	}
+
+	query := endpoint.Query()
+	if sourcePrefix != "" {
+		query.Set("source_prefix", sourcePrefix)
+	}
+	query.Set("page", strconv.Itoa(page))
+	if pageSize > 0 {
+		query.Set("page_size", strconv.Itoa(pageSize))
+	}
+	endpoint.RawQuery = query.Encode()
+
+	var res listDocumentDigestsResponse
+	if err := c.jsonRequest(ctx, "GET", endpoint.String(), nil, nil, &res); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return res.Digests, nil
+}
+
 func (c *Client) DeleteDocument(ctx context.Context, id string) error {
 	endpoint := &url.URL{
 		Path: "/documents",
