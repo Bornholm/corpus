@@ -334,7 +334,7 @@ func (r *TaskRunner) GetTaskState(ctx context.Context, id model.TaskID) (*port.T
 }
 
 func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskRunner {
-	return NewTaskRunnerWithQueue(parallelism, parallelism*4, false, cleanupDelay, cleanupInterval)
+	return NewTaskRunnerWithQueue(parallelism, 10_000, false, cleanupDelay, cleanupInterval)
 }
 
 func NewTaskRunnerWithQueue(parallelism int, queueSize int, errOnFull bool, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskRunner {

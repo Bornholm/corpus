@@ -25,6 +25,11 @@ func (s *DocumentStore) ListDocumentDigests(ctx context.Context, sourcePrefix st
 	return s.backend.ListDocumentDigests(ctx, sourcePrefix, page, pageSize)
 }
 
+// SectionsExist implements [port.DocumentStore].
+func (s *DocumentStore) SectionsExist(ctx context.Context, ids []model.SectionID) (map[model.SectionID]bool, error) {
+	return s.backend.SectionsExist(ctx, ids)
+}
+
 // CanReadCollection implements [port.DocumentStore].
 func (s *DocumentStore) CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
 	cacheKey := getCompositeCacheKey(userID, collectionID, "read", "collection")

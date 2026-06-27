@@ -72,6 +72,39 @@ func (s *Store) DeleteDocumentByID(ctx context.Context, ids ...model.DocumentID)
 	return nil
 }
 
+// SectionsExist implements port.DocumentStore.
+func (s *Store) SectionsExist(ctx context.Context, ids []model.SectionID) (map[model.SectionID]bool, error) {
+	result := make(map[model.SectionID]bool, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+
+	strIDs := make([]string, len(ids))
+	for i, id := range ids {
+		strIDs[i] = string(id)
+		result[id] = false
+	}
+
+	type sectionIDRow struct {
+		ID string `gorm:"column:id"`
+	}
+
+	var rows []sectionIDRow
+
+	err := s.withRetry(ctx, false, func(ctx context.Context, db *gorm.DB) error {
+		return db.Model(&Section{}).Select("id").Where("id IN ?", strIDs).Scan(&rows).Error
+	}, sqlite3.LOCKED, sqlite3.BUSY)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	for _, row := range rows {
+		result[model.SectionID(row.ID)] = true
+	}
+
+	return result, nil
+}
+
 // SectionExists implements port.DocumentStore.
 func (s *Store) SectionExists(ctx context.Context, id model.SectionID) (bool, error) {
 	var exists bool

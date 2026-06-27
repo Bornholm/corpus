@@ -3,13 +3,16 @@ package setup
 import (
 	"context"
 	"log/slog"
+	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/bornholm/corpus/internal/config"
-	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/core/service/backup"
 	"github.com/bornholm/corpus/internal/metrics"
 	documentTask "github.com/bornholm/corpus/internal/task/document"
+	gormAdapter "github.com/bornholm/corpus/pkg/adapter/gorm"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -17,9 +20,47 @@ import (
 var TaskRunner = NewRegistry[port.TaskRunner]()
 
 var getTaskRunner = createFromConfigOnce(func(ctx context.Context, conf *config.Config) (port.TaskRunner, error) {
-	taskRunner, err := TaskRunner.From(conf.TaskRunner.URI)
+	var taskRunner port.TaskRunner
+
+	u, err := url.Parse(conf.TaskRunner.URI)
 	if err != nil {
-		return nil, errors.Wrapf(err, "could not retrieve task runner for uri '%s'", conf.TaskRunner.URI)
+		return nil, errors.Wrapf(err, "could not parse task runner uri '%s'", conf.TaskRunner.URI)
+	}
+
+	if u.Scheme == "sqlite" {
+		// Task runner persistant GORM — réutilise la même DB que le store.
+		db, err := getGormDatabaseFromConfig(ctx, conf)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not get gorm database for persistent task runner")
+		}
+
+		parallelism := 5
+		if v := u.Query().Get("parallelism"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				parallelism = n
+			}
+		}
+
+		cleanupDelay := 60 * time.Minute
+		if v := u.Query().Get("cleanupDelay"); v != "" {
+			if d, err := time.ParseDuration(v); err == nil {
+				cleanupDelay = d
+			}
+		}
+
+		cleanupInterval := 10 * time.Minute
+		if v := u.Query().Get("cleanupInterval"); v != "" {
+			if d, err := time.ParseDuration(v); err == nil {
+				cleanupInterval = d
+			}
+		}
+
+		taskRunner = gormAdapter.NewGormTaskRunner(db, parallelism, cleanupDelay, cleanupInterval)
+	} else {
+		taskRunner, err = TaskRunner.From(conf.TaskRunner.URI)
+		if err != nil {
+			return nil, errors.Wrapf(err, "could not retrieve task runner for uri '%s'", conf.TaskRunner.URI)
+		}
 	}
 
 	go func() {
@@ -74,6 +115,15 @@ var getTaskRunner = createFromConfigOnce(func(ctx context.Context, conf *config.
 })
 
 func setupTaskHandlers(ctx context.Context, conf *config.Config, taskRunner port.TaskRunner) error {
+	// Enregistrement des factories de désérialisation pour le task runner persistant.
+	if persistentRunner, ok := taskRunner.(port.PersistentTaskRunner); ok {
+		persistentRunner.RegisterFactory(documentTask.TaskTypeIndexFile, documentTask.RestoreIndexFileTask)
+		persistentRunner.RegisterFactory(documentTask.TaskTypeCleanup, documentTask.RestoreCleanupTask)
+		persistentRunner.RegisterFactory(documentTask.TaskTypeReindexCollection, documentTask.RestoreReindexCollectionTask)
+		persistentRunner.RegisterFactory(documentTask.TaskTypeReindexBleve, documentTask.RestoreReindexBleveTask)
+		persistentRunner.RegisterFactory(backup.TaskTypeRestoreBackup, backup.RestoreRestoreBackupTask)
+	}
+
 	indexFileHandler, err := getIndexFileTaskHandler(ctx, conf)
 	if err != nil {
 		return errors.Wrap(err, "could not create index file task handler from config")
