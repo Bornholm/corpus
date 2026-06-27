@@ -105,48 +105,59 @@ func (h *CleanupHandler) cleanupOrphanedDocuments(ctx context.Context, task *Cle
 func (h *CleanupHandler) cleanupObsoleteSections(ctx context.Context, task *CleanupTask) error {
 	slog.DebugContext(ctx, "checking obsolete sections")
 
+	const checkBatchSize = 500
+	const deleteBatchSize = 5000
+
 	count := 0
-	batchSize := 5000
-	toDelete := make([]model.SectionID, 0, batchSize)
+	checkBatch := make([]model.SectionID, 0, checkBatchSize)
+	toDelete := make([]model.SectionID, 0, deleteBatchSize)
 
-	deleteCurrentBatch := func() {
-		slog.InfoContext(ctx, "deleting obsolete sections from index")
-
+	flushDeleteBatch := func() {
+		if len(toDelete) == 0 {
+			return
+		}
+		slog.InfoContext(ctx, "deleting obsolete sections from index", slog.Int("count", len(toDelete)))
 		if err := h.index.DeleteByID(ctx, toDelete...); err != nil {
 			slog.ErrorContext(ctx, "could not delete obsolete sections", slog.Any("error", errors.WithStack(err)))
 		}
-
-		slog.InfoContext(ctx, "obsolete sections deleted")
-
-		toDelete = make([]model.SectionID, 0, batchSize)
+		toDelete = toDelete[:0]
 	}
+
+	flushCheckBatch := func() {
+		if len(checkBatch) == 0 {
+			return
+		}
+		existMap, err := h.documentStore.SectionsExist(ctx, checkBatch)
+		if err != nil {
+			slog.ErrorContext(ctx, "could not bulk-check sections existence", slog.Any("error", errors.WithStack(err)))
+			checkBatch = checkBatch[:0]
+			return
+		}
+		for _, id := range checkBatch {
+			if !existMap[id] {
+				toDelete = append(toDelete, id)
+			}
+		}
+		checkBatch = checkBatch[:0]
+		if len(toDelete) >= deleteBatchSize {
+			flushDeleteBatch()
+		}
+	}
+
 	err := h.index.All(ctx, func(id model.SectionID) bool {
 		count++
-		exists, err := h.documentStore.SectionExists(ctx, id)
-		if err != nil {
-			slog.ErrorContext(ctx, "could not check if section exists", slog.Any("error", errors.WithStack(err)))
-			return true
+		checkBatch = append(checkBatch, id)
+		if len(checkBatch) >= checkBatchSize {
+			flushCheckBatch()
 		}
-
-		if exists {
-			return true
-		}
-
-		toDelete = append(toDelete, id)
-
-		if len(toDelete) >= batchSize {
-			deleteCurrentBatch()
-		}
-
 		return true
 	})
 	if err != nil {
 		return errors.WithStack(err)
 	}
 
-	if len(toDelete) > 0 {
-		deleteCurrentBatch()
-	}
+	flushCheckBatch()
+	flushDeleteBatch()
 
 	slog.DebugContext(ctx, "all sections checked", slog.Int64("total", int64(count)))
 

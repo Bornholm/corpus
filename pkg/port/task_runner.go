@@ -79,3 +79,13 @@ type TaskRunner interface {
 	CancelTask(ctx context.Context, id model.TaskID) error
 	Run(ctx context.Context) error
 }
+
+// TaskFactory reconstruit une tâche concrète depuis les données persistées.
+// id : identifiant de la tâche, ownerID : identifiant du propriétaire, payload : JSON sérialisé par MarshalJSON.
+type TaskFactory func(id model.TaskID, ownerID string, payload []byte) (model.Task, error)
+
+// PersistentTaskRunner est une extension de TaskRunner qui supporte
+// l'enregistrement de factories de désérialisation pour la persistance.
+type PersistentTaskRunner interface {
+	RegisterFactory(taskType model.TaskType, factory TaskFactory)
+}

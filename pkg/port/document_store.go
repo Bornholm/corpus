@@ -39,6 +39,8 @@ type DocumentStore interface {
 	GetSectionByID(ctx context.Context, id model.SectionID) (model.Section, error)
 	GetSectionsByIDs(ctx context.Context, ids []model.SectionID) (map[model.SectionID]model.Section, error)
 	SectionExists(ctx context.Context, id model.SectionID) (bool, error)
+	// SectionsExist vérifie en une seule requête l'existence de plusieurs sections.
+	SectionsExist(ctx context.Context, ids []model.SectionID) (map[model.SectionID]bool, error)
 
 	GetCollectionByID(ctx context.Context, id model.CollectionID, full bool) (model.PersistedCollection, error)
 	QueryCollections(ctx context.Context, opts QueryCollectionsOptions) ([]model.PersistedCollection, error)

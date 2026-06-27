@@ -261,6 +261,16 @@ func (d *dummyStore) SectionExists(ctx context.Context, id model.SectionID) (boo
 	panic("unimplemented")
 }
 
+// SectionsExist implements [port.DocumentStore].
+func (d *dummyStore) SectionsExist(ctx context.Context, ids []model.SectionID) (map[model.SectionID]bool, error) {
+	panic("unimplemented")
+}
+
+// ListDocumentDigests implements [port.DocumentStore].
+func (d *dummyStore) ListDocumentDigests(ctx context.Context, sourcePrefix string, page int, pageSize int) ([]port.DocumentDigest, error) {
+	panic("unimplemented")
+}
+
 // UpdateCollection implements [port.DocumentStore].
 func (d *dummyStore) UpdateCollection(ctx context.Context, id model.CollectionID, updates port.CollectionUpdates) (model.PersistedCollection, error) {
 	panic("unimplemented")
