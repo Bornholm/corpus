@@ -20,6 +20,11 @@ type DocumentStore struct {
 	statCache          *expirable.LRU[string, int64]
 }
 
+// ListDocumentDigests implements [port.DocumentStore].
+func (s *DocumentStore) ListDocumentDigests(ctx context.Context, sourcePrefix string, page int, pageSize int) ([]port.DocumentDigest, error) {
+	return s.backend.ListDocumentDigests(ctx, sourcePrefix, page, pageSize)
+}
+
 // CanReadCollection implements [port.DocumentStore].
 func (s *DocumentStore) CanReadCollection(ctx context.Context, userID model.UserID, collectionID model.CollectionID) (bool, error) {
 	cacheKey := getCompositeCacheKey(userID, collectionID, "read", "collection")

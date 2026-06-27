@@ -2,6 +2,7 @@ package watch
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"os"
@@ -89,12 +90,17 @@ func Command() *cli.Command {
 					return errors.Wrapf(err, "could not retrieve watch options from dsn '%s'", dsn)
 				}
 
+				indexerOptions, err := getIndexerOptions(dsn)
+				if err != nil {
+					return errors.Wrapf(err, "could not retrieve indexer options from dsn '%s'", dsn)
+				}
+
 				b, err := backend.New(dsn.String())
 				if err != nil {
 					return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", dsn)
 				}
 
-				go func(b filesystem.Backend, dsn *url.URL, collections []model.CollectionID, source *url.URL, sourceEmbedded bool, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType) {
+				go func(b filesystem.Backend, dsn *url.URL, collections []model.CollectionID, source *url.URL, sourceEmbedded bool, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType, iopts indexerOpts) {
 					watcherRestarts := 0
 					baseDelay := time.Second
 					restartDelay := baseDelay
@@ -111,6 +117,9 @@ func Command() *cli.Command {
 							eTagType:             eTagType,
 							indexRetryMaxRetries: 3,
 							indexRetryBaseDelay:  time.Second,
+							concurrency:          iopts.concurrency,
+							syncOnStart:          iopts.syncOnStart,
+							deleteOrphans:        iopts.deleteOrphans,
 						}
 
 						err := indexer.Watch(watchCtx, watchOptions...)
@@ -133,7 +142,7 @@ func Command() *cli.Command {
 						restartDelay *= 2
 					}
 
-				}(b, dsn, collections, source, sourceEmbedded, watchOptions, eTagType)
+				}(b, dsn, collections, source, sourceEmbedded, watchOptions, eTagType, indexerOptions)
 			}
 
 			notify := make(chan os.Signal, 1)
@@ -291,4 +300,52 @@ func scrubbedURL(u *url.URL) string {
 		u.User = url.UserPassword("***", "***")
 	}
 	return u.String()
+}
+
+const (
+	paramWatchConcurrency  = "watchConcurrency"
+	paramWatchSyncOnStart  = "watchSyncOnStart"
+	paramWatchDeleteOrphans = "watchDeleteOrphans"
+)
+
+type indexerOpts struct {
+	concurrency   int
+	syncOnStart   bool
+	deleteOrphans bool
+}
+
+func getIndexerOptions(dsn *url.URL) (indexerOpts, error) {
+	query := dsn.Query()
+	opts := indexerOpts{
+		concurrency:   8,
+		syncOnStart:   true,
+		deleteOrphans: false,
+	}
+
+	if raw := query.Get(paramWatchConcurrency); raw != "" {
+		var v int
+		if _, err := fmt.Sscanf(raw, "%d", &v); err != nil {
+			return opts, errors.Wrapf(err, "could not parse '%s' parameter", paramWatchConcurrency)
+		}
+		if v > 0 {
+			opts.concurrency = v
+		}
+	}
+	query.Del(paramWatchConcurrency)
+
+	switch query.Get(paramWatchSyncOnStart) {
+	case "false":
+		opts.syncOnStart = false
+	}
+	query.Del(paramWatchSyncOnStart)
+
+	switch query.Get(paramWatchDeleteOrphans) {
+	case "true":
+		opts.deleteOrphans = true
+	}
+	query.Del(paramWatchDeleteOrphans)
+
+	dsn.RawQuery = query.Encode()
+
+	return opts, nil
 }

@@ -18,6 +18,12 @@ type taskEntry struct {
 	State port.TaskState
 }
 
+type queuedTask struct {
+	task   model.Task
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
 type TaskRunner struct {
 	runningMutex *sync.Mutex
 	runningCond  sync.Cond
@@ -27,11 +33,12 @@ type TaskRunner struct {
 	stateMutex sync.Mutex
 
 	handlers  syncx.Map[model.TaskType, port.TaskHandler]
-	semaphore chan struct{}
+	queue     chan queuedTask
+	errOnFull bool
 
-	// cancelFuncs stores cancel functions for running/pending tasks
 	cancelFuncs syncx.Map[model.TaskID, context.CancelFunc]
 
+	parallelism     int
 	cleanupDelay    time.Duration
 	cleanupInterval time.Duration
 }
@@ -43,23 +50,17 @@ func (r *TaskRunner) CancelTask(ctx context.Context, id model.TaskID) error {
 		return errors.WithStack(port.ErrNotFound)
 	}
 
-	// Can only cancel pending or running tasks
 	if entry.State.Status != port.TaskStatusPending && entry.State.Status != port.TaskStatusRunning {
 		return errors.WithStack(port.ErrCanceled)
 	}
 
-	// Get the cancel function if it exists
 	cancelFn, exists := r.cancelFuncs.Load(id)
 	if !exists {
-		// No cancel function means the task might have already finished
-		// or there's no way to cancel it
 		return errors.WithStack(port.ErrCanceled)
 	}
 
-	// Call the cancel function
 	cancelFn()
 
-	// Update the task state to failed with canceled error
 	r.updateState(entry.Task, func(s *port.TaskState) {
 		s.Error = errors.WithStack(port.ErrCanceled)
 		s.Status = port.TaskStatusFailed
@@ -77,7 +78,6 @@ func (r *TaskRunner) GetTask(ctx context.Context, id model.TaskID) (model.Task, 
 	if !exists {
 		return nil, errors.WithStack(port.ErrNotFound)
 	}
-
 	return entry.Task, nil
 }
 
@@ -88,8 +88,36 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 	r.runningCond.Broadcast()
 	r.runningMutex.Unlock()
 
+	// Start fixed worker pool
+	var wg sync.WaitGroup
+	for i := 0; i < r.parallelism; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			r.runningMutex.Lock()
+			for !r.running {
+				r.runningCond.Wait()
+			}
+			r.runningMutex.Unlock()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case qt, ok := <-r.queue:
+					if !ok {
+						return
+					}
+					r.executeTask(qt)
+				}
+			}
+		}()
+	}
+
+	// Cleanup goroutine
 	go func() {
 		ticker := time.NewTicker(r.cleanupInterval)
+		defer ticker.Stop()
 		for {
 			select {
 			case <-ctx.Done():
@@ -97,20 +125,15 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 			case <-ticker.C:
 				slog.DebugContext(ctx, "running task cleaner")
 
-				// Collect IDs to delete first to avoid race conditions during iteration
 				var idsToDelete []model.TaskID
-
 				r.tasks.Range(func(id model.TaskID, entry taskEntry) bool {
 					if entry.State.FinishedAt.IsZero() || !time.Now().After(entry.State.FinishedAt.Add(r.cleanupDelay)) {
 						return true
 					}
-
 					idsToDelete = append(idsToDelete, id)
-
 					return true
 				})
 
-				// Now delete them
 				for _, id := range idsToDelete {
 					slog.DebugContext(ctx, "deleting expired task", slog.String("taskID", string(id)))
 					r.tasks.Delete(id)
@@ -121,12 +144,110 @@ func (r *TaskRunner) Run(ctx context.Context) error {
 	}()
 
 	<-ctx.Done()
+	close(r.queue)
+	wg.Wait()
 
 	if err := ctx.Err(); err != nil {
 		return errors.WithStack(err)
 	}
-
 	return nil
+}
+
+func (r *TaskRunner) executeTask(qt queuedTask) {
+	task := qt.task
+	taskCtx := qt.ctx
+	taskID := task.ID()
+
+	ctx := slogx.WithAttrs(taskCtx,
+		slog.String("taskID", string(taskID)),
+		slog.String("taskType", string(task.Type())),
+	)
+
+	defer func() {
+		r.cancelFuncs.Delete(taskID)
+
+		if recovered := recover(); recovered != nil {
+			err, ok := recovered.(error)
+			if !ok {
+				err = errors.Errorf("%+v", recovered)
+			}
+			slog.ErrorContext(ctx, "recovered panic while running task", slog.Any("error", errors.WithStack(err)))
+			r.updateState(task, func(s *port.TaskState) {
+				s.Error = errors.WithStack(err)
+				s.Status = port.TaskStatusFailed
+				s.FinishedAt = time.Now()
+			})
+		}
+	}()
+
+	handler, exists := r.handlers.Load(task.Type())
+	if !exists {
+		r.updateState(task, func(s *port.TaskState) {
+			s.Error = errors.Errorf("no handler registered for task type '%s'", task.Type())
+			s.Status = port.TaskStatusFailed
+			s.FinishedAt = time.Now()
+		})
+		return
+	}
+
+	r.updateState(task, func(s *port.TaskState) {
+		s.Status = port.TaskStatusRunning
+	})
+
+	events := make(chan port.TaskEvent, 100)
+
+	var eventsWg sync.WaitGroup
+	eventsWg.Add(1)
+	go func() {
+		defer eventsWg.Done()
+		for e := range events {
+			r.updateState(task, func(s *port.TaskState) {
+				if e.Progress != nil {
+					s.Progress = float32(max(min(*e.Progress, 1), 0))
+				}
+				if e.Message != nil {
+					s.Message = *e.Message
+				}
+			})
+		}
+	}()
+
+	start := time.Now()
+
+	err := handler.Handle(taskCtx, task, events)
+
+	if errors.Is(err, port.ErrCanceled) {
+		slog.DebugContext(ctx, "task was canceled")
+		r.updateState(task, func(s *port.TaskState) {
+			s.Error = errors.WithStack(port.ErrCanceled)
+			s.Status = port.TaskStatusFailed
+			s.FinishedAt = time.Now()
+		})
+		close(events)
+		eventsWg.Wait()
+		return
+	}
+
+	close(events)
+	eventsWg.Wait()
+
+	if err != nil {
+		err = errors.WithStack(err)
+		slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
+		r.updateState(task, func(s *port.TaskState) {
+			s.Error = err
+			s.Status = port.TaskStatusFailed
+			s.FinishedAt = time.Now()
+		})
+		return
+	}
+
+	slog.DebugContext(ctx, "task finished", slog.Duration("duration", time.Since(start)))
+	r.updateState(task, func(s *port.TaskState) {
+		s.Status = port.TaskStatusSucceeded
+		s.FinishedAt = time.Now()
+		s.Progress = 1
+	})
 }
 
 // ListTasks implements port.TaskRunner.
@@ -160,125 +281,28 @@ func (r *TaskRunner) ScheduleTask(ctx context.Context, task model.Task) error {
 		s.Type = task.Type()
 	})
 
-	// Create a cancelable context for this task
 	taskCtx, cancelFn := context.WithCancel(context.Background())
 	r.cancelFuncs.Store(taskID, cancelFn)
 
-	go func() {
-		defer func() {
-			// Clean up the cancel function when the task finishes
+	qt := queuedTask{task: task, ctx: taskCtx, cancel: cancelFn}
+
+	if r.errOnFull {
+		select {
+		case r.queue <- qt:
+		default:
+			cancelFn()
 			r.cancelFuncs.Delete(taskID)
-
-			if recovered := recover(); recovered != nil {
-				err, ok := recovered.(error)
-				if !ok {
-					err = errors.Errorf("%+v", recovered)
-				}
-
-				slog.ErrorContext(ctx, "recovered panic while running task", slog.Any("error", errors.WithStack(err)))
-
-				r.updateState(task, func(s *port.TaskState) {
-					s.Error = errors.WithStack(err)
-					s.Status = port.TaskStatusFailed
-				})
-			}
-		}()
-
-		r.runningMutex.Lock()
-		for !r.running {
-			r.runningCond.Wait()
-		}
-		r.runningMutex.Unlock()
-
-		r.semaphore <- struct{}{}
-		defer func() {
-			<-r.semaphore
-		}()
-
-		handler, exists := r.handlers.Load(task.Type())
-		if !exists {
 			r.updateState(task, func(s *port.TaskState) {
-				s.Error = errors.Errorf("no handler registered for task type '%s'", task.Type())
-				s.Status = port.TaskStatusFailed
-			})
-
-			return
-		}
-
-		r.updateState(task, func(s *port.TaskState) {
-			s.Status = port.TaskStatusRunning
-		})
-
-		events := make(chan port.TaskEvent, 100)
-
-		var eventsWg sync.WaitGroup
-		eventsWg.Add(1)
-		go func() {
-			defer eventsWg.Done()
-			for e := range events {
-				r.updateState(task, func(s *port.TaskState) {
-					if e.Progress != nil {
-						s.Progress = float32(max(min(*e.Progress, 1), 0))
-					}
-					if e.Message != nil {
-						s.Message = *e.Message
-					}
-				})
-			}
-		}()
-
-		start := time.Now()
-
-		taskCtx := slogx.WithAttrs(taskCtx,
-			slog.String("taskID", string(taskID)),
-			slog.String("taskType", string(task.Type())),
-		)
-
-		err := handler.Handle(taskCtx, task, events)
-
-		// Check if the task was canceled
-		if errors.Is(err, port.ErrCanceled) {
-			slog.DebugContext(ctx, "task was canceled")
-
-			r.updateState(task, func(s *port.TaskState) {
-				s.Error = errors.WithStack(port.ErrCanceled)
+				s.Error = errors.WithStack(port.ErrQueueFull)
 				s.Status = port.TaskStatusFailed
 				s.FinishedAt = time.Now()
 			})
-
-			// Close the events channel and wait for the events goroutine
-			close(events)
-			eventsWg.Wait()
-
-			return
+			return errors.WithStack(port.ErrQueueFull)
 		}
+	} else {
+		r.queue <- qt
+	}
 
-		// Close the events channel and wait for the events goroutine to fully
-		// drain before writing the final task state, eliminating the race between
-		// the events goroutine and the final updateState call.
-		close(events)
-		eventsWg.Wait()
-
-		if err != nil {
-			err = errors.WithStack(err)
-			slog.ErrorContext(ctx, "task failed", slog.Any("error", err))
-
-			r.updateState(task, func(s *port.TaskState) {
-				s.Error = err
-				s.Status = port.TaskStatusFailed
-				s.FinishedAt = time.Now()
-			})
-			return
-		}
-
-		slog.DebugContext(ctx, "task finished", slog.Duration("duration", time.Since(start)))
-
-		r.updateState(task, func(s *port.TaskState) {
-			s.Status = port.TaskStatusSucceeded
-			s.FinishedAt = time.Now()
-			s.Progress = 1
-		})
-	}()
 	return nil
 }
 
@@ -306,19 +330,25 @@ func (r *TaskRunner) GetTaskState(ctx context.Context, id model.TaskID) (*port.T
 	if !exists {
 		return nil, errors.WithStack(port.ErrNotFound)
 	}
-
 	return &entry.State, nil
 }
 
 func NewTaskRunner(parallelism int, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskRunner {
+	return NewTaskRunnerWithQueue(parallelism, parallelism*4, false, cleanupDelay, cleanupInterval)
+}
+
+func NewTaskRunnerWithQueue(parallelism int, queueSize int, errOnFull bool, cleanupDelay time.Duration, cleanupInterval time.Duration) *TaskRunner {
 	runningMutex := &sync.Mutex{}
 	return &TaskRunner{
 		runningMutex:    runningMutex,
 		runningCond:     *sync.NewCond(runningMutex),
 		running:         false,
-		semaphore:       make(chan struct{}, parallelism),
+		parallelism:     parallelism,
+		queue:           make(chan queuedTask, queueSize),
+		errOnFull:       errOnFull,
 		tasks:           syncx.Map[model.TaskID, taskEntry]{},
 		handlers:        syncx.Map[model.TaskType, port.TaskHandler]{},
+		cancelFuncs:     syncx.Map[model.TaskID, context.CancelFunc]{},
 		cleanupDelay:    cleanupDelay,
 		cleanupInterval: cleanupInterval,
 	}

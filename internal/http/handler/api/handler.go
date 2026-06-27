@@ -41,6 +41,7 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *backup.
 	h.mux.Handle("GET /backup", assertAdmin(http.HandlerFunc(h.handleGenerateBackup)))
 	h.mux.Handle("PUT /backup", assertAdmin(http.HandlerFunc(h.handleRestoreBackup)))
 
+	h.mux.Handle("GET /documents/digests", assertUser(http.HandlerFunc(h.handleListDocumentDigests)))
 	h.mux.Handle("GET /documents", assertUser(http.HandlerFunc(h.handleListDocuments)))
 	h.mux.Handle("GET /documents/{documentID}", assertUser(h.assertDocumentReadable(http.HandlerFunc(h.handleGetDocument))))
 	h.mux.Handle("DELETE /documents/{documentID}", assertUser(h.assertDocumentWritable(http.HandlerFunc(h.handleDeleteDocument))))

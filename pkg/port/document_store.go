@@ -7,7 +7,18 @@ import (
 	"github.com/bornholm/corpus/pkg/model"
 )
 
+// DocumentDigest holds a minimal projection of a document used for bulk change detection.
+type DocumentDigest struct {
+	ID     model.DocumentID
+	Source string
+	ETag   string
+}
+
 type DocumentStore interface {
+	// ListDocumentDigests returns (Source, ETag) pairs for documents whose source URL
+	// starts with sourcePrefix. Results are paginated; pageSize=0 defaults to 500.
+	ListDocumentDigests(ctx context.Context, sourcePrefix string, page int, pageSize int) ([]DocumentDigest, error)
+
 	GetDocumentByID(ctx context.Context, id model.DocumentID) (model.PersistedDocument, error)
 	SaveDocuments(ctx context.Context, documents ...model.OwnedDocument) error
 	DeleteDocumentBySource(ctx context.Context, ownerID model.UserID, source *url.URL) error

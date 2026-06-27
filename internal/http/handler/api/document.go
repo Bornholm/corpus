@@ -29,6 +29,54 @@ type DocumentHeader struct {
 	ETag   string `json:"etag,omitempty"`
 }
 
+type ListDocumentDigestsResponse struct {
+	Digests  []DocumentDigestResponse `json:"digests"`
+	Page     int                      `json:"page"`
+	PageSize int                      `json:"page_size"`
+}
+
+type DocumentDigestResponse struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	ETag   string `json:"etag,omitempty"`
+}
+
+func (h *Handler) handleListDocumentDigests(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	query := r.URL.Query()
+
+	sourcePrefix := query.Get("source_prefix")
+	page := getQueryInt(query, "page", 0)
+	pageSize := getQueryInt(query, "page_size", 0)
+
+	digests, err := h.documentManager.DocumentStore.ListDocumentDigests(ctx, sourcePrefix, page, pageSize)
+	if err != nil {
+		slog.ErrorContext(ctx, "could not list document digests", slog.Any("error", errors.WithStack(err)))
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	res := ListDocumentDigestsResponse{
+		Digests:  make([]DocumentDigestResponse, 0, len(digests)),
+		Page:     page,
+		PageSize: pageSize,
+	}
+	for _, d := range digests {
+		res.Digests = append(res.Digests, DocumentDigestResponse{
+			ID:     string(d.ID),
+			Source: d.Source,
+			ETag:   d.ETag,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", " ")
+	if err := encoder.Encode(res); err != nil {
+		slog.ErrorContext(ctx, "could not encode response", slog.Any("error", errors.WithStack(err)))
+	}
+}
+
 func (h *Handler) handleListDocuments(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	page := getQueryPage(query, 0)
