@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 
 	"github.com/Bornholm/amatl/pkg/log"
-	"github.com/bornholm/corpus/pkg/model"
-	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/corpus/internal/metrics"
 	documentTask "github.com/bornholm/corpus/internal/task/document"
 	"github.com/bornholm/corpus/internal/text"
 	"github.com/bornholm/corpus/internal/util"
+	"github.com/bornholm/corpus/pkg/model"
+	"github.com/bornholm/corpus/pkg/port"
 	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/genai/llm/prompt"
 	"github.com/bornholm/go-x/slogx"
@@ -23,8 +23,13 @@ import (
 )
 
 type DocumentManagerOptions struct {
-	MaxWordPerSection int
-	FileConverter     port.FileConverter
+	MaxWordPerSection  int
+	FileConverter      port.FileConverter
+	GroundingChecker   GroundingChecker
+	GroundingMinScore  float64
+	QueryReformulator  QueryReformulator
+	QueryDecomposer    QueryDecomposer
+	IterativeMaxRounds int
 }
 
 type DocumentManagerOptionFunc func(opts *DocumentManagerOptions)
@@ -35,9 +40,29 @@ func WithDocumentManagerFileConverter(fileConverter port.FileConverter) Document
 	}
 }
 
+// WithGroundingChecker enables the grounding (γ) verifier. When set, Ask checks
+// whether the retrieved evidence supports a reliable answer and abstains instead
+// of generating when it does not. A nil checker (the default) leaves Ask
+// unchanged.
+func WithGroundingChecker(checker GroundingChecker) DocumentManagerOptionFunc {
+	return func(opts *DocumentManagerOptions) {
+		opts.GroundingChecker = checker
+	}
+}
+
+// WithGroundingMinScore sets the grounding score threshold below which Ask
+// abstains (default 0.4). Only meaningful together with WithGroundingChecker.
+func WithGroundingMinScore(minScore float64) DocumentManagerOptionFunc {
+	return func(opts *DocumentManagerOptions) {
+		opts.GroundingMinScore = minScore
+	}
+}
+
 func NewDocumentManagerOptions(funcs ...DocumentManagerOptionFunc) *DocumentManagerOptions {
 	opts := &DocumentManagerOptions{
-		MaxWordPerSection: 250,
+		MaxWordPerSection:  250,
+		GroundingMinScore:  0.4,
+		IterativeMaxRounds: 1,
 	}
 	for _, fn := range funcs {
 		fn(opts)
@@ -50,11 +75,16 @@ type DocumentManager struct {
 
 	userStore port.UserStore
 
-	maxWordPerSection int
-	fileConverter     port.FileConverter
-	index             port.Index
-	llm               llm.Client
-	taskRunner        port.TaskRunner
+	maxWordPerSection  int
+	fileConverter      port.FileConverter
+	index              port.Index
+	llm                llm.Client
+	taskRunner         port.TaskRunner
+	groundingChecker   GroundingChecker
+	groundingMinScore  float64
+	queryReformulator  QueryReformulator
+	queryDecomposer    QueryDecomposer
+	iterativeMaxRounds int
 }
 
 type DocumentManagerSearchOptions struct {
@@ -116,6 +146,9 @@ func (m *DocumentManager) Search(ctx context.Context, query string, funcs ...Doc
 
 type DocumentManagerAskOptions struct {
 	SystemPromptTemplate string
+	// GroundingOut, when non-nil, is populated with the grounding verdict
+	// computed during Ask (only when a GroundingChecker is configured).
+	GroundingOut *GroundingResult
 }
 
 type DocumentManagerAskOptionFunc func(opts *DocumentManagerAskOptions)
@@ -125,6 +158,19 @@ func WithAskSystemPromptTemplate(promptTemplate string) DocumentManagerAskOption
 		opts.SystemPromptTemplate = promptTemplate
 	}
 }
+
+// WithAskGroundingOutput lets a caller receive the grounding verdict computed by
+// Ask. The pointed-to value is written only when a GroundingChecker is
+// configured; it is left untouched otherwise.
+func WithAskGroundingOutput(out *GroundingResult) DocumentManagerAskOptionFunc {
+	return func(opts *DocumentManagerAskOptions) {
+		opts.GroundingOut = out
+	}
+}
+
+// defaultAbstentionMessage is returned by Ask when the grounding verifier judges
+// the retrieved evidence insufficient to answer reliably.
+const defaultAbstentionMessage = "I cannot provide a reliable answer: the retrieved documents do not sufficiently support one."
 
 const defaultSystemPromptTemplate string = `
 ## Instructions
@@ -171,6 +217,30 @@ func (m *DocumentManager) Ask(ctx context.Context, query string, results []*port
 	systemPromptTemplate := opts.SystemPromptTemplate
 	if systemPromptTemplate == "" {
 		systemPromptTemplate = defaultSystemPromptTemplate
+	}
+
+	// Grounding (γ) gate: when a checker is configured, verify the retrieved
+	// evidence supports a reliable answer and abstain instead of generating when
+	// it does not.
+	if m.groundingChecker != nil {
+		grounding, err := m.groundingChecker.Check(ctx, query, results)
+		if err != nil {
+			return "", nil, errors.WithStack(err)
+		}
+
+		if opts.GroundingOut != nil {
+			*opts.GroundingOut = *grounding
+		}
+
+		if grounding.Status == GroundingInvalid || grounding.Score < m.groundingMinScore {
+			slog.InfoContext(ctx, "abstaining: retrieved evidence is not sufficiently grounded",
+				slog.String("status", string(grounding.Status)),
+				slog.Float64("score", grounding.Score),
+				slog.Float64("min_score", m.groundingMinScore),
+			)
+
+			return abstentionAnswer(grounding), map[model.SectionID]string{}, nil
+		}
 	}
 
 	response, contents, err := m.generateResponse(ctx, systemPromptTemplate, query, results)
@@ -341,12 +411,17 @@ func NewDocumentManager(store port.DocumentStore, index port.Index, taskRunner p
 	opts := NewDocumentManagerOptions(funcs...)
 
 	documentManager := &DocumentManager{
-		maxWordPerSection: opts.MaxWordPerSection,
-		DocumentStore:     store,
-		taskRunner:        taskRunner,
-		index:             index,
-		fileConverter:     opts.FileConverter,
-		llm:               llm,
+		maxWordPerSection:  opts.MaxWordPerSection,
+		DocumentStore:      store,
+		taskRunner:         taskRunner,
+		index:              index,
+		fileConverter:      opts.FileConverter,
+		llm:                llm,
+		groundingChecker:   opts.GroundingChecker,
+		groundingMinScore:  opts.GroundingMinScore,
+		queryReformulator:  opts.QueryReformulator,
+		queryDecomposer:    opts.QueryDecomposer,
+		iterativeMaxRounds: opts.IterativeMaxRounds,
 	}
 
 	return documentManager

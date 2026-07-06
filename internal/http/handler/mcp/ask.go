@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/bornholm/corpus/internal/core/service"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/pkg/port"
@@ -35,7 +34,7 @@ func (h *Handler) handleAsk(ctx context.Context, request *sdkmcp.CallToolRequest
 		}, nil
 	}
 
-	results, err := h.doSearch(ctx, question)
+	collections, err := h.resolveSessionCollections(ctx)
 	if err != nil {
 		var invalidCollectionErr InvalidCollectionError
 		if errors.As(err, &invalidCollectionErr) {
@@ -50,9 +49,14 @@ func (h *Handler) handleAsk(ctx context.Context, request *sdkmcp.CallToolRequest
 		return nil, errors.WithStack(err)
 	}
 
+	result, err := h.documentManager.AskWithRetrieval(ctx, question, collections)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
 	content := make([]sdkmcp.Content, 0)
 
-	if len(results) == 0 {
+	if len(result.Results) == 0 {
 		content = append(content, &sdkmcp.TextContent{
 			Text: "No information available matching the given question.",
 		})
@@ -63,21 +67,16 @@ func (h *Handler) handleAsk(ctx context.Context, request *sdkmcp.CallToolRequest
 		}, nil
 	}
 
-	response, sections, err := h.documentManager.Ask(ctx, question, results)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
 	var sb strings.Builder
 
 	sb.WriteString("# Response \n\n")
-	sb.WriteString(response)
+	sb.WriteString(result.Answer)
 
 	content = append(content, &sdkmcp.TextContent{
 		Text: sb.String(),
 	})
 
-	for _, r := range results {
+	for _, r := range result.Results {
 		sb.Reset()
 		sb.WriteString("# Source\n\n")
 		sb.WriteString("**URL** ")
@@ -87,7 +86,7 @@ func (h *Handler) handleAsk(ctx context.Context, request *sdkmcp.CallToolRequest
 		sb.WriteString("## Excerpts\n\n")
 
 		for i, sectionID := range r.Sections {
-			content, exists := sections[sectionID]
+			sectionContent, exists := result.Contents[sectionID]
 			if !exists {
 				continue
 			}
@@ -96,7 +95,7 @@ func (h *Handler) handleAsk(ctx context.Context, request *sdkmcp.CallToolRequest
 				sb.WriteString("\n\n[...]\n\n")
 			}
 
-			sb.WriteString(content)
+			sb.WriteString(sectionContent)
 		}
 
 		content = append(content, &sdkmcp.TextContent{
@@ -109,47 +108,42 @@ func (h *Handler) handleAsk(ctx context.Context, request *sdkmcp.CallToolRequest
 	}, nil
 }
 
-func (h *Handler) doSearch(ctx context.Context, query string) ([]*port.IndexSearchResult, error) {
-	options := make([]service.DocumentManagerSearchOptionFunc, 0)
-
+// resolveSessionCollections returns the (validated) collection IDs the current
+// MCP session restricts search to. An empty slice means "no restriction".
+func (h *Handler) resolveSessionCollections(ctx context.Context) ([]model.CollectionID, error) {
 	sessionData := contextSessionData(ctx)
 
-	if len(sessionData.Collections) > 0 {
-		// Validate that all provided collection IDs are valid
-		user := httpCtx.User(ctx)
-		readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{
-			HeaderOnly: true,
-		})
-		if err != nil {
-			return nil, errors.WithStack(err)
-		}
-
-		// Check if any of the session collections are invalid
-		var invalidCollections []model.CollectionID
-		for _, collectionID := range sessionData.Collections {
-			isValid := slices.ContainsFunc(readableCollections, func(c model.PersistedCollection) bool {
-				return collectionID == c.ID()
-			})
-			if !isValid {
-				invalidCollections = append(invalidCollections, collectionID)
-			}
-		}
-
-		if len(invalidCollections) > 0 {
-			return nil, InvalidCollectionError{
-				InvalidCollections: invalidCollections,
-			}
-		}
-
-		options = append(options, service.WithDocumentManagerSearchCollections(sessionData.Collections...))
+	if len(sessionData.Collections) == 0 {
+		return nil, nil
 	}
 
-	results, err := h.documentManager.Search(ctx, query, options...)
+	// Validate that all provided collection IDs are valid
+	user := httpCtx.User(ctx)
+	readableCollections, _, err := h.documentManager.DocumentStore.QueryUserReadableCollections(ctx, user.ID(), port.QueryCollectionsOptions{
+		HeaderOnly: true,
+	})
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	return results, nil
+	// Check if any of the session collections are invalid
+	var invalidCollections []model.CollectionID
+	for _, collectionID := range sessionData.Collections {
+		isValid := slices.ContainsFunc(readableCollections, func(c model.PersistedCollection) bool {
+			return collectionID == c.ID()
+		})
+		if !isValid {
+			invalidCollections = append(invalidCollections, collectionID)
+		}
+	}
+
+	if len(invalidCollections) > 0 {
+		return nil, InvalidCollectionError{
+			InvalidCollections: invalidCollections,
+		}
+	}
+
+	return sessionData.Collections, nil
 }
 
 // InvalidCollectionError is returned when an invalid collection identifier is provided.

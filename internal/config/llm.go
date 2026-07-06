@@ -36,4 +36,21 @@ type LLMRateLimit struct {
 type LLMIndex struct {
 	MaxWords      int `env:"MAX_WORDS,expand" envDefault:"2000"`
 	MaxTotalWords int `env:"MAX_TOTAL_WORDS,expand" envDefault:"50000"`
+
+	// GroundingCheck enables the grounding (γ) verifier: after retrieval, an LLM
+	// judges whether the evidence supports a reliable answer and the service
+	// abstains instead of generating when it does not. Disabled by default.
+	GroundingCheck    bool    `env:"GROUNDING_CHECK,expand" envDefault:"false"`
+	GroundingMinScore float64 `env:"GROUNDING_MIN_SCORE,expand" envDefault:"0.4"`
+
+	// IterativeRetrieval enables grounding-driven re-retrieval: when the evidence
+	// is not confidently grounded, the query is reformulated and searched again
+	// (up to IterativeMaxRounds) before answering. Requires GroundingCheck.
+	IterativeRetrieval bool `env:"ITERATIVE_RETRIEVAL,expand" envDefault:"false"`
+	IterativeMaxRounds int  `env:"ITERATIVE_MAX_ROUNDS,expand" envDefault:"1"`
+
+	// QueryDecomposition enables splitting a complex question into sub-questions,
+	// searching each and fusing their evidence before answering.
+	QueryDecomposition         bool `env:"QUERY_DECOMPOSITION,expand" envDefault:"false"`
+	DecompositionMaxSubQueries int  `env:"DECOMPOSITION_MAX_SUBQUERIES,expand" envDefault:"3"`
 }

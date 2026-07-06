@@ -10,7 +10,6 @@ import (
 	"github.com/a-h/templ"
 	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/pkg/port"
-	"github.com/bornholm/corpus/internal/core/service"
 	httpCtx "github.com/bornholm/corpus/internal/http/context"
 	"github.com/bornholm/corpus/internal/http/handler/webui/ask/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
@@ -61,8 +60,6 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	ctx = slogx.WithAttrs(ctx, slog.String("origin", "webui"))
 
-	searchOptions := make([]service.DocumentManagerSearchOptionFunc, 0)
-
 	rawSelectedCollections := slices.Collect(func(yield func(string) bool) {
 		for _, id := range vmodel.SelectedCollections {
 			if !yield(string(id)) {
@@ -77,10 +74,8 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	searchOptions = append(searchOptions, service.WithDocumentManagerSearchCollections(collections...))
-
-	results, err := h.documentManager.Search(ctx, vmodel.Query, searchOptions...)
-	if err != nil && !errors.Is(err, service.ErrNoResults) {
+	result, err := h.documentManager.AskWithRetrieval(ctx, vmodel.Query, collections)
+	if err != nil {
 		if errors.Is(err, llm.ErrRateLimit) {
 			common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
 			return
@@ -90,22 +85,11 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vmodel.Results = results
+	vmodel.Results = result.Results
 
-	if len(results) > 0 {
-		response, contents, err := h.documentManager.Ask(ctx, vmodel.Query, results)
-		if err != nil {
-			if errors.Is(err, llm.ErrRateLimit) {
-				common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
-				return
-			}
-
-			common.HandleError(w, r, errors.WithStack(err))
-			return
-		}
-
-		vmodel.Response = response
-		vmodel.SectionContents = contents
+	if len(result.Results) > 0 {
+		vmodel.Response = result.Answer
+		vmodel.SectionContents = result.Contents
 	}
 
 	renderPage()

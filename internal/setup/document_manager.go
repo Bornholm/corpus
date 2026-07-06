@@ -40,6 +40,30 @@ var getDocumentManager = createFromConfigOnce(func(ctx context.Context, conf *co
 		return nil, errors.Wrap(err, "could not create llm client from config")
 	}
 
+	if conf.LLM.Index.GroundingCheck {
+		options = append(options,
+			service.WithGroundingChecker(
+				service.NewLLMGroundingChecker(llmClient, store, conf.LLM.Index.MaxTotalWords),
+			),
+			service.WithGroundingMinScore(conf.LLM.Index.GroundingMinScore),
+		)
+	}
+
+	if conf.LLM.Index.IterativeRetrieval {
+		options = append(options,
+			service.WithQueryReformulator(service.NewLLMQueryReformulator(llmClient)),
+			service.WithIterativeMaxRounds(conf.LLM.Index.IterativeMaxRounds),
+		)
+	}
+
+	if conf.LLM.Index.QueryDecomposition {
+		options = append(options,
+			service.WithQueryDecomposer(
+				service.NewLLMQueryDecomposer(llmClient, conf.LLM.Index.DecompositionMaxSubQueries),
+			),
+		)
+	}
+
 	documentManager := service.NewDocumentManager(store, index, taskRunner, llmClient, options...)
 
 	return documentManager, nil

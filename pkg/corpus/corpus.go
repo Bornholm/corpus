@@ -15,6 +15,8 @@ import (
 
 	bleve "github.com/blevesearch/bleve/v2"
 	"github.com/blevesearch/bleve/v2/mapping"
+	"github.com/bornholm/corpus/internal/core/service"
+	documentTask "github.com/bornholm/corpus/internal/task/document"
 	bleveAdapter "github.com/bornholm/corpus/pkg/adapter/bleve"
 	gormAdapter "github.com/bornholm/corpus/pkg/adapter/gorm"
 	memoryAdapter "github.com/bornholm/corpus/pkg/adapter/memory"
@@ -22,8 +24,6 @@ import (
 	sqlitevecAdapter "github.com/bornholm/corpus/pkg/adapter/sqlitevec"
 	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/pkg/port"
-	"github.com/bornholm/corpus/internal/core/service"
-	documentTask "github.com/bornholm/corpus/internal/task/document"
 	"github.com/ncruces/go-sqlite3"
 	gormlite "github.com/ncruces/go-sqlite3/gormlite"
 	"github.com/pkg/errors"
@@ -110,7 +110,7 @@ func New(ctx context.Context, funcs ...OptionFunc) (*Corpus, error) {
 		sqliteVecIdx := sqlitevecAdapter.NewIndex(sqliteConn, opts.llmClient, opts.embeddingsModel, opts.maxIndexWords)
 
 		weightedIndexes := pipeline.WeightedIndexes{
-			pipeline.NewIdentifiedIndex("bleve", bleveIdx):      opts.bleveWeight,
+			pipeline.NewIdentifiedIndex("bleve", bleveIdx):         opts.bleveWeight,
 			pipeline.NewIdentifiedIndex("sqlitevec", sqliteVecIdx): opts.sqliteVecWeight,
 		}
 
@@ -149,6 +149,27 @@ func New(ctx context.Context, funcs ...OptionFunc) (*Corpus, error) {
 	dmOpts := []service.DocumentManagerOptionFunc{}
 	if opts.fileConverter != nil {
 		dmOpts = append(dmOpts, service.WithDocumentManagerFileConverter(opts.fileConverter))
+	}
+	if opts.groundingCheck && opts.llmClient != nil {
+		dmOpts = append(dmOpts,
+			service.WithGroundingChecker(
+				service.NewLLMGroundingChecker(opts.llmClient, docStore, opts.maxTotalWords),
+			),
+			service.WithGroundingMinScore(opts.groundingMinScore),
+		)
+	}
+	if opts.iterativeRetrieval && opts.llmClient != nil {
+		dmOpts = append(dmOpts,
+			service.WithQueryReformulator(service.NewLLMQueryReformulator(opts.llmClient)),
+			service.WithIterativeMaxRounds(opts.iterativeMaxRounds),
+		)
+	}
+	if opts.queryDecomposition && opts.llmClient != nil {
+		dmOpts = append(dmOpts,
+			service.WithQueryDecomposer(
+				service.NewLLMQueryDecomposer(opts.llmClient, opts.decompositionMaxSubQueries),
+			),
+		)
 	}
 
 	documentManager := service.NewDocumentManager(docStore, idx, taskRunner, opts.llmClient, dmOpts...)
@@ -257,6 +278,27 @@ func (c *Corpus) Ask(ctx context.Context, query string, results []*port.IndexSea
 	}
 
 	return answer, sections, nil
+}
+
+// AskWithRetrieval runs the full orchestrated pipeline (query decomposition,
+// grounding-driven iterative re-retrieval and grounding-gated abstention) in a
+// single call. It searches internally, so — unlike Ask — it does not take a
+// pre-computed result set. With none of the MothRAG features enabled it is
+// equivalent to Search followed by Ask.
+func (c *Corpus) AskWithRetrieval(ctx context.Context, query string, funcs ...SearchOptionFunc) (*service.AskResult, error) {
+	opts := &SearchOptions{
+		MaxResults: 5,
+	}
+	for _, fn := range funcs {
+		fn(opts)
+	}
+
+	result, err := c.documentManager.AskWithRetrieval(ctx, query, opts.Collections)
+	if err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	return result, nil
 }
 
 // GetTaskState returns the current state of an indexing task.

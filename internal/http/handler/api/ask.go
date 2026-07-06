@@ -16,8 +16,9 @@ import (
 )
 
 type AskResponse struct {
-	Response string                     `json:"response"`
-	Contents map[model.SectionID]string `json:"contents"`
+	Response  string                     `json:"response"`
+	Contents  map[model.SectionID]string `json:"contents"`
+	Grounding *service.GroundingResult   `json:"grounding,omitempty"`
 }
 
 func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
@@ -75,25 +76,19 @@ func (h *Handler) doAsk(ctx context.Context, query string, collections []model.C
 
 	ctx = corpusLLM.WithHighPriority(ctx)
 
-	results, err := h.documentManager.Search(ctx, query,
-		service.WithDocumentManagerSearchCollections(collections...),
-	)
+	result, err := h.documentManager.AskWithRetrieval(ctx, query, collections)
 	if err != nil {
 		return nil, errors.WithStack(err)
 	}
 
-	if len(results) == 0 {
+	if len(result.Results) == 0 {
 		return nil, common.NewError("no results", "no matching results in document collection", http.StatusNoContent)
 	}
 
-	response, contents, err := h.documentManager.Ask(ctx, query, results)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
 	res := &AskResponse{
-		Response: response,
-		Contents: contents,
+		Response:  result.Answer,
+		Contents:  result.Contents,
+		Grounding: result.Grounding,
 	}
 
 	return res, nil

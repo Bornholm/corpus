@@ -10,21 +10,27 @@ import (
 
 type options struct {
 	// High-level options (auto-composition)
-	storagePath        string
-	databaseDSN        string
-	bleveDSN           string
-	sqliteVecDSN       string
-	llmClient          llm.Client
-	embeddingsModel    string
-	fileConverter      port.FileConverter
-	bleveWeight        float64
-	sqliteVecWeight    float64
-	maxWordsPerSection int
-	maxIndexWords      int
-	maxTotalWords      int
-	taskParallelism    int
-	disableHyDE        bool
-	disableJudge       bool
+	storagePath                string
+	databaseDSN                string
+	bleveDSN                   string
+	sqliteVecDSN               string
+	llmClient                  llm.Client
+	embeddingsModel            string
+	fileConverter              port.FileConverter
+	bleveWeight                float64
+	sqliteVecWeight            float64
+	maxWordsPerSection         int
+	maxIndexWords              int
+	maxTotalWords              int
+	taskParallelism            int
+	disableHyDE                bool
+	disableJudge               bool
+	groundingCheck             bool
+	groundingMinScore          float64
+	iterativeRetrieval         bool
+	iterativeMaxRounds         int
+	queryDecomposition         bool
+	decompositionMaxSubQueries int
 	// Low-level options (explicit components)
 	index         port.Index
 	documentStore port.DocumentStore
@@ -34,12 +40,15 @@ type options struct {
 
 func defaultOptions() *options {
 	return &options{
-		bleveWeight:        0.4,
-		sqliteVecWeight:    0.6,
-		maxWordsPerSection: 250,
-		maxIndexWords:      2000,
-		maxTotalWords:      50000,
-		taskParallelism:    5,
+		bleveWeight:                0.4,
+		sqliteVecWeight:            0.6,
+		maxWordsPerSection:         250,
+		maxIndexWords:              2000,
+		maxTotalWords:              50000,
+		taskParallelism:            5,
+		groundingMinScore:          0.4,
+		iterativeMaxRounds:         1,
+		decompositionMaxSubQueries: 3,
 	}
 }
 
@@ -144,6 +153,50 @@ func WithDisableHyDE() OptionFunc {
 func WithDisableJudge() OptionFunc {
 	return func(o *options) {
 		o.disableJudge = true
+	}
+}
+
+// WithGroundingCheck enables the grounding (γ) verifier: after retrieval, an LLM
+// judges whether the evidence supports a reliable answer and Ask abstains
+// instead of generating when it does not. Requires an LLM client. Disabled by
+// default.
+func WithGroundingCheck() OptionFunc {
+	return func(o *options) {
+		o.groundingCheck = true
+	}
+}
+
+// WithGroundingMinScore sets the grounding score threshold below which Ask
+// abstains (default 0.4). Only meaningful together with WithGroundingCheck.
+func WithGroundingMinScore(minScore float64) OptionFunc {
+	return func(o *options) {
+		o.groundingMinScore = minScore
+	}
+}
+
+// WithIterativeRetrieval enables grounding-driven re-retrieval (used by
+// AskWithRetrieval): when the evidence is not confidently grounded the query is
+// reformulated and searched again, up to rounds times (rounds <= 0 means 1).
+// Requires WithGroundingCheck and an LLM client.
+func WithIterativeRetrieval(rounds int) OptionFunc {
+	return func(o *options) {
+		o.iterativeRetrieval = true
+		if rounds > 0 {
+			o.iterativeMaxRounds = rounds
+		}
+	}
+}
+
+// WithQueryDecomposition enables splitting a complex question into at most
+// maxSubQueries sub-questions (used by AskWithRetrieval), searching each and
+// fusing their evidence. Requires an LLM client. maxSubQueries <= 0 keeps the
+// default (3).
+func WithQueryDecomposition(maxSubQueries int) OptionFunc {
+	return func(o *options) {
+		o.queryDecomposition = true
+		if maxSubQueries > 0 {
+			o.decompositionMaxSubQueries = maxSubQueries
+		}
 	}
 }
 
