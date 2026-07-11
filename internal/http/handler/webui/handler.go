@@ -24,7 +24,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner, userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore) *Handler {
+func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRunner port.TaskRunner, userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore, filesystemSourceStore port.FilesystemSourceStore) *Handler {
 
 	h := &Handler{
 		mux: http.NewServeMux(),
@@ -35,7 +35,7 @@ func NewHandler(documentManager *service.DocumentManager, llm llm.Client, taskRu
 	mount(h.mux, "/", isActive(ask.NewHandler(documentManager, llm)))
 	mount(h.mux, "/collections/", isActive(collection.NewHandler(documentManager, userStore, taskRunner)))
 	mount(h.mux, "/profile/", isActive((profile.NewHandler(userStore))))
-	mount(h.mux, "/admin/", isActive(admin.NewHandler(userStore, documentStore, publicShareStore, taskRunner, documentManager)))
+	mount(h.mux, "/admin/", isActive(admin.NewHandler(userStore, documentStore, publicShareStore, taskRunner, documentManager, filesystemSourceStore)))
 	mount(h.mux, "/docs/", swagger.NewHandler())
 
 	return h

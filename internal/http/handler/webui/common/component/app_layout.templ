@@ -17,6 +17,7 @@ templ AdminNavigationItems(vmodel AppLayoutVModel) {
 	@navItem("users", "Utilisateurs", string(BaseURL(ctx, WithPath("/admin/users"))), vmodel.SelectedItem == "users")
 	@navItem("share-2", "Partages publics", string(BaseURL(ctx, WithPath("/admin/public-shares"))), vmodel.SelectedItem == "public-shares")
 	@navItem("folder", "Collections", string(BaseURL(ctx, WithPath("/admin/collections"))), vmodel.SelectedItem == "collections")
+	@navItem("hard-drive-download", "Sources", string(BaseURL(ctx, WithPath("/admin/filesystem-sources"))), vmodel.SelectedItem == "filesystem-sources")
 	@navItem("list-todo", "Tâches", string(BaseURL(ctx, WithPath("/admin/tasks"))), vmodel.SelectedItem == "tasks")
 }
 

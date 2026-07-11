@@ -109,7 +109,14 @@ func NewHTTPServerFromConfig(ctx context.Context, conf *config.Config) (*http.Se
 		return nil, errors.Wrap(err, "could not create document store from config")
 	}
 
-	webui := webui.NewHandler(documentManager, llm, taskRunner, userStore, documentStore, publicShareStore)
+	filesystemSourceStore, err := getFilesystemSourceStoreFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create filesystem source store from config")
+	}
+
+	startFilesystemSourceScheduler(ctx, conf, taskRunner, filesystemSourceStore)
+
+	webui := webui.NewHandler(documentManager, llm, taskRunner, userStore, documentStore, publicShareStore, filesystemSourceStore)
 
 	options = append(options, http.WithMount("/", authChain(webui)))
 

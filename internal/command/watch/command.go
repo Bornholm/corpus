@@ -44,11 +44,6 @@ func Command() *cli.Command {
 		Flags:  flags,
 		Before: altsrc.InitInputSourceWithContext(flags, common.NewResolverSourceFromFlagFunc("config")),
 		Action: func(ctx *cli.Context) error {
-			filesystems, err := getFilesystems(ctx)
-			if err != nil {
-				return errors.Wrap(err, "could not retrieve filesystems")
-			}
-
 			maxRestarts, err := getMaxRestarts(ctx)
 			if err != nil {
 				return errors.Wrap(err, "could not retrieve max restarts")
@@ -62,67 +57,109 @@ func Command() *cli.Command {
 			mainCtx, mainCancel := context.WithCancel(ctx.Context)
 			defer mainCancel()
 
-			slog.InfoContext(mainCtx, "indexing filesystems", slog.Int("total", len(filesystems)))
+			// Prefer the new `sources:` config format; fall back to legacy `filesystem:` DSN list.
+			var resolved []*resolvedWatchSource
 
-			for _, f := range filesystems {
-				dsn, err := url.Parse(f)
+			configURL := ctx.String("config")
+			if configURL != "" {
+				cfg, err := loadWatchConfig(mainCtx, configURL)
 				if err != nil {
-					return errors.WithStack(err)
+					return errors.Wrap(err, "could not load watch config")
 				}
 
-				collections, err := getCorpusCollections(dsn)
+				if len(cfg.Sources) > 0 {
+					for _, src := range cfg.Sources {
+						r, err := resolveWatchSource(src)
+						if err != nil {
+							return errors.Wrapf(err, "could not resolve source '%s'", src.Label)
+						}
+						resolved = append(resolved, r)
+					}
+				}
+			}
+
+			// Legacy DSN path (backward compatibility)
+			if len(resolved) == 0 {
+				filesystems, err := getFilesystems(ctx)
 				if err != nil {
-					return errors.Wrapf(err, "could not retrieve collections from dsn '%s'", dsn)
+					return errors.Wrap(err, "could not retrieve filesystems")
 				}
 
-				source, sourceEmbedded, err := getCorpusSource(dsn)
-				if err != nil {
-					return errors.Wrapf(err, "could not retrieve source from dsn '%s'", dsn)
-				}
+				for _, f := range filesystems {
+					dsn, err := url.Parse(f)
+					if err != nil {
+						return errors.WithStack(err)
+					}
 
-				eTagType, err := getCorpusETagType(dsn)
-				if err != nil {
-					return errors.Wrapf(err, "could not retrieve etag type from dsn '%s'", dsn)
-				}
+					collections, err := getCorpusCollections(dsn)
+					if err != nil {
+						return errors.Wrapf(err, "could not retrieve collections from dsn '%s'", dsn)
+					}
 
-				watchOptions, err := getWatchOptions(dsn)
-				if err != nil {
-					return errors.Wrapf(err, "could not retrieve watch options from dsn '%s'", dsn)
-				}
+					source, sourceEmbedded, err := getCorpusSource(dsn)
+					if err != nil {
+						return errors.Wrapf(err, "could not retrieve source from dsn '%s'", dsn)
+					}
 
-				indexerOptions, err := getIndexerOptions(dsn)
-				if err != nil {
-					return errors.Wrapf(err, "could not retrieve indexer options from dsn '%s'", dsn)
-				}
+					eTagType, err := getCorpusETagType(dsn)
+					if err != nil {
+						return errors.Wrapf(err, "could not retrieve etag type from dsn '%s'", dsn)
+					}
 
-				b, err := backend.New(dsn.String())
-				if err != nil {
-					return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", dsn)
-				}
+					watchOptions, err := getWatchOptions(dsn)
+					if err != nil {
+						return errors.Wrapf(err, "could not retrieve watch options from dsn '%s'", dsn)
+					}
 
-				go func(b filesystem.Backend, dsn *url.URL, collections []model.CollectionID, source *url.URL, sourceEmbedded bool, watchOptions []filesystem.WatchOptionFunc, eTagType ETagType, iopts indexerOpts) {
+					indexerOptions, err := getIndexerOptions(dsn)
+					if err != nil {
+						return errors.Wrapf(err, "could not retrieve indexer options from dsn '%s'", dsn)
+					}
+
+					b, err := backend.New(dsn.String())
+					if err != nil {
+						return errors.Wrapf(err, "could not create filesystem backend from dsn '%s'", dsn)
+					}
+
+					resolved = append(resolved, &resolvedWatchSource{
+						label:          scrubbedURL(dsn),
+						backend:        b,
+						collections:    collections,
+						source:         source,
+						sourceEmbedded: sourceEmbedded,
+						eTagType:       eTagType,
+						iopts:          indexerOptions,
+						watchOptions:   watchOptions,
+					})
+				}
+			}
+
+			slog.InfoContext(mainCtx, "indexing filesystems", slog.Int("total", len(resolved)))
+
+			for _, r := range resolved {
+				go func(r *resolvedWatchSource) {
 					watcherRestarts := 0
 					baseDelay := time.Second
 					restartDelay := baseDelay
 
-					watchCtx := slogx.WithAttrs(context.Background(), slog.String("filesystem", scrubbedURL(dsn)))
+					watchCtx := slogx.WithAttrs(context.Background(), slog.String("source", r.label))
 
 					for {
 						indexer := &filesystemIndexer{
-							collections:          collections,
+							collections:          r.collections,
 							client:               client,
-							backend:              b,
-							source:               source,
-							sourceEmbedded:       sourceEmbedded,
-							eTagType:             eTagType,
+							backend:              r.backend,
+							source:               r.source,
+							sourceEmbedded:       r.sourceEmbedded,
+							eTagType:             r.eTagType,
 							indexRetryMaxRetries: 3,
 							indexRetryBaseDelay:  time.Second,
-							concurrency:          iopts.concurrency,
-							syncOnStart:          iopts.syncOnStart,
-							deleteOrphans:        iopts.deleteOrphans,
+							concurrency:          r.iopts.concurrency,
+							syncOnStart:          r.iopts.syncOnStart,
+							deleteOrphans:        r.iopts.deleteOrphans,
 						}
 
-						err := indexer.Watch(watchCtx, watchOptions...)
+						err := indexer.Watch(watchCtx, r.watchOptions...)
 						if err != nil {
 							slog.ErrorContext(watchCtx, "could not watch filesystem", slog.Any("error", errors.WithStack(err)))
 							watcherRestarts++
@@ -141,8 +178,7 @@ func Command() *cli.Command {
 						time.Sleep(restartDelay)
 						restartDelay *= 2
 					}
-
-				}(b, dsn, collections, source, sourceEmbedded, watchOptions, eTagType, indexerOptions)
+				}(r)
 			}
 
 			notify := make(chan os.Signal, 1)

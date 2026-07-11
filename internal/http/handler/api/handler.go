@@ -10,10 +10,11 @@ import (
 )
 
 type Handler struct {
-	documentManager *service.DocumentManager
-	backupManager   *backup.Manager
-	taskRunner      port.TaskRunner
-	mux             *http.ServeMux
+	documentManager       *service.DocumentManager
+	backupManager         *backup.Manager
+	taskRunner            port.TaskRunner
+	filesystemSourceStore port.FilesystemSourceStore
+	mux                   *http.ServeMux
 }
 
 // ServeHTTP implements http.Handler.
@@ -21,12 +22,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(documentManager *service.DocumentManager, backupManager *backup.Manager, taskRunner port.TaskRunner) *Handler {
+func NewHandler(documentManager *service.DocumentManager, backupManager *backup.Manager, taskRunner port.TaskRunner, filesystemSourceStore port.FilesystemSourceStore) *Handler {
 	h := &Handler{
-		documentManager: documentManager,
-		backupManager:   backupManager,
-		taskRunner:      taskRunner,
-		mux:             &http.ServeMux{},
+		documentManager:       documentManager,
+		backupManager:         backupManager,
+		taskRunner:            taskRunner,
+		filesystemSourceStore: filesystemSourceStore,
+		mux:                   &http.ServeMux{},
 	}
 
 	assertUser := authz.Middleware(nil, authz.OneOf(authz.Has(authz.RoleUser), authz.Has(authz.RoleAdmin)))
@@ -57,6 +59,14 @@ func NewHandler(documentManager *service.DocumentManager, backupManager *backup.
 	h.mux.Handle("GET /collections/{collectionID}/shares", assertUser(http.HandlerFunc(h.handleListCollectionShares)))
 	h.mux.Handle("POST /collections/{collectionID}/shares", assertUser(http.HandlerFunc(h.handleCreateCollectionShare)))
 	h.mux.Handle("DELETE /collections/{collectionID}/shares/{shareID}", assertUser(http.HandlerFunc(h.handleDeleteCollectionShare)))
+
+	h.mux.Handle("GET /filesystem-sources/backend-schemas", assertAdmin(http.HandlerFunc(h.handleGetFilesystemBackendSchemas)))
+	h.mux.Handle("GET /filesystem-sources", assertAdmin(http.HandlerFunc(h.handleListFilesystemSources)))
+	h.mux.Handle("POST /filesystem-sources", assertAdmin(http.HandlerFunc(h.handleCreateFilesystemSource)))
+	h.mux.Handle("GET /filesystem-sources/{sourceID}", assertAdmin(http.HandlerFunc(h.handleGetFilesystemSource)))
+	h.mux.Handle("PUT /filesystem-sources/{sourceID}", assertAdmin(http.HandlerFunc(h.handleUpdateFilesystemSource)))
+	h.mux.Handle("DELETE /filesystem-sources/{sourceID}", assertAdmin(http.HandlerFunc(h.handleDeleteFilesystemSource)))
+	h.mux.Handle("POST /filesystem-sources/{sourceID}/sync", assertAdmin(http.HandlerFunc(h.handleSyncFilesystemSource)))
 
 	return h
 }

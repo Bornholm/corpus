@@ -71,3 +71,15 @@ func RestoreReindexBleveTask(id model.TaskID, ownerID string, payload []byte) (m
 	}
 	return t, nil
 }
+
+// RestoreSyncFilesystemSourceTask reconstruit un SyncFilesystemSourceTask depuis les données persistées.
+func RestoreSyncFilesystemSourceTask(id model.TaskID, ownerID string, payload []byte) (model.Task, error) {
+	t := &SyncFilesystemSourceTask{
+		id:    id,
+		owner: &stubUser{id: model.UserID(ownerID)},
+	}
+	if err := json.Unmarshal(payload, t); err != nil {
+		return nil, errors.WithStack(err)
+	}
+	return t, nil
+}

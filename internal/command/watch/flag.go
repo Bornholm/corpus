@@ -12,16 +12,23 @@ import (
 )
 
 const (
+	paramConfig      = "config"
 	paramFilesystem  = "filesystem"
 	paramMaxRestarts = "max-restarts"
 )
 
 var (
+	flagConfig = &cli.StringFlag{
+		Name:    paramConfig,
+		Aliases: []string{"c"},
+		EnvVars: []string{"CORPUS_CLI_CONFIG"},
+		Usage:   "Configuration file to use (YAML)",
+	}
 	flagFilesystem = altsrc.NewStringSliceFlag(&cli.StringSliceFlag{
 		Name:    paramFilesystem,
 		Aliases: []string{"f"},
 		Value:   cli.NewStringSlice(),
-		Usage:   "One or more filesystem DSN to watch",
+		Usage:   "One or more filesystem DSN to watch (legacy, prefer sources: in config file)",
 	})
 	flagMaxRestarts = altsrc.NewIntFlag(&cli.IntFlag{
 		Name:  paramMaxRestarts,
@@ -32,6 +39,7 @@ var (
 
 func withWatchFlags(flags ...cli.Flag) []cli.Flag {
 	return append([]cli.Flag{
+		flagConfig,
 		flagFilesystem,
 		flagMaxRestarts,
 	}, flags...)

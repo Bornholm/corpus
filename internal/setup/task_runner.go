@@ -121,6 +121,7 @@ func setupTaskHandlers(ctx context.Context, conf *config.Config, taskRunner port
 		persistentRunner.RegisterFactory(documentTask.TaskTypeCleanup, documentTask.RestoreCleanupTask)
 		persistentRunner.RegisterFactory(documentTask.TaskTypeReindexCollection, documentTask.RestoreReindexCollectionTask)
 		persistentRunner.RegisterFactory(documentTask.TaskTypeReindexBleve, documentTask.RestoreReindexBleveTask)
+		persistentRunner.RegisterFactory(documentTask.TaskTypeSyncFilesystemSource, documentTask.RestoreSyncFilesystemSourceTask)
 		persistentRunner.RegisterFactory(backup.TaskTypeRestoreBackup, backup.RestoreRestoreBackupTask)
 	}
 
@@ -158,6 +159,13 @@ func setupTaskHandlers(ctx context.Context, conf *config.Config, taskRunner port
 	}
 
 	taskRunner.RegisterTask(documentTask.TaskTypeReindexBleve, reindexBleveHandler)
+
+	syncFilesystemSourceHandler, err := getSyncFilesystemSourceTaskHandler(ctx, conf)
+	if err != nil {
+		return errors.Wrap(err, "could not create sync filesystem source task handler from config")
+	}
+
+	taskRunner.RegisterTask(documentTask.TaskTypeSyncFilesystemSource, syncFilesystemSourceHandler)
 
 	// Schedule bleve reindex if a mapping change was detected during startup.
 	// This is done here, after all handlers are registered, to avoid a race where

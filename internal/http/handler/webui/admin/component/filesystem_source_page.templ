@@ -1,0 +1,118 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/pkg/model"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/badge"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+)
+
+type FilesystemSourcePageVModel struct {
+	AppLayoutVModel commonComp.AppLayoutVModel
+	Source          model.FilesystemSource
+}
+
+templ FilesystemSourcePage(vmodel FilesystemSourcePageVModel) {
+	@commonComp.AppLayout(vmodel.AppLayoutVModel, commonComp.WithTitle(vmodel.Source.Label())) {
+		<div class="space-y-6">
+			<div class="flex items-center justify-between">
+				<div>
+					<h1 class="text-2xl font-semibold">{ vmodel.Source.Label() }</h1>
+					<p class="text-sm text-muted-foreground">{ backendTypeLabel(vmodel.Source.BackendType()) }</p>
+				</div>
+				<div class="flex gap-2">
+					<form method="POST" action={ templ.SafeURL(string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources", string(vmodel.Source.ID()), "sync")))) }>
+						@button.Button(button.Props{
+							Type:    "submit",
+							Variant: button.VariantDefault,
+						}) {
+							@icon.RefreshCw(icon.Props{Class: "h-4 w-4 mr-2"})
+							Synchroniser
+						}
+					</form>
+					@button.Button(button.Props{
+						Href:    string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources", string(vmodel.Source.ID()), "edit"))),
+						Variant: button.VariantOutline,
+					}) {
+						@icon.Pencil(icon.Props{Class: "h-4 w-4 mr-2"})
+						Modifier
+					}
+					<form method="POST" action={ templ.SafeURL(string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources", string(vmodel.Source.ID()), "delete")))) } onsubmit="return confirm('Supprimer cette source ?')">
+						@button.Button(button.Props{
+							Type:    "submit",
+							Variant: button.VariantDestructive,
+						}) {
+							@icon.Trash2(icon.Props{Class: "h-4 w-4 mr-2"})
+							Supprimer
+						}
+					</form>
+				</div>
+			</div>
+
+			<div class="rounded-lg border p-6 space-y-4">
+				<h2 class="text-lg font-semibold">Configuration</h2>
+				@filesystemSourceInfoRow("Collections", filesystemSourceCollectionBadges(vmodel.Source.CollectionIDs()))
+				@filesystemSourceInfoRow("Répertoire", filesystemSourceText(vmodel.Source.Options().Directory))
+				@filesystemSourceInfoRow("Filtre", filesystemSourceText(vmodel.Source.Options().Filter))
+				@filesystemSourceInfoRow("Stratégie ETag", filesystemSourceText(vmodel.Source.Options().ETagStrategy))
+				if vmodel.Source.SyncInterval() != nil {
+					@filesystemSourceInfoRow("Intervalle auto", filesystemSourceText(formatDuration(*vmodel.Source.SyncInterval())))
+				} else {
+					@filesystemSourceInfoRow("Intervalle auto", filesystemSourceText("Manuel"))
+				}
+			</div>
+
+			<div class="rounded-lg border p-6 space-y-4">
+				<h2 class="text-lg font-semibold">État de la synchronisation</h2>
+				if vmodel.Source.LastSyncAt() != nil {
+					@filesystemSourceInfoRow("Dernière sync", filesystemSourceText(vmodel.Source.LastSyncAt().Format("02/01/2006 15:04:05")))
+				} else {
+					@filesystemSourceInfoRow("Dernière sync", filesystemSourceText("Jamais synchronisé"))
+				}
+				if vmodel.Source.LastSyncTaskID() != nil {
+					@filesystemSourceInfoRow("Dernière tâche", filesystemSourceLink(
+						string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/tasks", string(*vmodel.Source.LastSyncTaskID())))),
+						string(*vmodel.Source.LastSyncTaskID()),
+					))
+				}
+			</div>
+		</div>
+	}
+}
+
+templ filesystemSourceInfoRow(label string, content templ.Component) {
+	<div class="flex items-start gap-4">
+		<span class="text-sm font-medium text-muted-foreground w-40 shrink-0">{ label }</span>
+		<div class="flex-1">
+			@content
+		</div>
+	</div>
+}
+
+templ filesystemSourceText(text string) {
+	<span class="text-sm">
+		if text != "" {
+			{ text }
+		} else {
+			<span class="text-muted-foreground">-</span>
+		}
+	</span>
+}
+
+templ filesystemSourceLink(href, text string) {
+	<a href={ templ.SafeURL(href) } class="text-sm underline text-primary">{ text }</a>
+}
+
+templ filesystemSourceCollectionBadges(ids []model.CollectionID) {
+	<div class="flex flex-wrap gap-1">
+		if len(ids) == 0 {
+			<span class="text-sm text-muted-foreground">Aucune</span>
+		}
+		for _, id := range ids {
+			@badge.Badge(badge.Props{Variant: badge.VariantSecondary}) {
+				{ string(id) }
+			}
+		}
+	</div>
+}

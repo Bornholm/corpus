@@ -1,0 +1,112 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/pkg/model"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/table"
+	"strconv"
+	"time"
+)
+
+type FilesystemSourcesPageVModel struct {
+	AppLayoutVModel  commonComp.AppLayoutVModel
+	Sources          []model.FilesystemSource
+	CurrentPage      int
+	PageSize         int
+	TotalSources     int
+}
+
+templ FilesystemSourcesPage(vmodel FilesystemSourcesPageVModel) {
+	@commonComp.AppLayout(vmodel.AppLayoutVModel, commonComp.WithTitle("Sources de fichiers")) {
+		<div class="space-y-6">
+			<div class="flex items-center justify-between">
+				<div>
+					<h1 class="text-2xl font-semibold">Sources de fichiers</h1>
+					<p class="text-sm text-muted-foreground">
+						{ strconv.Itoa(vmodel.TotalSources) } source(s) configurée(s)
+					</p>
+				</div>
+				@button.Button(button.Props{
+					Href:    string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources/new"))),
+					Variant: button.VariantDefault,
+				}) {
+					@icon.Plus(icon.Props{Class: "h-4 w-4 mr-2"})
+					Nouvelle source
+				}
+			</div>
+			if len(vmodel.Sources) == 0 {
+				<div class="rounded-lg border border-border p-6 text-center">
+					<div class="flex flex-col items-center gap-2">
+						@icon.Info(icon.Props{Class: "h-8 w-8 text-muted-foreground"})
+						<p class="text-muted-foreground">Aucune source configurée.</p>
+					</div>
+				</div>
+			} else {
+				<div class="rounded-md border">
+					@table.Table() {
+						@table.Header() {
+							@table.Head() { Libellé }
+							@table.Head() { Type }
+							@table.Head() { Dernière sync }
+							@table.Head() { Intervalle }
+							@table.Head() { Actions }
+						}
+						@table.Body() {
+							for _, src := range vmodel.Sources {
+								@table.Row() {
+									@table.Cell() { { src.Label() } }
+									@table.Cell() {
+										<span class="text-sm font-medium">{ backendTypeLabel(src.BackendType()) }</span>
+									}
+									@table.Cell() {
+										if src.LastSyncAt() != nil {
+											{ src.LastSyncAt().Format("02/01/2006 15:04") }
+										} else {
+											<span class="text-muted-foreground">Jamais</span>
+										}
+									}
+									@table.Cell() {
+										if src.SyncInterval() != nil {
+											{ formatDuration(*src.SyncInterval()) }
+										} else {
+											<span class="text-muted-foreground">Manuel</span>
+										}
+									}
+									@table.Cell() {
+										@viewFilesystemSourceButton(src)
+									}
+								}
+							}
+						}
+					}
+				</div>
+			}
+		</div>
+	}
+}
+
+templ viewFilesystemSourceButton(src model.FilesystemSource) {
+	@button.Button(button.Props{
+		Href:    string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources", string(src.ID())))),
+		Size:    button.SizeSm,
+		Variant: button.VariantDefault,
+	}) {
+		@icon.Eye(icon.Props{Class: "h-4 w-4"})
+		<span>Voir</span>
+	}
+}
+
+func formatDuration(d time.Duration) string {
+	if d == 0 {
+		return "-"
+	}
+	if d%time.Hour == 0 {
+		return strconv.Itoa(int(d/time.Hour)) + "h"
+	}
+	if d%time.Minute == 0 {
+		return strconv.Itoa(int(d/time.Minute)) + "min"
+	}
+	return d.String()
+}

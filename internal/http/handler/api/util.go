@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"slices"
@@ -73,4 +74,17 @@ func getQueryInt(query url.Values, name string, defaultValue int) int {
 	}
 
 	return int(value)
+}
+
+func writeJSON(w http.ResponseWriter, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		http.Error(w, "could not encode response", http.StatusInternalServerError)
+	}
+}
+
+func writeError(w http.ResponseWriter, err error, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 }

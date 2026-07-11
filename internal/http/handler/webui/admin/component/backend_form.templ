@@ -1,0 +1,633 @@
+package component
+
+import (
+	"fmt"
+	"strconv"
+
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/input"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/label"
+)
+
+// BackendFormVModel holds the current backend type and decoded config values for pre-filling.
+type BackendFormVModel struct {
+	BackendType string
+	Values      map[string]any // decoded from BackendConfig JSON; nil/empty for new source
+}
+
+func (v BackendFormVModel) str(key string) string {
+	if v.Values == nil {
+		return ""
+	}
+	if val, ok := v.Values[key]; ok {
+		if s, ok := val.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func (v BackendFormVModel) intStr(key string, def int) string {
+	if v.Values == nil {
+		return strconv.Itoa(def)
+	}
+	if val, ok := v.Values[key]; ok {
+		switch n := val.(type) {
+		case float64:
+			if int(n) > 0 {
+				return strconv.Itoa(int(n))
+			}
+		case int:
+			if n > 0 {
+				return strconv.Itoa(n)
+			}
+		}
+	}
+	return strconv.Itoa(def)
+}
+
+func (v BackendFormVModel) boolChecked(key string) bool {
+	if v.Values == nil {
+		return false
+	}
+	if val, ok := v.Values[key]; ok {
+		if b, ok := val.(bool); ok {
+			return b
+		}
+	}
+	return false
+}
+
+// hasFileRef returns true if the backend config already stores a file ref for this key.
+func (v BackendFormVModel) hasFileRef(key string) bool {
+	if v.Values == nil {
+		return false
+	}
+	val, ok := v.Values[key]
+	if !ok || val == nil {
+		return false
+	}
+	m, ok := val.(map[string]any)
+	if !ok {
+		return false
+	}
+	content, _ := m["content"].(string)
+	return content != ""
+}
+
+// fileRefContent returns the base64 content stored for a FileRef key (for hidden input preservation).
+func (v BackendFormVModel) fileRefContent(key string) string {
+	if v.Values == nil {
+		return ""
+	}
+	val, ok := v.Values[key]
+	if !ok || val == nil {
+		return ""
+	}
+	m, ok := val.(map[string]any)
+	if !ok {
+		return ""
+	}
+	content, _ := m["content"].(string)
+	return content
+}
+
+// BackendFormFields dispatches to the appropriate backend form partial.
+templ BackendFormFields(vmodel BackendFormVModel) {
+	switch vmodel.BackendType {
+	case "local":
+		@backendFormLocal(vmodel)
+	case "sftp":
+		@backendFormSFTP(vmodel)
+	case "ftp":
+		@backendFormFTP(vmodel)
+	case "smb":
+		@backendFormSMB(vmodel)
+	case "webdav":
+		@backendFormWebDAV(vmodel)
+	case "minio":
+		@backendFormMinIO(vmodel)
+	case "git":
+		@backendFormGit(vmodel)
+	default:
+		<p class="text-sm text-muted-foreground">Sélectionnez un type de backend pour afficher les options de connexion.</p>
+	}
+}
+
+// --- Local ---
+
+templ backendFormLocal(v BackendFormVModel) {
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_path"}) { Chemin }
+		@input.Input(input.Props{
+			ID:          "backend_path",
+			Name:        "backend_path",
+			Type:        input.TypeText,
+			Placeholder: "/data/docs",
+			Value:       v.str("path"),
+			Attributes:  templ.Attributes{"required": true},
+		})
+		<p class="text-xs text-muted-foreground">Chemin absolu du répertoire sur le serveur</p>
+	</div>
+}
+
+// --- SFTP ---
+
+templ backendFormSFTP(v BackendFormVModel) {
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_host"}) { Hôte }
+			@input.Input(input.Props{
+				ID:         "backend_host",
+				Name:       "backend_host",
+				Type:       input.TypeText,
+				Value:      v.str("host"),
+				Attributes: templ.Attributes{"required": true},
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_port"}) { Port }
+			@input.Input(input.Props{
+				ID:    "backend_port",
+				Name:  "backend_port",
+				Type:  input.TypeNumber,
+				Value: v.intStr("port", 22),
+			})
+		</div>
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_username"}) { Nom d'utilisateur }
+			@input.Input(input.Props{
+				ID:         "backend_username",
+				Name:       "backend_username",
+				Type:       input.TypeText,
+				Value:      v.str("username"),
+				Attributes: templ.Attributes{"required": true},
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_password"}) { Mot de passe }
+			@input.Input(input.Props{
+				ID:          "backend_password",
+				Name:        "backend_password",
+				Type:        input.TypePassword,
+				Placeholder: passwordPlaceholder(v.str("password")),
+			})
+			if v.str("password") != "" {
+				<p class="text-xs text-muted-foreground">Laisser vide pour conserver le mot de passe actuel</p>
+				<input type="hidden" name="backend_password_existing" value={ v.str("password") }/>
+			}
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_private_key_file"}) { Clé privée SSH (fichier) }
+		<input
+			type="file"
+			id="backend_private_key_file"
+			name="backend_private_key_file"
+			class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium"
+		/>
+		if v.hasFileRef("privateKey") {
+			<p class="text-xs text-muted-foreground">Une clé est déjà enregistrée. Uploader un nouveau fichier pour la remplacer.</p>
+			<input type="hidden" name="backend_private_key_content" value={ v.fileRefContent("privateKey") }/>
+		}
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_private_key_passphrase"}) { Passphrase de la clé privée (si chiffrée) }
+		@input.Input(input.Props{
+			ID:    "backend_private_key_passphrase",
+			Name:  "backend_private_key_passphrase",
+			Type:  input.TypePassword,
+			Value: v.str("privateKeyPassphrase"),
+		})
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_base_path"}) { Répertoire de base }
+		@input.Input(input.Props{
+			ID:          "backend_base_path",
+			Name:        "backend_base_path",
+			Type:        input.TypeText,
+			Placeholder: "/",
+			Value:       v.str("basePath"),
+		})
+	</div>
+	<div class="space-y-2">
+		<p class="text-sm font-medium">Vérification de la clé hôte</p>
+		<div class="flex items-center gap-2">
+			<input
+				type="checkbox"
+				id="backend_insecure_ignore_host_key"
+				name="backend_insecure_ignore_host_key"
+				value="true"
+				class="h-4 w-4 rounded border-input"
+				checked?={ v.boolChecked("insecureIgnoreHostKey") }
+			/>
+			@label.Label(label.Props{For: "backend_insecure_ignore_host_key"}) { Désactiver la vérification (insecure) }
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_host_key_file"}) { Clé publique hôte (alternative sécurisée) }
+			<input
+				type="file"
+				id="backend_host_key_file"
+				name="backend_host_key_file"
+				class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium"
+			/>
+			if v.hasFileRef("hostKey") {
+				<p class="text-xs text-muted-foreground">Une clé hôte est déjà enregistrée. Uploader pour la remplacer.</p>
+				<input type="hidden" name="backend_host_key_content" value={ v.fileRefContent("hostKey") }/>
+			}
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_timeout"}) { Timeout de connexion }
+		@input.Input(input.Props{
+			ID:          "backend_timeout",
+			Name:        "backend_timeout",
+			Type:        input.TypeText,
+			Placeholder: "30s",
+			Value:       v.str("timeout"),
+		})
+	</div>
+}
+
+// --- FTP ---
+
+templ backendFormFTP(v BackendFormVModel) {
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_host"}) { Hôte }
+			@input.Input(input.Props{
+				ID:         "backend_host",
+				Name:       "backend_host",
+				Type:       input.TypeText,
+				Value:      v.str("host"),
+				Attributes: templ.Attributes{"required": true},
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_port"}) { Port }
+			@input.Input(input.Props{
+				ID:    "backend_port",
+				Name:  "backend_port",
+				Type:  input.TypeNumber,
+				Value: v.intStr("port", 21),
+			})
+		</div>
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_username"}) { Nom d'utilisateur }
+			@input.Input(input.Props{
+				ID:    "backend_username",
+				Name:  "backend_username",
+				Type:  input.TypeText,
+				Value: v.str("username"),
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_password"}) { Mot de passe }
+			@input.Input(input.Props{
+				ID:    "backend_password",
+				Name:  "backend_password",
+				Type:  input.TypePassword,
+				Value: v.str("password"),
+			})
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_base_path"}) { Répertoire de base }
+		@input.Input(input.Props{
+			ID:    "backend_base_path",
+			Name:  "backend_base_path",
+			Type:  input.TypeText,
+			Value: v.str("basePath"),
+		})
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_timeout"}) { Timeout de connexion }
+		@input.Input(input.Props{
+			ID:          "backend_timeout",
+			Name:        "backend_timeout",
+			Type:        input.TypeText,
+			Placeholder: "30s",
+			Value:       v.str("timeout"),
+		})
+	</div>
+}
+
+// --- SMB ---
+
+templ backendFormSMB(v BackendFormVModel) {
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_host"}) { Hôte }
+			@input.Input(input.Props{
+				ID:         "backend_host",
+				Name:       "backend_host",
+				Type:       input.TypeText,
+				Value:      v.str("host"),
+				Attributes: templ.Attributes{"required": true},
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_port"}) { Port }
+			@input.Input(input.Props{
+				ID:    "backend_port",
+				Name:  "backend_port",
+				Type:  input.TypeNumber,
+				Value: v.intStr("port", 445),
+			})
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_share"}) { Partage }
+		@input.Input(input.Props{
+			ID:         "backend_share",
+			Name:       "backend_share",
+			Type:       input.TypeText,
+			Value:      v.str("share"),
+			Attributes: templ.Attributes{"required": true},
+		})
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_username"}) { Nom d'utilisateur }
+			@input.Input(input.Props{
+				ID:    "backend_username",
+				Name:  "backend_username",
+				Type:  input.TypeText,
+				Value: v.str("username"),
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_password"}) { Mot de passe }
+			@input.Input(input.Props{
+				ID:    "backend_password",
+				Name:  "backend_password",
+				Type:  input.TypePassword,
+				Value: v.str("password"),
+			})
+		</div>
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_domain"}) { Domaine NTLM }
+			@input.Input(input.Props{
+				ID:          "backend_domain",
+				Name:        "backend_domain",
+				Type:        input.TypeText,
+				Placeholder: "WORKGROUP",
+				Value:       v.str("domain"),
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_workstation"}) { Poste de travail }
+			@input.Input(input.Props{
+				ID:    "backend_workstation",
+				Name:  "backend_workstation",
+				Type:  input.TypeText,
+				Value: v.str("workstation"),
+			})
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_base_path"}) { Répertoire de base }
+		@input.Input(input.Props{
+			ID:    "backend_base_path",
+			Name:  "backend_base_path",
+			Type:  input.TypeText,
+			Value: v.str("basePath"),
+		})
+	</div>
+}
+
+// --- WebDAV ---
+
+templ backendFormWebDAV(v BackendFormVModel) {
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_host"}) { Hôte }
+			@input.Input(input.Props{
+				ID:         "backend_host",
+				Name:       "backend_host",
+				Type:       input.TypeText,
+				Value:      v.str("host"),
+				Attributes: templ.Attributes{"required": true},
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_port"}) { Port }
+			@input.Input(input.Props{
+				ID:          "backend_port",
+				Name:        "backend_port",
+				Type:        input.TypeNumber,
+				Placeholder: "80 ou 443",
+				Value:       v.intStr("port", 0),
+			})
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_path"}) { Chemin WebDAV }
+		@input.Input(input.Props{
+			ID:          "backend_path",
+			Name:        "backend_path",
+			Type:        input.TypeText,
+			Placeholder: "/remote.php/dav/files/user",
+			Value:       v.str("path"),
+		})
+	</div>
+	<div class="flex items-center gap-2">
+		<input
+			type="checkbox"
+			id="backend_use_tls"
+			name="backend_use_tls"
+			value="true"
+			class="h-4 w-4 rounded border-input"
+			checked?={ v.boolChecked("useTLS") }
+		/>
+		@label.Label(label.Props{For: "backend_use_tls"}) { Utiliser HTTPS (TLS) }
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_username"}) { Nom d'utilisateur }
+			@input.Input(input.Props{
+				ID:    "backend_username",
+				Name:  "backend_username",
+				Type:  input.TypeText,
+				Value: v.str("username"),
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_password"}) { Mot de passe }
+			@input.Input(input.Props{
+				ID:          "backend_password",
+				Name:        "backend_password",
+				Type:        input.TypePassword,
+				Placeholder: passwordPlaceholder(v.str("password")),
+			})
+			if v.str("password") != "" {
+				<input type="hidden" name="backend_password_existing" value={ v.str("password") }/>
+			}
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_timeout"}) { Timeout de connexion }
+		@input.Input(input.Props{
+			ID:          "backend_timeout",
+			Name:        "backend_timeout",
+			Type:        input.TypeText,
+			Placeholder: "30s",
+			Value:       v.str("timeout"),
+		})
+	</div>
+}
+
+// --- MinIO / S3 ---
+
+templ backendFormMinIO(v BackendFormVModel) {
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_endpoint"}) { Endpoint }
+		@input.Input(input.Props{
+			ID:          "backend_endpoint",
+			Name:        "backend_endpoint",
+			Type:        input.TypeText,
+			Placeholder: "play.min.io:9000",
+			Value:       v.str("endpoint"),
+			Attributes:  templ.Attributes{"required": true},
+		})
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_access_key"}) { Access Key }
+			@input.Input(input.Props{
+				ID:         "backend_access_key",
+				Name:       "backend_access_key",
+				Type:       input.TypeText,
+				Value:      v.str("accessKey"),
+				Attributes: templ.Attributes{"required": true},
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_secret_key"}) { Secret Key }
+			@input.Input(input.Props{
+				ID:          "backend_secret_key",
+				Name:        "backend_secret_key",
+				Type:        input.TypePassword,
+				Placeholder: passwordPlaceholder(v.str("secretKey")),
+			})
+			if v.str("secretKey") != "" {
+				<input type="hidden" name="backend_secret_key_existing" value={ v.str("secretKey") }/>
+			}
+		</div>
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_bucket"}) { Bucket }
+			@input.Input(input.Props{
+				ID:          "backend_bucket",
+				Name:        "backend_bucket",
+				Type:        input.TypeText,
+				Placeholder: "default",
+				Value:       v.str("bucket"),
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_region"}) { Région }
+			@input.Input(input.Props{
+				ID:          "backend_region",
+				Name:        "backend_region",
+				Type:        input.TypeText,
+				Placeholder: "us-east-1",
+				Value:       v.str("region"),
+			})
+		</div>
+	</div>
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_base_path"}) { Répertoire de base (dans le bucket) }
+		@input.Input(input.Props{
+			ID:    "backend_base_path",
+			Name:  "backend_base_path",
+			Type:  input.TypeText,
+			Value: v.str("basePath"),
+		})
+	</div>
+	<div class="flex items-center gap-2">
+		<input
+			type="checkbox"
+			id="backend_secure"
+			name="backend_secure"
+			value="true"
+			class="h-4 w-4 rounded border-input"
+			checked?={ v.boolChecked("secure") }
+		/>
+		@label.Label(label.Props{For: "backend_secure"}) { Utiliser HTTPS }
+	</div>
+}
+
+// --- Git ---
+
+templ backendFormGit(v BackendFormVModel) {
+	<div class="space-y-2">
+		@label.Label(label.Props{For: "backend_url"}) { URL du dépôt }
+		@input.Input(input.Props{
+			ID:          "backend_url",
+			Name:        "backend_url",
+			Type:        input.TypeURL,
+			Placeholder: "https://github.com/org/repo.git",
+			Value:       v.str("url"),
+			Attributes:  templ.Attributes{"required": true},
+		})
+	</div>
+	<div class="grid grid-cols-2 gap-4">
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_branch"}) { Branche }
+			@input.Input(input.Props{
+				ID:          "backend_branch",
+				Name:        "backend_branch",
+				Type:        input.TypeText,
+				Placeholder: "main (défaut HEAD)",
+				Value:       v.str("branch"),
+			})
+		</div>
+		<div class="space-y-2">
+			@label.Label(label.Props{For: "backend_pull_interval"}) { Intervalle de pull }
+			@input.Input(input.Props{
+				ID:          "backend_pull_interval",
+				Name:        "backend_pull_interval",
+				Type:        input.TypeText,
+				Placeholder: "30m",
+				Value:       v.str("pullInterval"),
+			})
+		</div>
+	</div>
+}
+
+// passwordPlaceholder returns a masked placeholder when an existing value is present.
+func passwordPlaceholder(existing string) string {
+	if existing != "" {
+		return "••••••••"
+	}
+	return ""
+}
+
+// backendTypeLabel returns a human-readable label for a backend type.
+func backendTypeLabel(backendType string) string {
+	switch backendType {
+	case "local":
+		return "Local"
+	case "sftp":
+		return "SFTP"
+	case "ftp":
+		return "FTP"
+	case "smb":
+		return "SMB / CIFS"
+	case "webdav":
+		return "WebDAV"
+	case "minio":
+		return "MinIO / S3"
+	case "git":
+		return "Git"
+	default:
+		return fmt.Sprintf("Inconnu (%s)", backendType)
+	}
+}

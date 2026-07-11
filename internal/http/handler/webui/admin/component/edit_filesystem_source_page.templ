@@ -1,0 +1,197 @@
+package component
+
+import (
+	"slices"
+	"strconv"
+
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/button"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/input"
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/label"
+	"github.com/bornholm/corpus/pkg/model"
+)
+
+type EditFilesystemSourcePageVModel struct {
+	AppLayoutVModel commonComp.AppLayoutVModel
+	Source          model.FilesystemSource
+	BackendValues   map[string]any // decoded from Source.BackendConfig()
+	Collections     []model.PersistedCollection
+	Error           string
+}
+
+templ EditFilesystemSourcePage(vmodel EditFilesystemSourcePageVModel) {
+	@commonComp.AppLayout(vmodel.AppLayoutVModel, commonComp.WithTitle("Modifier "+vmodel.Source.Label())) {
+		<div class="space-y-6">
+			<div class="flex items-center gap-4">
+				<a href={ commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources", string(vmodel.Source.ID()))) } class="inline-flex items-center justify-center rounded-md border border-input bg-background px-2 py-2 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground cursor-pointer">
+					@icon.ArrowLeft(icon.Props{Class: "h-4 w-4"})
+				</a>
+				<h1 class="text-2xl font-semibold">Modifier { vmodel.Source.Label() }</h1>
+			</div>
+			if vmodel.Error != "" {
+				<div class="rounded-md bg-destructive/15 p-4 text-sm text-destructive">
+					{ vmodel.Error }
+				</div>
+			}
+			<form
+				method="POST"
+				enctype="multipart/form-data"
+				action={ templ.SafeURL(string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources", string(vmodel.Source.ID()))))) }
+				class="rounded-lg border bg-card p-6 space-y-6"
+			>
+				<div class="grid grid-cols-1 gap-4">
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "label"}) { Libellé }
+						@input.Input(input.Props{
+							ID:         "label",
+							Name:       "label",
+							Type:       input.TypeText,
+							Value:      vmodel.Source.Label(),
+							Attributes: templ.Attributes{"required": true},
+						})
+					</div>
+
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "backend_type"}) { Type de backend }
+						<select
+							id="backend_type"
+							name="backend_type"
+							class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+							hx-get={ string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources/backend-form"))) }
+							hx-target="#backend-fields"
+							hx-trigger="change"
+							required
+						>
+							<option value="">-- Sélectionner un type --</option>
+							for _, t := range sortedBackendTypes() {
+								<option value={ t } selected?={ t == vmodel.Source.BackendType() }>{ backendTypeLabel(t) }</option>
+							}
+						</select>
+						<p class="text-xs text-muted-foreground">Changer le type réinitialisera les options de connexion.</p>
+					</div>
+
+					<div id="backend-fields" class="space-y-4 border-l-2 border-muted pl-4">
+						@BackendFormFields(BackendFormVModel{
+							BackendType: vmodel.Source.BackendType(),
+							Values:      vmodel.BackendValues,
+						})
+					</div>
+
+					<hr class="border-border"/>
+
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "collections"}) { Collections cibles }
+						<select id="collections" name="collections" multiple class="flex min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+							for _, coll := range vmodel.Collections {
+								<option
+									value={ string(coll.ID()) }
+									selected?={ slices.Contains(vmodel.Source.CollectionIDs(), coll.ID()) }
+								>
+									{ coll.Label() }
+								</option>
+							}
+						</select>
+					</div>
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "directory"}) { Répertoire de départ }
+						@input.Input(input.Props{
+							ID:    "directory",
+							Name:  "directory",
+							Type:  input.TypeText,
+							Value: vmodel.Source.Options().Directory,
+						})
+					</div>
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "filter"}) { Filtre (glob, optionnel) }
+						@input.Input(input.Props{
+							ID:    "filter",
+							Name:  "filter",
+							Type:  input.TypeText,
+							Value: vmodel.Source.Options().Filter,
+						})
+					</div>
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "etag_strategy"}) { Stratégie ETag }
+						<select id="etag_strategy" name="etag_strategy" class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+							<option value="modtime" selected?={ vmodel.Source.Options().ETagStrategy == "modtime" }>Date de modification (modtime)</option>
+							<option value="size" selected?={ vmodel.Source.Options().ETagStrategy == "size" }>Taille du fichier (size)</option>
+						</select>
+					</div>
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "concurrency"}) { Concurrence (workers) }
+						@input.Input(input.Props{
+							ID:    "concurrency",
+							Name:  "concurrency",
+							Type:  input.TypeNumber,
+							Value: strconv.Itoa(vmodel.Source.Options().Concurrency),
+						})
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							id="recursive"
+							name="recursive"
+							value="true"
+							class="h-4 w-4 rounded border-input"
+							checked?={ vmodel.Source.Options().Recursive }
+						/>
+						@label.Label(label.Props{For: "recursive"}) { Récursif }
+					</div>
+					<div class="flex items-center gap-2">
+						<input
+							type="checkbox"
+							id="delete_orphans"
+							name="delete_orphans"
+							value="true"
+							class="h-4 w-4 rounded border-input"
+							checked?={ vmodel.Source.Options().DeleteOrphans }
+						/>
+						@label.Label(label.Props{For: "delete_orphans"}) { Supprimer les documents orphelins }
+					</div>
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "source_template"}) { Template d'URL source (optionnel) }
+						@input.Input(input.Props{
+							ID:    "source_template",
+							Name:  "source_template",
+							Type:  input.TypeText,
+							Value: vmodel.Source.Options().SourceTemplate,
+						})
+					</div>
+					<div class="space-y-2">
+						@label.Label(label.Props{For: "sync_interval"}) { Intervalle de synchronisation automatique (optionnel) }
+						@input.Input(input.Props{
+							ID:    "sync_interval",
+							Name:  "sync_interval",
+							Type:  input.TypeText,
+							Value: editFilesystemSourceSyncIntervalValue(vmodel.Source),
+						})
+						<p class="text-xs text-muted-foreground">Laisser vide pour désactiver la synchronisation automatique</p>
+					</div>
+				</div>
+				<div class="flex gap-2">
+					@button.Button(button.Props{Type: button.TypeSubmit, Variant: button.VariantDefault}) {
+						@icon.Save(icon.Props{Class: "h-4 w-4 mr-2"})
+						Enregistrer
+					}
+					@button.Button(button.Props{
+						Href:    string(commonComp.BaseURL(ctx, commonComp.WithPath("/admin/filesystem-sources", string(vmodel.Source.ID())))),
+						Variant: button.VariantOutline,
+					}) {
+						Annuler
+					}
+				</div>
+			</form>
+		</div>
+	}
+}
+
+func editFilesystemSourceSyncIntervalValue(src model.FilesystemSource) string {
+	if src.SyncInterval() == nil {
+		return ""
+	}
+	return formatDuration(*src.SyncInterval())
+}
+
+// sortedBackendTypes is defined in new_filesystem_source_page.templ
+// backendTypeLabel and BackendFormFields are defined in backend_form.templ

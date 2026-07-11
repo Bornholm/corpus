@@ -24,7 +24,12 @@ func getAPIHandlerFromConfig(ctx context.Context, conf *config.Config) (*api.Han
 		return nil, errors.Wrap(err, "could not create task runner from config")
 	}
 
-	handler := api.NewHandler(documentManager, backupManager, taskRunner)
+	filesystemSourceStore, err := getFilesystemSourceStoreFromConfig(ctx, conf)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create filesystem source store from config")
+	}
+
+	handler := api.NewHandler(documentManager, backupManager, taskRunner, filesystemSourceStore)
 
 	return handler, nil
 }

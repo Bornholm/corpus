@@ -15,12 +15,13 @@ type DocumentManagerInterface interface {
 }
 
 type Handler struct {
-	mux              *http.ServeMux
-	userStore        port.UserStore
-	documentStore    port.DocumentStore
-	publicShareStore port.PublicShareStore
-	taskRunner       port.TaskRunner
-	documentManager  DocumentManagerInterface
+	mux                   *http.ServeMux
+	userStore             port.UserStore
+	documentStore         port.DocumentStore
+	publicShareStore      port.PublicShareStore
+	taskRunner            port.TaskRunner
+	documentManager       DocumentManagerInterface
+	filesystemSourceStore port.FilesystemSourceStore
 }
 
 // ServeHTTP implements http.Handler.
@@ -28,14 +29,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.mux.ServeHTTP(w, r)
 }
 
-func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore, taskRunner port.TaskRunner, documentManager DocumentManagerInterface) *Handler {
+func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publicShareStore port.PublicShareStore, taskRunner port.TaskRunner, documentManager DocumentManagerInterface, filesystemSourceStore port.FilesystemSourceStore) *Handler {
 	h := &Handler{
-		mux:              http.NewServeMux(),
-		userStore:        userStore,
-		documentStore:    documentStore,
-		publicShareStore: publicShareStore,
-		taskRunner:       taskRunner,
-		documentManager:  documentManager,
+		mux:                   http.NewServeMux(),
+		userStore:             userStore,
+		documentStore:         documentStore,
+		publicShareStore:      publicShareStore,
+		taskRunner:            taskRunner,
+		documentManager:       documentManager,
+		filesystemSourceStore: filesystemSourceStore,
 	}
 
 	// Admin middleware - only allow admin users
@@ -72,6 +74,18 @@ func NewHandler(userStore port.UserStore, documentStore port.DocumentStore, publ
 
 	// Actions
 	h.mux.Handle("POST /tasks/reindex", assertAdmin(http.HandlerFunc(h.postReindexCollection)))
+
+	// Filesystem source routes
+	// NOTE: literal paths must come before {id} wildcard routes
+	h.mux.Handle("GET /filesystem-sources/backend-form", assertAdmin(http.HandlerFunc(h.getBackendFormPartial)))
+	h.mux.Handle("GET /filesystem-sources", assertAdmin(http.HandlerFunc(h.getFilesystemSourcesPage)))
+	h.mux.Handle("GET /filesystem-sources/new", assertAdmin(http.HandlerFunc(h.getNewFilesystemSourcePage)))
+	h.mux.Handle("POST /filesystem-sources", assertAdmin(http.HandlerFunc(h.postFilesystemSource)))
+	h.mux.Handle("GET /filesystem-sources/{id}", assertAdmin(http.HandlerFunc(h.getFilesystemSourcePage)))
+	h.mux.Handle("GET /filesystem-sources/{id}/edit", assertAdmin(http.HandlerFunc(h.getEditFilesystemSourcePage)))
+	h.mux.Handle("POST /filesystem-sources/{id}", assertAdmin(http.HandlerFunc(h.postEditFilesystemSource)))
+	h.mux.Handle("POST /filesystem-sources/{id}/delete", assertAdmin(http.HandlerFunc(h.postDeleteFilesystemSource)))
+	h.mux.Handle("POST /filesystem-sources/{id}/sync", assertAdmin(http.HandlerFunc(h.postSyncFilesystemSource)))
 
 	return h
 }

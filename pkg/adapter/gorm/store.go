@@ -77,12 +77,15 @@ func NewStore(db *gorm.DB) *Store {
 			&User{}, &AuthToken{}, &UserRole{}, &UserPreferences{},
 			// Public share store
 			&PublicShare{},
+			// Filesystem source store
+			&FilesystemSource{},
 		),
 	}
 }
 
 var (
-	_ port.DocumentStore    = &Store{}
-	_ port.UserStore        = &Store{}
-	_ port.PublicShareStore = &Store{}
+	_ port.DocumentStore          = &Store{}
+	_ port.UserStore              = &Store{}
+	_ port.PublicShareStore       = &Store{}
+	_ port.FilesystemSourceStore  = &Store{}
 )
