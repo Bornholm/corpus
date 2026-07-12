@@ -29,6 +29,8 @@ type AskPageVModel struct {
 
 	Response string
 	Duration time.Duration
+
+	Grounding *common.GroundingVModel
 }
 
 const defaultMaxCollections = 3
@@ -143,10 +145,13 @@ templ AskPage(vmodel AskPageVModel) {
 				<!-- Response section -->
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
-						<h2 class="text-2xl font-semibold">
-							Réponse
-							<span class="text-sm font-normal text-muted-foreground ml-2">(générée en { vmodel.Duration.Round(time.Second).String() })</span>
-						</h2>
+						<div class="flex items-center gap-3 flex-wrap">
+							<h2 class="text-2xl font-semibold">
+								Réponse
+								<span class="text-sm font-normal text-muted-foreground ml-2">(générée en { vmodel.Duration.Round(time.Second).String() })</span>
+							</h2>
+							@common.GroundingBadge(vmodel.Grounding)
+						</div>
 						if vmodel.Response != "" {
 							<button
 								class="inline-flex items-center justify-center gap-2 rounded-md border border-input bg-background px-3 py-1.5 text-sm font-medium hover:bg-accent hover:text-accent-foreground cursor-pointer"

@@ -16,7 +16,6 @@ import (
 	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/middleware/authz"
 	corpusLLM "github.com/bornholm/corpus/internal/llm"
-	"github.com/bornholm/genai/llm"
 	"github.com/bornholm/go-x/slogx"
 
 	"github.com/pkg/errors"
@@ -76,7 +75,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.documentManager.AskWithRetrieval(ctx, vmodel.Query, collections)
 	if err != nil {
-		if errors.Is(err, llm.ErrRateLimit) {
+		if corpusLLM.IsRateLimit(err) {
 			common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
 			return
 		}
@@ -86,6 +85,14 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vmodel.Results = result.Results
+
+	if result.Grounding != nil {
+		vmodel.Grounding = &commonComp.GroundingVModel{
+			Status:      string(result.Grounding.Status),
+			Score:       result.Grounding.Score,
+			Explanation: result.Grounding.Explanation,
+		}
+	}
 
 	if len(result.Results) > 0 {
 		vmodel.Response = result.Answer

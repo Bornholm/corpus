@@ -1,0 +1,52 @@
+package component
+
+import (
+	"github.com/bornholm/corpus/internal/http/handler/webui/templui/component/icon"
+	"math"
+	"strconv"
+)
+
+// GroundingVModel carries the grounding (γ) verdict computed during Ask so the
+// UI can surface a reliability score alongside a generated answer.
+type GroundingVModel struct {
+	Status      string
+	Score       float64
+	Explanation string
+}
+
+// GroundingBadge renders a reliability indicator for a generated answer based on
+// the grounding verdict. It is a no-op when vmodel is nil (no grounding checker
+// configured or no verdict available).
+templ GroundingBadge(vmodel *GroundingVModel) {
+	if vmodel != nil {
+		{{ percent := strconv.Itoa(int(math.Round(vmodel.Score*100))) }}
+		{{ label, classes, groundingIcon := groundingBadgeStyle(vmodel.Status) }}
+		<span
+			class={ "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium border " + classes }
+			title={ vmodel.Explanation }
+		>
+			@groundingIcon(icon.Props{Class: "h-3.5 w-3.5"})
+			<span>{ label }</span>
+			<span class="opacity-80">{ percent }%</span>
+		</span>
+	}
+}
+
+// groundingBadgeStyle maps a grounding status to a user-facing label, Tailwind
+// color classes and an icon.
+func groundingBadgeStyle(status string) (string, string, func(...icon.Props) templ.Component) {
+	switch status {
+	case "valid":
+		return "Fiabilité élevée",
+			"bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-900",
+			icon.ShieldCheck
+	case "partial":
+		return "Fiabilité partielle",
+			"bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-900",
+			icon.Shield
+	default:
+		return "Fiabilité faible",
+			"bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-900",
+			icon.TriangleAlert
+	}
+}

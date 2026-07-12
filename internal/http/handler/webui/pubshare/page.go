@@ -10,10 +10,10 @@ import (
 	"github.com/a-h/templ"
 	"github.com/bornholm/corpus/pkg/model"
 	"github.com/bornholm/corpus/internal/http/handler/webui/common"
+	commonComp "github.com/bornholm/corpus/internal/http/handler/webui/common/component"
 	"github.com/bornholm/corpus/internal/http/handler/webui/pubshare/component"
 	corpusLLM "github.com/bornholm/corpus/internal/llm"
 	"github.com/bornholm/corpus/internal/metrics"
-	"github.com/bornholm/genai/llm"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -75,7 +75,7 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		defer incrementFailures()
 
-		if errors.Is(err, llm.ErrRateLimit) {
+		if corpusLLM.IsRateLimit(err) {
 			common.HandleError(w, r, common.NewError(err.Error(), "Service surchargé. Veuillez réessayer ultérieurement.", http.StatusServiceUnavailable))
 			return
 		}
@@ -85,6 +85,14 @@ func (h *Handler) handleAsk(w http.ResponseWriter, r *http.Request) {
 	}
 
 	vmodel.Results = result.Results
+
+	if result.Grounding != nil {
+		vmodel.Grounding = &commonComp.GroundingVModel{
+			Status:      string(result.Grounding.Status),
+			Score:       result.Grounding.Score,
+			Explanation: result.Grounding.Explanation,
+		}
+	}
 
 	if len(result.Results) > 0 {
 		vmodel.Response = result.Answer
